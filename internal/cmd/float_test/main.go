@@ -9,11 +9,25 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"sync/atomic"
+	"time"
 
 	"github.com/shogo82148/floats"
 )
 
+var count atomic.Int64
+
+func showProgress() {
+	start := time.Now()
+	for {
+		time.Sleep(3 * time.Second)
+		log.Printf("%s: %d", time.Since(start), count.Load())
+	}
+}
+
 func main() {
+	go showProgress()
+
 	switch os.Args[1] {
 	case "f32_to_f64":
 		if err := f32_to_f64(); err != nil {
@@ -48,6 +62,7 @@ func f32_to_f64() error {
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f32(%x).Float64() = %x, want %x", s32, got, f64)
 		}
+		count.Add(1)
 	}
 	return nil
 }
