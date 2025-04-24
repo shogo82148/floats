@@ -10,3 +10,8 @@ const (
 
 // Float32 is a 32-bit floating-point number.
 type Float32 float32
+
+// IsNaN reports whether a is an IEEE 754 “not-a-number” value.
+func (a Float32) IsNaN() bool {
+	return a != a
+}
