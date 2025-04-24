@@ -113,6 +113,70 @@ func BenchmarkFloat16_Float128(b *testing.B) {
 	}
 }
 
+func TestFloat16_Float256(t *testing.T) {
+	tests := []struct {
+		in   Float16
+		want Float256
+	}{
+		// from https://en.wikipedia.org/wiki/Half-precision_floating-point_format
+		// and https://en.wikipedia.org/wiki/Octuple-precision_floating-point_format
+		{
+			// +0
+			0x0000,
+			Float256{0, 0, 0, 0},
+		},
+		{
+			// -0
+			0x8000,
+			Float256{0x8000_0000_0000_0000, 0, 0, 0},
+		},
+		{
+			// infinity
+			0x7c00,
+			Float256{
+				0x7fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// -infinity
+			0xfc00,
+			Float256{
+				0xffff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// 1
+			0x3c00,
+			Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		// we use cmp.Compare because NaN != NaN
+		// and we want to check if they are equal.
+		if got := tt.in.Float256(); got != tt.want {
+			t.Errorf("Float16(%x).Float64() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Float256(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Float256())
+	}
+}
 func TestFloat32_Float32(t *testing.T) {
 	tests := []struct {
 		in   Float32
