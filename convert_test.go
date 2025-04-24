@@ -101,7 +101,7 @@ func TestFloat16_Float128(t *testing.T) {
 		// we use cmp.Compare because NaN != NaN
 		// and we want to check if they are equal.
 		if got := tt.in.Float128(); got != tt.want {
-			t.Errorf("Float16(%x).Float64() = %x, want %x", tt.in, got, tt.want)
+			t.Errorf("Float16(%x).Float128() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
 }
