@@ -37,6 +37,10 @@ func main() {
 		if err := f16_to_f64(); err != nil {
 			log.Fatal(err)
 		}
+	case "f16_to_f128":
+		if err := f16_to_f128(); err != nil {
+			log.Fatal(err)
+		}
 	case "f32_to_f64":
 		if err := f32_to_f64(); err != nil {
 			log.Fatal(err)
@@ -104,6 +108,37 @@ func f16_to_f64() error {
 			log.Printf("f16: %s, f64: %s", s16, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f16(%x).Float64() = %x, want %x", f16, got, f64)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_to_f128() error {
+	for {
+		var s16, s128, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s16, &s128, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16, err := parseFloat16(s16)
+		if err != nil {
+			return err
+		}
+
+		f128, err := parseFloat128(s128)
+		if err != nil {
+			return err
+		}
+
+		got := f16.Float128()
+		if got != f128 {
+			log.Printf("f16: %s, f64: %s", s16, s128)
+			log.Printf("got: %x, want: %x", got, f128)
+			return fmt.Errorf("f16(%x).Float128() = %x, want %x", f16, got, f128)
 		}
 		count.Add(1)
 	}
@@ -194,4 +229,16 @@ func parseFloat64(s string) (floats.Float64, error) {
 		return 0, err
 	}
 	return floats.Float64(math.Float64frombits(bits)), nil
+}
+
+func parseFloat128(s string) (floats.Float128, error) {
+	a0, err := strconv.ParseUint(s[:16], 16, 64)
+	if err != nil {
+		return floats.Float128{}, err
+	}
+	a1, err := strconv.ParseUint(s[16:], 16, 64)
+	if err != nil {
+		return floats.Float128{}, err
+	}
+	return floats.Float128{a0, a1}, nil
 }
