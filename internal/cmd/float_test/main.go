@@ -33,6 +33,10 @@ func main() {
 		if err := f16_to_f32(); err != nil {
 			log.Fatal(err)
 		}
+	case "f16_to_f64":
+		if err := f16_to_f64(); err != nil {
+			log.Fatal(err)
+		}
 	case "f32_to_f64":
 		if err := f32_to_f64(); err != nil {
 			log.Fatal(err)
@@ -69,6 +73,37 @@ func f16_to_f32() error {
 			log.Printf("f16: %s, f32: %s", s16, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f16(%x).Float32() = %x, want %x", f16, got, f32)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_to_f64() error {
+	for {
+		var s16, s64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s16, &s64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16, err := parseFloat16(s16)
+		if err != nil {
+			return err
+		}
+
+		f64, err := parseFloat64(s64)
+		if err != nil {
+			return err
+		}
+
+		got := f16.Float64()
+		if cmp.Compare(got, f64) != 0 {
+			log.Printf("f16: %s, f64: %s", s16, s64)
+			log.Printf("got: %x, want: %x", got, f64)
+			return fmt.Errorf("f16(%x).Float64() = %x, want %x", f16, got, f64)
 		}
 		count.Add(1)
 	}

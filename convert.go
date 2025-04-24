@@ -40,7 +40,30 @@ func (a Float16) Float32() Float32 {
 
 // Float64 converts a to a Float64.
 func (a Float16) Float64() Float64 {
-	return 0 // TODO: implement
+	sign := uint64(a&signMask16) << (64 - 16)
+	exp := uint64(a>>shift16) & mask16
+	frac := uint64(a & fracMask16)
+
+	if exp == 0 {
+		// a is subnormal number
+		if frac == 0 {
+			// a is zero
+			return Float64(math.Float64frombits(sign))
+		} else {
+			l := bits.Len64(frac)
+			frac = (frac << (shift16 - l + 1)) & fracMask16
+			exp = bias64 - (bias16 + shift16) + uint64(l)
+		}
+	} else if exp == mask16 {
+		// a is infinity or NaN
+		exp = mask64
+	} else {
+		// a is normal number
+		exp += bias64 - bias16
+	}
+	exp <<= shift64
+	frac <<= shift64 - shift16
+	return Float64(math.Float64frombits(sign | exp | frac))
 }
 
 // Float128 converts a to a Float128.
