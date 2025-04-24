@@ -1,6 +1,10 @@
 package floats
 
 const (
+	uvnan16    = 0x7e00     // NaN value for Float16
+	uvinf16    = 0x7c00     // Infinity value for Float16
+	uvneginf16 = 0xfc00     // Negative Infinity value for Float16
+	uvone16    = 0x3c00     // One value for Float16
 	mask16     = 0x1f       // mask for exponent
 	shift16    = 16 - 5 - 1 // shift for exponent
 	bias16     = 15         // bias for exponent
