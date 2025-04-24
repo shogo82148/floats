@@ -101,9 +101,9 @@ func f16_to_f64() error {
 
 		got := f16.Float64()
 		if cmp.Compare(got, f64) != 0 {
-			log.Printf("f16: %s, f32: %s", s16, s64)
+			log.Printf("f16: %s, f64: %s", s16, s64)
 			log.Printf("got: %x, want: %x", got, f64)
-			return fmt.Errorf("f16(%x).Float32() = %x, want %x", f16, got, f64)
+			return fmt.Errorf("f16(%x).Float64() = %x, want %x", f16, got, f64)
 		}
 		count.Add(1)
 	}
