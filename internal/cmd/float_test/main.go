@@ -135,7 +135,7 @@ func f16_to_f128() error {
 		}
 
 		got := f16.Float128()
-		if got != f128 {
+		if !eq128(got, f128) {
 			log.Printf("f16: %s, f64: %s", s16, s128)
 			log.Printf("got: %x, want: %x", got, f128)
 			return fmt.Errorf("f16(%x).Float128() = %x, want %x", f16, got, f128)
@@ -241,4 +241,14 @@ func parseFloat128(s string) (floats.Float128, error) {
 		return floats.Float128{}, err
 	}
 	return floats.Float128{a0, a1}, nil
+}
+
+// eq128 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq128(a, b floats.Float128) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return a[0] == b[0] && a[1] == b[1]
 }
