@@ -96,7 +96,31 @@ func (a Float16) Float128() Float128 {
 
 // Float256 converts a to a Float256.
 func (a Float16) Float256() Float256 {
-	return Float256{0, 0, 0, 0} // TODO: implement
+	sign := uint64(a&signMask16) << (64 - 16)
+	exp := uint64(a>>shift16) & mask16
+	frac := uint64(a & fracMask16)
+
+	if exp == 0 {
+		// a is subnormal number
+		if frac == 0 {
+			// a is zero
+			return Float256{sign, 0, 0, 0}
+		} else {
+			l := bits.Len64(frac)
+			frac = (frac << (shift16 - l + 1)) & fracMask16
+			exp = bias256 - (bias16 + shift16) + uint64(l)
+		}
+	} else if exp == mask16 {
+		// a is infinity or NaN
+		exp = mask256
+	} else {
+		// a is normal number
+		exp += bias256 - bias16
+	}
+
+	exp <<= shift256 - 192
+	frac <<= shift256 - 192 - shift16
+	return Float256{sign | exp | frac, 0, 0, 0}
 }
 
 // Float16 converts a to a Float16.
