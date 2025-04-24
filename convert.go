@@ -147,13 +147,13 @@ func (a Float32) Float16() Float16 {
 		roundBit := -exp + shift32 - (bias16 + shift16 - 1)
 		frac := (b & fracMask32) | (1 << shift32)
 		halfMinusULP := uint32(1<<(roundBit-1) - 1)
-		frac += halfMinusULP + ((frac >> uint32(roundBit)) & 1) // round to nearest even
+		frac += halfMinusULP + ((frac >> uint(roundBit)) & 1) // round to nearest even
 		return Float16(sign | uint16(frac>>roundBit))
 	}
 
 	// the result is normal number
 	const halfMinuxULP = 1<<(shift32-shift16-1) - 1
-	b += halfMinuxULP + ((b >> uint32(shift32-shift16)) & 1) // round to nearest even
+	b += halfMinuxULP + ((b >> uint(shift32-shift16)) & 1) // round to nearest even
 
 	exp16 := uint16((b>>shift32)&mask32) - bias32 + bias16
 	if exp16 >= mask16 {
