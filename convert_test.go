@@ -1094,3 +1094,182 @@ func BenchmarkFloat128_Float64(b *testing.B) {
 		runtime.KeepAlive(f.Float64())
 	}
 }
+
+func TestFloat128_Float256(t *testing.T) {
+	tests := []struct {
+		in   Float128
+		want Float256
+	}{
+		// from https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format
+		{
+			in: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0
+			want: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0
+			want: Float256{
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1
+			want: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// smallest positive subnormal number
+			in: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			want: Float256{
+				0x3bf9_1000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// largest subnormal number
+			in: Float128{0x0000_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff},
+			want: Float256{
+				0x3c00_0fff_ffff_ffff,
+				0xffff_ffff_ffff_ffff,
+				0xe000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// smallest positive normal number
+			in: Float128{0x0001_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0x3c00_1000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// largest normal number
+			in: Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff},
+			want: Float256{
+				0x43ff_efff_ffff_ffff,
+				0xffff_ffff_ffff_ffff,
+				0xf000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// largest number less than one
+			in: Float128{0x3ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff},
+			want: Float256{
+				0x3fff_efff_ffff_ffff,
+				0xffff_ffff_ffff_ffff,
+				0xf000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// smallest number larger than one
+			in: Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001},
+			want: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x1000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// 2
+			in: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0x4000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// -2
+			in: Float128{0xc000_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0xc000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// infinity
+			in: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0x7fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// -infinity
+			in: Float128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0xffff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// NaN
+			in: Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float256{
+				0x7fff_f800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// closest approximation to π
+			in: Float128{0x4000_921f_b544_42d1, 0x8469_898c_c517_01b8},
+			want: Float256{
+				0x4000_0921_fb54_442d,
+				0x1846_9898_cc51_701b,
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// closest approximation to 1/3
+			in: Float128{0x3ffd_5555_5555_5555, 0x5555_5555_5555_5555},
+			want: Float256{
+				0x3fff_d555_5555_5555,
+				0x5555_5555_5555_5555,
+				0x5000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float256(); !eq256(got, tt.want) {
+			t.Errorf("Float128(%x).Float256() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Float256(b *testing.B) {
+	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Float256())
+	}
+}

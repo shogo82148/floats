@@ -508,7 +508,41 @@ func (a Float128) Float128() Float128 {
 
 // Float256 converts a to a Float256.
 func (a Float128) Float256() Float256 {
-	return Float256{0, 0, 0, 0} // TODO: implement
+	b := ints.Uint128(a)
+	sign := b[0] & signMask128[0]
+	exp := int((b[0] >> (shift128 - 64)) & mask128)
+	frac := b.And(fracMask128)
+
+	if exp == mask128 {
+		// a is ±infinity or NaN
+		frac256 := frac.Uint256().Lsh(shift256 - shift128)
+		return Float256{
+			sign | mask256<<(shift256-192) | frac256[0],
+			frac256[1],
+			frac256[2],
+			frac256[3],
+		}
+	} else if exp == 0 {
+		// a is subnormal
+		if frac.IsZero() {
+			// a is zero
+			return Float256{sign, 0, 0, 0}
+		}
+
+		// normalize a
+		l := frac.BitLen()
+		exp = l - shift128
+		frac = frac.Lsh(shift128 - uint(l) + 1).And(fracMask128)
+	}
+
+	exp += bias256 - bias128
+	frac256 := frac.Uint256().Lsh(shift256 - shift128)
+	return Float256{
+		sign | uint64(exp)<<(shift256-192) | frac256[0],
+		frac256[1],
+		frac256[2],
+		frac256[3],
+	}
 }
 
 // Float16 converts a to a Float16.
