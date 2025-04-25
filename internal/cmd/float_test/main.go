@@ -77,6 +77,10 @@ func main() {
 		if err := f128_to_f32(); err != nil {
 			log.Fatal(err)
 		}
+	case "f128_to_f64":
+		if err := f128_to_f64(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
 	}
@@ -418,6 +422,37 @@ func f128_to_f32() error {
 			log.Printf("f128: %s, f32: %s", s128, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f128(%x).Float32() = %x, want %x", f128, got, f32)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_to_f64() error {
+	for {
+		var s128, s64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s128, &s64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f128, err := parseFloat128(s128)
+		if err != nil {
+			return err
+		}
+
+		f64, err := parseFloat64(s64)
+		if err != nil {
+			return err
+		}
+
+		got := f128.Float64()
+		if !eq64(got, f64) {
+			log.Printf("f128: %s, f64: %s", s128, s64)
+			log.Printf("got: %x, want: %x", got, f64)
+			return fmt.Errorf("f128(%x).Float64() = %x, want %x", f128, got, f64)
 		}
 		count.Add(1)
 	}
