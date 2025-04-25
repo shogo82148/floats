@@ -60,6 +60,10 @@ func main() {
 		if err := f64_to_f32(); err != nil {
 			log.Fatal(err)
 		}
+	case "f64_to_f128":
+		if err := f64_to_f128(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -305,6 +309,37 @@ func f64_to_f32() error {
 			log.Printf("f64: %s, f32: %s", s64, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f64(%x).Float32() = %x, want %x", f64, got, f32)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f64_to_f128() error {
+	for {
+		var s64, s128, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s64, &s128, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f64, err := parseFloat64(s64)
+		if err != nil {
+			return err
+		}
+
+		f128, err := parseFloat128(s128)
+		if err != nil {
+			return err
+		}
+
+		got := f64.Float128()
+		if !eq128(got, f128) {
+			log.Printf("f64: %s, f128: %s", s64, s128)
+			log.Printf("got: %x, want: %x", got, f128)
+			return fmt.Errorf("f64(%x).Float128() = %x, want %x", f64, got, f128)
 		}
 		count.Add(1)
 	}

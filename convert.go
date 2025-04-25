@@ -296,7 +296,35 @@ func (a Float64) Float64() Float64 {
 
 // Float128 converts a to a Float128.
 func (a Float64) Float128() Float128 {
-	return Float128{0, 0} // TODO: implement
+	b := math.Float64bits(float64(a))
+	sign := uint64(b & signMask64)
+	exp := int((b >> shift64) & mask64)
+	frac := uint64(b & fracMask64)
+
+	if exp == mask64 {
+		// a is ±infinity or NaN
+		return Float128{
+			sign | mask128<<(shift128-64) | frac>>(64-shift128+shift64),
+			frac << (shift128 - shift64),
+		}
+	} else if exp == 0 {
+		// a is subnormal
+		if frac == 0 {
+			// a is zero
+			return Float128{sign, 0}
+		}
+
+		// normalize a
+		l := bits.Len64(frac)
+		exp = l - shift64
+		frac = (frac << (shift64 - l + 1)) & fracMask64
+	}
+
+	exp += bias128 - bias64
+	return Float128{
+		sign | uint64(exp)<<(shift128-64) | frac>>(64-shift128+shift64),
+		frac << (shift128 - shift64),
+	}
 }
 
 // Float256 converts a to a Float256.
