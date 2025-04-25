@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -81,7 +80,7 @@ func f16_to_f32() error {
 		}
 
 		got := f16.Float32()
-		if cmp.Compare(got, f32) != 0 {
+		if !eq32(got, f32) {
 			log.Printf("f16: %s, f32: %s", s16, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f16(%x).Float32() = %x, want %x", f16, got, f32)
@@ -112,7 +111,7 @@ func f16_to_f64() error {
 		}
 
 		got := f16.Float64()
-		if cmp.Compare(got, f64) != 0 {
+		if !eq64(got, f64) {
 			log.Printf("f16: %s, f64: %s", s16, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f16(%x).Float64() = %x, want %x", f16, got, f64)
@@ -205,7 +204,7 @@ func f32_to_f64() error {
 		}
 
 		got := f32.Float64()
-		if cmp.Compare(got, f64) != 0 {
+		if !eq64(got, f64) {
 			log.Printf("f32: %s, f64: %s", s32, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f32(%x).Float64() = %x, want %x", f32, got, f64)
@@ -267,7 +266,7 @@ func f64_to_f32() error {
 		}
 
 		got := f64.Float32()
-		if cmp.Compare(got, f32) != 0 {
+		if !eq32(got, f32) {
 			log.Printf("f64: %s, f32: %s", s64, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f64(%x).Float32() = %x, want %x", f64, got, f32)
@@ -321,6 +320,26 @@ func eq16(a, b floats.Float16) bool {
 		return true
 	}
 	return a == b
+}
+
+// eq32 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq32(a, b floats.Float32) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return math.Float32bits(float32(a)) == math.Float32bits(float32(b))
+}
+
+// eq64 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq64(a, b floats.Float64) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return math.Float64bits(float64(a)) == math.Float64bits(float64(b))
 }
 
 // eq128 reports whether a and b are equal.
