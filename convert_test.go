@@ -845,3 +845,88 @@ func BenchmarkFloat64_Float256(b *testing.B) {
 		runtime.KeepAlive(f.Float256())
 	}
 }
+
+func TestFloat128_Float16(t *testing.T) {
+	tests := []struct {
+		in   Float128
+		want Float16
+	}{
+		{
+			in:   Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0
+			want: 0x0000,
+		},
+		{
+			in:   Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0
+			want: 0x8000,
+		},
+		{
+			in:   Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1
+			want: 0x3c00,
+		},
+		{
+			in:   Float128{0xc000_0000_0000_0000, 0x0000_0000_0000_0000}, // -2
+			want: 0xc000,
+		},
+		{
+			in:   Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // infinity
+			want: 0x7c00,
+		},
+		{
+			in:   Float128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000}, // -infinity
+			want: 0xfc00,
+		},
+		{
+			in:   Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			want: 0x7e00,
+		},
+		{
+			in:   Float128{0x3fe7_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p-24
+			want: 0x0001,
+		},
+
+		// test rounding to even
+		{
+			in:   Float128{0x3fff_0020_0000_0000, 0x0000_0000_0000_0000}, // 0x1.002p+00
+			want: 0x3c00,                                                 // 0x1p+00
+		},
+		{
+			in:   Float128{0x3fff_0020_0000_0000, 0x0000_0000_0000_0001}, // 0x1.0020000000000000000000000001p+00
+			want: 0x3c01,                                                 // 0x1.004p+00
+		},
+		{
+			in:   Float128{0x3fff_005f_ffff_ffff, 0xffff_ffff_ffff_ffff}, // 0x1.005fffffffffffffffffffffffffp+00
+			want: 0x3c01,                                                 // 0x1.004p+00
+		},
+		{
+			in:   Float128{0x3fff_0060_0000_0000, 0x0000_0000_0000_0000}, // 0x1.006p+00
+			want: 0x3c02,                                                 // 0x1.008p+00
+		},
+		{
+			in:   Float128{0x3fe7_7fff_ffff_ffff, 0xffff_ffff_ffff_ffff}, // 0x1.7fffffffffffffffffffffffffffp-24
+			want: 0x0001,                                                 // 0x1p-24
+		},
+		{
+			in:   Float128{0x3fe7_8000_0000_0000, 0x0000_0000_0000_0000}, // 0x1.8p-24
+			want: 0x0002,                                                 // 0x1p-23
+		},
+
+		// overflow
+		{
+			in:   Float128{0x43fe_7fd1_da78_7c72, 0xdb6b_d758_0349_b96f},
+			want: 0x7c00,
+		},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float16(); !eq16(got, tt.want) {
+			t.Errorf("Float128(%x).Float16() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Float16(b *testing.B) {
+	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Float16())
+	}
+}

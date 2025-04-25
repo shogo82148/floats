@@ -3,6 +3,8 @@ package floats
 import (
 	"math"
 	"math/bits"
+
+	"github.com/shogo82148/ints"
 )
 
 // Float16 returns a itself.
@@ -148,7 +150,7 @@ func (a Float32) Float16() Float16 {
 		frac := (b & fracMask32) | (1 << shift32)
 		halfMinusULP := uint32(1<<(roundBit-1) - 1)
 		frac += halfMinusULP + ((frac >> uint(roundBit)) & 1) // round to nearest even
-		return Float16(sign | uint16(frac>>roundBit))
+		return Float16(sign | uint16(frac>>uint(roundBit)))
 	}
 
 	// the result is normal number
@@ -366,7 +368,47 @@ func (a Float64) Float256() Float256 {
 
 // Float16 converts a to a Float16.
 func (a Float128) Float16() Float16 {
-	return Float16(0) // TODO: implement
+	sign := uint16((a[0] & signMask128[0]) >> (64 - 16))
+	exp := int((a[0] >> (shift128 - 64)) & mask128)
+
+	if exp == mask128 {
+		// a is ±infinity or NaN
+		frac := ints.Uint128(a).And(fracMask128)
+		if frac.IsZero() {
+			// a is ±infinity
+			return Float16(sign | mask16<<shift16)
+		} else {
+			// a is NaN
+			return Float16(sign | uvnan16)
+		}
+	}
+
+	exp -= bias128
+	if exp <= -bias16 {
+		// the result is subnormal number
+		frac := ints.Uint128(a).And(fracMask128)
+		frac[0] |= (1 << (shift128 - 64))
+		// round to nearest even
+		roundBit := -exp + shift128 - (bias16 + shift16 - 1) - 64
+		halfMinusULP := uint64(1<<(roundBit-1) - 1)
+		frac[0] |= squash64(frac[1])
+		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
+		return Float16(sign | uint16(frac[0]>>roundBit))
+	}
+
+	// the result is normal number
+	// round to nearest even
+	const halfMinusULP = 1<<(shift128-shift16-64-1) - 1
+	a[0] |= squash64(a[1])
+	a[0] += halfMinusULP + ((a[0] >> uint(shift128-shift16-64)) & 1)
+
+	exp16 := uint16((a[0]>>(shift128-64))&mask128) - bias128 + bias16
+	if exp16 >= mask16 {
+		// overflow
+		return Float16(sign | mask16<<shift16)
+	}
+	frac16 := uint16(a[0]>>(shift128-shift16-64)) & fracMask16
+	return Float16(sign | (exp16 << shift16) | frac16)
 }
 
 // Float32 converts a to a Float32.
