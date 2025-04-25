@@ -32,3 +32,8 @@ jobs:
           flags: ${{ matrix.go }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: run TestFloat
+        run: |
+          ./scripts/build_test_float.sh
+          ./scripts/run_test.sh
