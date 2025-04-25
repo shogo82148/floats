@@ -41,6 +41,10 @@ func main() {
 		if err := f16_to_f128(); err != nil {
 			log.Fatal(err)
 		}
+	case "f32_to_f16":
+		if err := f32_to_f16(); err != nil {
+			log.Fatal(err)
+		}
 	case "f32_to_f64":
 		if err := f32_to_f64(); err != nil {
 			log.Fatal(err)
@@ -145,6 +149,37 @@ func f16_to_f128() error {
 	return nil
 }
 
+func f32_to_f16() error {
+	for {
+		var s32, s16, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s32, &s16, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f32, err := parseFloat32(s32)
+		if err != nil {
+			return err
+		}
+
+		f16, err := parseFloat16(s16)
+		if err != nil {
+			return err
+		}
+
+		got := f32.Float16()
+		if !eq16(got, f16) {
+			log.Printf("f32: %s, f16: %s", s32, s16)
+			log.Printf("got: %x, want: %x", got, f16)
+			return fmt.Errorf("f32(%x).Float16() = %x, want %x", f32, got, f16)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
 func f32_to_f64() error {
 	for {
 		var s32, s64, flag string
@@ -241,6 +276,16 @@ func parseFloat128(s string) (floats.Float128, error) {
 		return floats.Float128{}, err
 	}
 	return floats.Float128{a0, a1}, nil
+}
+
+// eq16 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq16(a, b floats.Float16) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return a == b
 }
 
 // eq128 reports whether a and b are equal.

@@ -177,6 +177,49 @@ func BenchmarkFloat16_Float256(b *testing.B) {
 		runtime.KeepAlive(f.Float256())
 	}
 }
+
+func TestFloat32_Float16(t *testing.T) {
+	tests := []struct {
+		in   Float32
+		want Float16
+	}{
+		// from https://en.wikipedia.org/wiki/Half-precision_floating-point_format
+		{0, 0x0000},
+		{Float32(math.Copysign(0, -1)), 0x8000}, // -0
+		{0x1p-24, 0x0001},                       // smallest positive subnormal number
+		{0x1.ff8p-15, 0x03ff},                   // largest positive subnormal number
+		{0x1p-14, 0x0400},                       // smallest positive normal number
+		{0x1.554p-02, 0x3555},                   // nearest value to 1/3
+		{0x1.ffcp-01, 0x3bff},                   // largest number less than one
+		{0x1p+00, 0x3c00},                       // one
+		{0x1.004p+00, 0x3c01},                   // smallest number larger than one
+		{0x1.ffcp+15, 0x7bff},                   // largest normal number
+		{Float32(math.Inf(1)), 0x7c00},          // infinity
+		{-2, 0xc000},
+		{Float32(math.Inf(-1)), 0xfc00}, // negative infinity
+		{Float32(math.NaN()), 0x7e00},   // NaN
+
+		// underflow
+		{0x1p-25, 0x0000},
+
+		// overflow
+		{0x1.ffep+15, 0x7c00},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float16(); got != tt.want {
+			t.Errorf("Float16(%x).Float64() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Float16(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Float16())
+	}
+}
+
 func TestFloat32_Float32(t *testing.T) {
 	tests := []struct {
 		in   Float32
