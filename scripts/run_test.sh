@@ -22,3 +22,4 @@ cd "$ROOT"
 
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f128_to_f16 | go run ./internal/cmd/float_test f128_to_f16
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f128_to_f32 | go run ./internal/cmd/float_test f128_to_f32
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f128_to_f64 | go run ./internal/cmd/float_test f128_to_f64

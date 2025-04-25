@@ -1,10 +1,14 @@
 package floats
 
 const (
-	mask64     = 0x7ff       // mask for exponent
-	shift64    = 64 - 11 - 1 // shift for exponent
-	bias64     = 1023        // bias for exponent
-	signMask64 = 1 << 63     // mask for sign bit
+	uvnan64    = 0x7ff8000000000000 // NaN value for Float64
+	uvinf64    = 0x7ff0000000000000 // Infinity value for Float64
+	uvneginf64 = 0xfff0000000000000 // Negative Infinity value for Float64
+	uvone64    = 0x3ff0000000000000 // One value for Float64
+	mask64     = 0x7ff              // mask for exponent
+	shift64    = 64 - 11 - 1        // shift for exponent
+	bias64     = 1023               // bias for exponent
+	signMask64 = 1 << 63            // mask for sign bit
 	fracMask64 = 1<<shift64 - 1
 )
 
