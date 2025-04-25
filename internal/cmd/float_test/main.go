@@ -49,6 +49,10 @@ func main() {
 		if err := f32_to_f64(); err != nil {
 			log.Fatal(err)
 		}
+	case "f32_to_f128":
+		if err := f32_to_f128(); err != nil {
+			log.Fatal(err)
+		}
 	case "f64_to_f32":
 		if err := f64_to_f32(); err != nil {
 			log.Fatal(err)
@@ -205,6 +209,37 @@ func f32_to_f64() error {
 			log.Printf("f32: %s, f64: %s", s32, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f32(%x).Float64() = %x, want %x", f32, got, f64)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_to_f128() error {
+	for {
+		var s32, s128, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s32, &s128, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f32, err := parseFloat32(s32)
+		if err != nil {
+			return err
+		}
+
+		f128, err := parseFloat128(s128)
+		if err != nil {
+			return err
+		}
+
+		got := f32.Float128()
+		if !eq128(got, f128) {
+			log.Printf("f32: %s, f128: %s", s32, s128)
+			log.Printf("got: %x, want: %x", got, f128)
+			return fmt.Errorf("f32(%x).Float128() = %x, want %x", f32, got, f128)
 		}
 		count.Add(1)
 	}
