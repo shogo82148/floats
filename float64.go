@@ -10,3 +10,8 @@ const (
 
 // Float64 is a 64-bit floating-point number.
 type Float64 float64
+
+// IsNaN reports whether a is an IEEE 754 “not-a-number” value.
+func (a Float64) IsNaN() bool {
+	return a != a
+}
