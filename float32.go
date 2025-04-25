@@ -1,6 +1,10 @@
 package floats
 
 const (
+	uvnan32    = 0x7fc00000 // NaN value for Float32
+	uvinf32    = 0x7f800000 // Infinity value for Float32
+	uvneginf32 = 0xff800000 // Negative Infinity value for Float32
+	uvone32    = 0x3f800000 // One value for Float32
 	mask32     = 0xff       // mask for exponent
 	shift32    = 32 - 8 - 1 // shift for exponent
 	bias32     = 127        // bias for exponent
