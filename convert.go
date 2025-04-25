@@ -185,7 +185,7 @@ func (a Float32) Float128() Float128 {
 		// a is ±infinity or NaN
 		return Float128{sign | mask128<<(shift128-64) | frac<<(shift128-shift32-64), 0}
 	} else if exp == 0 {
-		// f is subnormal
+		// a is subnormal
 		if frac == 0 {
 			// a is zero
 			return Float128{sign, 0}
@@ -207,7 +207,40 @@ func (a Float32) Float128() Float128 {
 
 // Float256 converts a to a Float256.
 func (a Float32) Float256() Float256 {
-	return Float256{0, 0, 0, 0} // TODO: implement
+	b := math.Float32bits(float32(a))
+	sign := uint64(b&signMask32) << (64 - 32)
+	exp := int((b >> shift32) & mask32)
+	frac := uint64(b & fracMask32)
+
+	if exp == mask32 {
+		// a is ±infinity or NaN
+		return Float256{
+			sign | mask256<<(shift256-192) | frac<<(shift256-shift32-192),
+			0,
+			0,
+			0,
+		}
+	} else if exp == 0 {
+		// a is subnormal
+		if frac == 0 {
+			// a is zero
+			return Float256{sign, 0, 0, 0}
+		}
+
+		// normalize a
+		l := bits.Len64(frac)
+		exp = l - shift32
+		frac = (frac << (shift32 - l + 1)) & fracMask32
+	}
+
+	exp += bias256 - bias32
+	frac <<= shift256 - shift32 - 192
+	return Float256{
+		sign | uint64(exp)<<(shift256-192) | frac,
+		0,
+		0,
+		0,
+	}
 }
 
 // Float16 converts a to a Float16.
