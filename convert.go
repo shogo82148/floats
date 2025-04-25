@@ -413,7 +413,47 @@ func (a Float128) Float16() Float16 {
 
 // Float32 converts a to a Float32.
 func (a Float128) Float32() Float32 {
-	return Float32(0) // TODO: implement
+	sign := uint32((a[0] & signMask128[0]) >> (64 - 32))
+	exp := int((a[0] >> (shift128 - 64)) & mask128)
+
+	if exp == mask128 {
+		// a is ±infinity or NaN
+		frac := ints.Uint128(a).And(fracMask128)
+		if frac.IsZero() {
+			// a is ±infinity
+			return Float32(math.Float32frombits(sign | mask32<<shift32))
+		} else {
+			// a is NaN
+			return Float32(math.Float32frombits(sign | uvnan32))
+		}
+	}
+
+	exp -= bias128
+	if exp <= -bias32 {
+		// the result is subnormal number
+		frac := ints.Uint128(a).And(fracMask128)
+		frac[0] |= (1 << (shift128 - 64))
+		// round to nearest even
+		roundBit := -exp + shift128 - (bias32 + shift32 - 1) - 64
+		halfMinusULP := uint64(1<<(roundBit-1) - 1)
+		frac[0] |= squash64(frac[1])
+		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
+		return Float32(math.Float32frombits(sign | uint32(frac[0]>>uint(roundBit))))
+	}
+
+	// the result is normal number
+	// round to nearest even
+	const halfMinusULP = 1<<(shift128-shift32-64-1) - 1
+	a[0] |= squash64(a[1])
+	a[0] += halfMinusULP + ((a[0] >> uint(shift128-shift32-64)) & 1)
+
+	exp32 := uint32((a[0]>>(shift128-64))&mask128) - bias128 + bias32
+	if exp32 >= mask32 {
+		// overflow
+		return Float32(math.Float32frombits(sign | mask32<<shift32))
+	}
+	frac32 := uint32(a[0]>>(shift128-shift32-64)) & fracMask32
+	return Float32(math.Float32frombits(sign | (exp32 << shift32) | frac32))
 }
 
 // Float64 converts a to a Float64.
