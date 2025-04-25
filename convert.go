@@ -245,7 +245,43 @@ func (a Float32) Float256() Float256 {
 
 // Float16 converts a to a Float16.
 func (a Float64) Float16() Float16 {
-	return Float16(0) // TODO: implement
+	b := math.Float64bits(float64(a))
+	sign := uint16((b & signMask64) >> (64 - 16))
+	exp := int((b >> shift64) & mask64)
+
+	if exp == mask64 {
+		// a is ±infinity or NaN
+		frac := b & fracMask64
+		if frac == 0 {
+			// a is ±infinity
+			return Float16(sign | mask16<<shift16)
+		} else {
+			// a is NaN
+			return Float16(sign | uvnan16)
+		}
+	}
+
+	exp -= bias64
+	if exp <= -bias16 {
+		// the result is subnormal number
+		roundBit := -exp + shift64 - (bias16 + shift16 - 1)
+		frac := (b & fracMask64) | (1 << shift64)
+		halfMinusULP := uint64(1<<(roundBit-1) - 1)
+		frac += halfMinusULP + ((frac >> uint(roundBit)) & 1) // round to nearest even
+		return Float16(sign | uint16(frac>>roundBit))
+	}
+
+	// the result is normal number
+	const halfMinusULP = 1<<(shift64-shift16-1) - 1
+	b += halfMinusULP + ((b >> uint(shift64-shift16)) & 1) // round to nearest even
+
+	exp16 := uint16((b>>shift64)&mask64) - bias64 + bias16
+	if exp16 >= mask16 {
+		// overflow
+		return Float16(sign | mask16<<shift16)
+	}
+	frac16 := uint16(b>>(shift64-shift16)) & fracMask16
+	return Float16(sign | (exp16 << shift16) | frac16)
 }
 
 // Float32 converts a to a Float32.
