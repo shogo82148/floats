@@ -19,8 +19,8 @@ var count atomic.Int64
 
 func showProgress() {
 	start := time.Now()
-	for {
-		time.Sleep(3 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
+	for range ticker.C {
 		log.Printf("%s: %d", time.Since(start), count.Load())
 	}
 }
