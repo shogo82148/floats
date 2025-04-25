@@ -279,7 +279,7 @@ func BenchmarkFloat32_Float64(b *testing.B) {
 	}
 }
 
-func TestFloat64_Float128(t *testing.T) {
+func TestFloat32_Float128(t *testing.T) {
 	tests := []struct {
 		in   Float32
 		want Float128
@@ -342,8 +342,8 @@ func TestFloat64_Float128(t *testing.T) {
 	}
 }
 
-func BenchmarkFloat64_Float128(b *testing.B) {
-	f := Float64(1.0)
+func BenchmarkFloat32_Float128(b *testing.B) {
+	f := Float32(1.0)
 	for b.Loop() {
 		runtime.KeepAlive(f.Float128())
 	}
