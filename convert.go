@@ -492,7 +492,7 @@ func (a Float128) Float64() Float64 {
 	const halfMinusULP = 1<<(shift128-shift64-1) - 1
 	b = b.Add(ints.Uint128{0, halfMinusULP}).Add(b.Rsh(shift128 - shift64).And(ints.Uint128{0, 1}))
 
-	exp64 := uint64((a[0]>>(shift128-64))&mask128) - bias128 + bias64
+	exp64 := uint64((b[0]>>(shift128-64))&mask128) - bias128 + bias64
 	if exp64 >= mask64 {
 		// overflow
 		return Float64(math.Float64frombits(sign | mask64<<shift64))

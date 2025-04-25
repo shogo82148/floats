@@ -1057,6 +1057,10 @@ func TestFloat128_Float64(t *testing.T) {
 			in:   Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
 			want: Float64(math.NaN()),
 		},
+		{
+			in:   Float128{0x3e52ffffffffffff, 0xf801ffffffffffff},
+			want: 0x1p-428,
+		},
 
 		// test rounding to even
 		{
