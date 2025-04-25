@@ -64,12 +64,22 @@ func main() {
 		if err := f64_to_f128(); err != nil {
 			log.Fatal(err)
 		}
-	case "f128_to_f16":
-		if err := f128_to_f16(); err != nil {
-			log.Fatal(err)
-		}
-	default:
-		log.Fatalf("unknown test name: %q", os.Args[1])
+func main() {
+  go showProgress()
+
+  if len(os.Args) < 2 {
+    log.Fatalf("usage: %s <test-name>", filepath.Base(os.Args[0]))
+  }
+
+  switch os.Args[1] {
+  case "f128_to_f16":
+    if err := f128_to_f16(); err != nil {
+      log.Fatal(err)
+    }
+  default:
+    log.Fatalf("unknown test name: %q", os.Args[1])
+  }
+}
 	}
 
 }
