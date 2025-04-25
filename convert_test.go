@@ -645,3 +645,73 @@ func TestFloat64_Float64(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_Float128(t *testing.T) {
+	tests := []struct {
+		in   Float64
+		want Float128
+	}{
+		// from https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+		{
+			in:   0.0,
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   Float64(math.Copysign(0, -1)), // -0
+			want: Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   1.0,
+			want: Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   2.0,
+			want: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   -2.0,
+			want: Float128{0xc000_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   0x1p-1074, // smallest positive subnormal number
+			want: Float128{0x3bcd_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   0x1.ffffffffffffep-1023, // largest subnormal number
+			want: Float128{0x3c00_ffff_ffff_ffff, 0xe000_0000_0000_0000},
+		},
+		{
+			in:   0x1p-1022, // smallest positive normal number
+			want: Float128{0x3c01_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   0x1.fffffffffffffp+1023, // largest normal number
+			want: Float128{0x43fe_ffff_ffff_ffff, 0xf000_0000_0000_0000},
+		},
+		{
+			in:   Float64(math.Inf(1)),
+			want: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   Float64(math.Inf(-1)),
+			want: Float128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+		{
+			in:   Float64(math.NaN()),
+			want: Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000},
+		},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float128(); !eq128(got, tt.want) {
+			t.Errorf("Float64(%x).Float128() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkTestFloat64_Float128(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Float128())
+	}
+}
