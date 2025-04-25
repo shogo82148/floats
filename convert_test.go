@@ -715,3 +715,133 @@ func BenchmarkTestFloat64_Float128(b *testing.B) {
 		runtime.KeepAlive(f.Float128())
 	}
 }
+
+func TestFloat64_Float256(t *testing.T) {
+	tests := []struct {
+		in   Float64
+		want Float256
+	}{
+		// from https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+		{
+			in: 0.0,
+			want: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float64(math.Copysign(0, -1)), // -0
+			want: Float256{
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 1.0,
+			want: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 2.0,
+			want: Float256{
+				0x4000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: -2.0,
+			want: Float256{
+				0xc000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 0x1p-1074, // smallest positive subnormal number
+			want: Float256{
+				0x3fbc_d000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 0x1.ffffffffffffep-1023, // largest subnormal number
+			want: Float256{
+				0x3fc0_0fff_ffff_ffff,
+				0xfe00_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 0x1p-1022, // smallest positive normal number
+			want: Float256{
+				0x3fc0_1000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: 0x1.fffffffffffffp+1023, // largest normal number
+			want: Float256{
+				0x403f_efff_ffff_ffff,
+				0xff00_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float64(math.Inf(1)),
+			want: Float256{
+				0x7fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float64(math.Inf(-1)),
+			want: Float256{
+				0xffff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			in: Float64(math.NaN()),
+			want: Float256{
+				0x7fff_f800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float256(); !eq256(got, tt.want) {
+			t.Errorf("Float64(%x).Float256() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Float256(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Float256())
+	}
+}
