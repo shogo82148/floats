@@ -1,11 +1,60 @@
 package floats
 
 import (
-	"cmp"
 	"math"
 	"runtime"
 	"testing"
 )
+
+// eq16 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq16(a, b Float16) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return a == b
+}
+
+// eq32 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq32(a, b Float32) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return math.Float32bits(float32(a)) == math.Float32bits(float32(b))
+}
+
+// eq64 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq64(a, b Float64) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return math.Float64bits(float64(a)) == math.Float64bits(float64(b))
+}
+
+// eq128 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq128(a, b Float128) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return a[0] == b[0] && a[1] == b[1]
+}
+
+// eq256 reports whether a and b are equal.
+// It returns true if both a and b are NaN.
+// It distinguishes between +0 and -0.
+func eq256(a, b Float256) bool {
+	if a.IsNaN() && b.IsNaN() {
+		return true
+	}
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]
+}
 
 func TestFloat16_Float32(t *testing.T) {
 	tests := []struct {
@@ -14,25 +63,23 @@ func TestFloat16_Float32(t *testing.T) {
 	}{
 		// from https://en.wikipedia.org/wiki/Half-precision_floating-point_format
 		{0x0000, 0},
-		{0x0001, 0x1p-24},              // smallest positive subnormal number
-		{0x03ff, 0x1.ff8p-15},          // largest positive subnormal number
-		{0x0400, 0x1p-14},              // smallest positive normal number
-		{0x3555, 0x1.554p-02},          // nearest value to 1/3
-		{0x3bff, 0x1.ffcp-01},          // largest number less than one
-		{0x3c00, 0x1p+00},              // one
-		{0x3c01, 0x1.004p+00},          // smallest number larger than one
-		{0x7bff, 0x1.ffcp+15},          // largest normal number
-		{0x7c00, Float32(math.Inf(1))}, // infinity
-		{0x8000, -0},
+		{0x0001, 0x1p-24},                       // smallest positive subnormal number
+		{0x03ff, 0x1.ff8p-15},                   // largest positive subnormal number
+		{0x0400, 0x1p-14},                       // smallest positive normal number
+		{0x3555, 0x1.554p-02},                   // nearest value to 1/3
+		{0x3bff, 0x1.ffcp-01},                   // largest number less than one
+		{0x3c00, 0x1p+00},                       // one
+		{0x3c01, 0x1.004p+00},                   // smallest number larger than one
+		{0x7bff, 0x1.ffcp+15},                   // largest normal number
+		{0x7c00, Float32(math.Inf(1))},          // infinity
+		{0x8000, Float32(math.Copysign(0, -1))}, // -0
 		{0xc000, -2},
 		{0xfc00, Float32(math.Inf(-1))}, // negative infinity
 		{0x7e00, Float32(math.NaN())},   // NaN
 	}
 
 	for _, tt := range tests {
-		// we use cmp.Compare because NaN != NaN
-		// and we want to check if they are equal.
-		if got := tt.in.Float32(); cmp.Compare(got, tt.want) != 0 {
+		if got := tt.in.Float32(); !eq32(got, tt.want) {
 			t.Errorf("Float16(%x).Float32() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -52,25 +99,23 @@ func TestFloat16_Float64(t *testing.T) {
 	}{
 		// from https://en.wikipedia.org/wiki/Half-precision_floating-point_format
 		{0x0000, 0},
-		{0x0001, 0x1p-24},              // smallest positive subnormal number
-		{0x03ff, 0x1.ff8p-15},          // largest positive subnormal number
-		{0x0400, 0x1p-14},              // smallest positive normal number
-		{0x3555, 0x1.554p-02},          // nearest value to 1/3
-		{0x3bff, 0x1.ffcp-01},          // largest number less than one
-		{0x3c00, 0x1p+00},              // one
-		{0x3c01, 0x1.004p+00},          // smallest number larger than one
-		{0x7bff, 0x1.ffcp+15},          // largest normal number
-		{0x7c00, Float64(math.Inf(1))}, // infinity
-		{0x8000, -0},
+		{0x0001, 0x1p-24},                       // smallest positive subnormal number
+		{0x03ff, 0x1.ff8p-15},                   // largest positive subnormal number
+		{0x0400, 0x1p-14},                       // smallest positive normal number
+		{0x3555, 0x1.554p-02},                   // nearest value to 1/3
+		{0x3bff, 0x1.ffcp-01},                   // largest number less than one
+		{0x3c00, 0x1p+00},                       // one
+		{0x3c01, 0x1.004p+00},                   // smallest number larger than one
+		{0x7bff, 0x1.ffcp+15},                   // largest normal number
+		{0x7c00, Float64(math.Inf(1))},          // infinity
+		{0x8000, Float64(math.Copysign(0, -1))}, // -0
 		{0xc000, -2},
 		{0xfc00, Float64(math.Inf(-1))}, // negative infinity
 		{0x7e00, Float64(math.NaN())},   // NaN
 	}
 
 	for _, tt := range tests {
-		// we use cmp.Compare because NaN != NaN
-		// and we want to check if they are equal.
-		if got := tt.in.Float64(); cmp.Compare(got, tt.want) != 0 {
+		if got := tt.in.Float64(); !eq64(got, tt.want) {
 			t.Errorf("Float16(%x).Float64() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -100,9 +145,7 @@ func TestFloat16_Float128(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		// we use cmp.Compare because NaN != NaN
-		// and we want to check if they are equal.
-		if got := tt.in.Float128(); got != tt.want {
+		if got := tt.in.Float128(); !eq128(got, tt.want) {
 			t.Errorf("Float16(%x).Float128() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -176,9 +219,7 @@ func TestFloat16_Float256(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		// we use cmp.Compare because NaN != NaN
-		// and we want to check if they are equal.
-		if got := tt.in.Float256(); got != tt.want {
+		if got := tt.in.Float256(); !eq256(got, tt.want) {
 			t.Errorf("Float16(%x).Float256() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -220,7 +261,7 @@ func TestFloat32_Float16(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float16(); got != tt.want {
+		if got := tt.in.Float16(); !eq16(got, tt.want) {
 			t.Errorf("Float32(%x).Float16() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -249,7 +290,7 @@ func TestFloat32_Float32(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float32(); got != tt.want {
+		if got := tt.in.Float32(); !eq32(got, tt.want) {
 			t.Errorf("Float32(%x).Float32() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -279,7 +320,7 @@ func TestFloat32_Float64(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float64(); got != tt.want {
+		if got := tt.in.Float64(); !eq64(got, tt.want) {
 			t.Errorf("Float32(%x).Float64() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -349,7 +390,7 @@ func TestFloat32_Float128(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float128(); got != tt.want {
+		if got := tt.in.Float128(); !eq128(got, tt.want) {
 			t.Errorf("Float32(%x).Float128() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -398,7 +439,7 @@ func TestFloat64_Float32(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float32(); got != tt.want {
+		if got := tt.in.Float32(); !eq32(got, tt.want) {
 			t.Errorf("Float64(%x).Float32() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
@@ -427,7 +468,7 @@ func TestFloat64_Float64(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.in.Float64(); got != tt.want {
+		if got := tt.in.Float64(); !eq64(got, tt.want) {
 			t.Errorf("Float64(%x).Float64() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
