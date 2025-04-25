@@ -964,6 +964,42 @@ func TestFloat128_Float32(t *testing.T) {
 			in:   Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
 			want: Float32(math.NaN()),
 		},
+
+		// test rounding to even
+		{
+			in:   Float128{0x3fff_0000_0100_0000, 0x0000_0000_0000_0000}, // 1.000001p+00
+			want: 0x1p+00,
+		},
+		{
+			in:   Float128{0x3fff_0000_0100_0000, 0x0000_0000_0000_0001}, // 1.0000010000000000000000000001p+00
+			want: 0x1.000002p+00,
+		},
+		{
+			in:   Float128{0x3fff_0000_02ff_ffff, 0xffff_ffff_ffff_ffff}, // 1.000002ffffffffffffffffffffffp+00
+			want: 0x1.000002p+00,
+		},
+		{
+			in:   Float128{0x3fff_0000_0300_0000, 0x0000_0000_0000_0000}, // 1.000003p+00
+			want: 0x1.000004p+00,
+		},
+		{
+			in:   Float128{0x3f80_0000_0200_0000, 0x0000_0000_0000_0000}, // 0x1.000002p-127
+			want: 0x1.000000p-127,
+		},
+		{
+			in:   Float128{0x3f80_0000_0200_0000, 0x0000_0000_0000_0001}, // 0x1.0000020000000000000000000001p-127
+			want: 0x1.000004p-127,
+		},
+
+		// overflow
+		{
+			in:   Float128{0x407e_ffff_fe00_0000, 0x0000_0000_0000_0000},
+			want: 0x1.fffffep+127, // largest normal number
+		},
+		{
+			in:   Float128{0x407e_ffff_ff00_0000, 0x0000_0000_0000_0000},
+			want: Float32(math.Inf(1)),
+		},
 	}
 
 	for _, tt := range tests {
