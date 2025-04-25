@@ -208,7 +208,7 @@ func TestFloat32_Float16(t *testing.T) {
 
 	for _, tt := range tests {
 		if got := tt.in.Float16(); got != tt.want {
-			t.Errorf("Float16(%x).Float64() = %x, want %x", tt.in, got, tt.want)
+			t.Errorf("Float32(%x).Float16() = %x, want %x", tt.in, got, tt.want)
 		}
 	}
 }
