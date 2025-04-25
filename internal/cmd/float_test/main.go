@@ -80,7 +80,7 @@ func f16_to_f32() error {
 		}
 
 		got := f16.Float32()
-		if eq32(got, f32) {
+		if !eq32(got, f32) {
 			log.Printf("f16: %s, f32: %s", s16, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f16(%x).Float32() = %x, want %x", f16, got, f32)
@@ -111,7 +111,7 @@ func f16_to_f64() error {
 		}
 
 		got := f16.Float64()
-		if eq64(got, f64) {
+		if !eq64(got, f64) {
 			log.Printf("f16: %s, f64: %s", s16, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f16(%x).Float64() = %x, want %x", f16, got, f64)
@@ -204,7 +204,7 @@ func f32_to_f64() error {
 		}
 
 		got := f32.Float64()
-		if eq64(got, f64) {
+		if !eq64(got, f64) {
 			log.Printf("f32: %s, f64: %s", s32, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f32(%x).Float64() = %x, want %x", f32, got, f64)
@@ -266,7 +266,7 @@ func f64_to_f32() error {
 		}
 
 		got := f64.Float32()
-		if eq32(got, f32) {
+		if !eq32(got, f32) {
 			log.Printf("f64: %s, f32: %s", s64, s32)
 			log.Printf("got: %x, want: %x", got, f32)
 			return fmt.Errorf("f64(%x).Float32() = %x, want %x", f64, got, f32)
