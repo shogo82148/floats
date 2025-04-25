@@ -5,7 +5,17 @@ set -eux
 SEED=${GITHUB_RUN_ID:-$(date +%s)}
 echo "$SEED"
 
-TEST_NAME=$1
 ROOT=$(cd "$(dirname "$0")"; cd ..; pwd)
 cd "$ROOT"
-timeout 300m "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -forever "$TEST_NAME" | go run ./internal/cmd/float_test "$TEST_NAME"
+
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f16_to_f32 | go run ./internal/cmd/float_test f16_to_f32
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f16_to_f64 | go run ./internal/cmd/float_test f16_to_f64
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f16_to_f128 | go run ./internal/cmd/float_test f16_to_f128
+
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f32_to_f16 | go run ./internal/cmd/float_test f32_to_f16
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f32_to_f64 | go run ./internal/cmd/float_test f32_to_f64
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f32_to_f128 | go run ./internal/cmd/float_test f32_to_f128
+
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f64_to_f16 | go run ./internal/cmd/float_test f64_to_f16
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f64_to_f32 | go run ./internal/cmd/float_test f64_to_f32
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f64_to_f128 | go run ./internal/cmd/float_test f64_to_f128
