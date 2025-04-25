@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -26,6 +27,10 @@ func showProgress() {
 
 func main() {
 	go showProgress()
+
+	if len(os.Args) < 2 {
+		log.Fatalf("usage: %s <test-name>", filepath.Base(os.Args[0]))
+	}
 
 	switch os.Args[1] {
 	case "f16_to_f32":
