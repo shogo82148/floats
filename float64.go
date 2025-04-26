@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 const (
 	uvnan64    = 0x7ff8000000000000 // NaN value for Float64
 	uvinf64    = 0x7ff0000000000000 // Infinity value for Float64
@@ -18,6 +20,14 @@ type Float64 float64
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float64) IsNaN() bool {
 	return a != a
+}
+
+// IsInf reports whether a is an infinity, according to sign.
+// If sign > 0, IsInf reports whether a is positive infinity.
+// If sign < 0, IsInf reports whether a is negative infinity.
+// If sign == 0, IsInf reports whether a is either infinity.
+func (a Float64) IsInf(sign int) bool {
+	return math.IsInf(float64(a), sign)
 }
 
 // Int64 returns the integer value of a, rounding towards zero.
