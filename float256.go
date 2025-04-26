@@ -9,7 +9,7 @@ const (
 )
 
 var (
-	// signMask256 = ints.Uint256{0x8000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000} // mask for sign bit
+	signMask256 = ints.Uint256{0x8000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000} // mask for sign bit
 	fracMask256 = ints.Uint256{0x0000_0fff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}
 )
 
