@@ -682,7 +682,53 @@ func (a Float256) Float64() Float64 {
 
 // Float128 converts a to a Float128.
 func (a Float256) Float128() Float128 {
-	return Float128{0, 0} // TODO: implement
+	b := ints.Uint256(a)
+	sign := b[0] & signMask256[0]
+	exp := int((b[0] >> (shift256 - 192)) & mask256)
+
+	if exp == mask256 {
+		// a is ±infinity or NaN
+		frac := b.And(fracMask256)
+		if frac.IsZero() {
+			// a is ±infinity
+			return Float128{sign | mask128<<(shift128-64), 0}
+		} else {
+			// a is NaN
+			return Float128{sign | mask128<<(shift128-64) | 1<<(shift128-64-1), 0}
+		}
+	}
+
+	exp -= bias256
+	if exp <= -bias128 {
+		// the result is subnormal number
+		frac := b.And(fracMask256)
+		frac[0] |= (1 << (shift256 - 192))
+		// round to nearest even
+		roundBit := uint(-exp + shift256 - (bias128 + shift128 - 1))
+		halfMinusULP := ints.Uint256{0, 0, 0, 1}.Lsh(roundBit - 1).Sub(ints.Uint256{0, 0, 0, 1})
+		frac = frac.Add(halfMinusULP).Add(frac.Rsh(roundBit).And(ints.Uint256{0, 0, 0, 1}))
+		frac = frac.Rsh(roundBit)
+		return Float128{
+			sign | frac[2],
+			frac[3],
+		}
+	}
+
+	// the result is normal number
+	// round to nearest even
+	halfMinusULP := ints.Uint256{0, 0, 0, 1}.Lsh(shift256 - shift128 - 1).Sub(ints.Uint256{0, 0, 0, 1})
+	b = b.Add(halfMinusULP).Add(b.Rsh(shift256 - shift128).And(ints.Uint256{0, 0, 0, 1}))
+
+	exp128 := uint64((b[0]>>(shift256-192))&mask256 - bias256 + bias128)
+	if exp128 >= mask128 {
+		// overflow
+		return Float128{sign | mask128<<(shift128-64), 0}
+	}
+	frac128 := b.Rsh(shift256 - shift128).Uint128().And(fracMask128)
+	return Float128{
+		sign | exp128<<(shift128-64) | frac128[0],
+		frac128[1],
+	}
 }
 
 // Float256 returns a itself.
