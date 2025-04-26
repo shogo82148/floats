@@ -1421,6 +1421,18 @@ func TestFloat256_Float16(t *testing.T) {
 			},
 			want: 0x0202, // 0x1.01p-15
 		},
+
+		// overflow
+		{
+			// 65520
+			in: Float256{
+				0x4000_effe_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x7c00,
+		},
 	}
 
 	for _, tt := range tests {
