@@ -99,3 +99,48 @@ func BenchmarkFloat256_IsInf(b *testing.B) {
 		runtime.KeepAlive(f.IsInf(0))
 	}
 }
+
+func TestFloat256_Int64(t *testing.T) {
+	tests := []struct {
+		in  Float256
+		out int64
+	}{
+		{
+			in: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			out: 0,
+		},
+		{
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			out: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.Int64()
+		if got != tt.out {
+			t.Errorf("Float256.Int64() = %v, want %v", got, tt.out)
+		}
+	}
+}
+
+func BenchmarkFloat256_Int64(b *testing.B) {
+	f := Float256{
+		0x3fff_f000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	}
+	for b.Loop() {
+		runtime.KeepAlive(f.Int64())
+	}
+}

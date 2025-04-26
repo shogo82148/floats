@@ -61,6 +61,7 @@ func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 		l := frac.BitLen()
 		frac = frac.Lsh(uint(shift128-l) + 1)
 		exp = l - (bias128 + shift128)
+		return
 	}
 
 	// a is normal
