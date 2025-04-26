@@ -15,6 +15,14 @@ import (
 	"github.com/shogo82148/floats"
 )
 
+const (
+	inexact   = 0x01
+	underflow = 0x02
+	overflow  = 0x04
+	infinite  = 0x08
+	invalid   = 0x10
+)
+
 var count atomic.Int64
 
 func showProgress() {
@@ -79,6 +87,10 @@ func main() {
 		}
 	case "f128_to_f64":
 		if err := f128_to_f64(); err != nil {
+			log.Fatal(err)
+		}
+	case "f64_to_i64":
+		if err := f64_to_i64(); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -459,6 +471,47 @@ func f128_to_f64() error {
 	return nil
 }
 
+func f64_to_i64() error {
+	for {
+		var s64, i64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s64, &i64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f64, err := parseFloat64(s64)
+		if err != nil {
+			return err
+		}
+
+		u64, err := strconv.ParseUint(i64, 16, 64)
+		if err != nil {
+			return err
+		}
+		i64v := int64(u64)
+
+		got := f64.Int64()
+		if got != i64v {
+			log.Printf("f64: %s, i64: %s", s64, i64)
+			log.Printf("got: %x, want: %x", got, i64v)
+			return fmt.Errorf("f64(%x).Int64() = %x, want %x", f64, got, i64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
 func parseFloat16(s string) (floats.Float16, error) {
 	bits, err := strconv.ParseUint(s, 16, 16)
 	if err != nil {
@@ -493,6 +546,14 @@ func parseFloat128(s string) (floats.Float128, error) {
 		return floats.Float128{}, err
 	}
 	return floats.Float128{a0, a1}, nil
+}
+
+func parseFlag(s string) (byte, error) {
+	b, err := strconv.ParseUint(s, 16, 8)
+	if err != nil {
+		return 0, err
+	}
+	return byte(b), nil
 }
 
 // eq16 reports whether a and b are equal.
