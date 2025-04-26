@@ -1006,6 +1006,12 @@ func TestFloat128_Float32(t *testing.T) {
 			in:   Float128{0x407e_ffff_ff00_0000, 0x0000_0000_0000_0000},
 			want: Float32(math.Inf(1)),
 		},
+
+		// underflow
+		{
+			in:   Float128{0x3f69_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p-150
+			want: 0.0,
+		},
 	}
 
 	for _, tt := range tests {
