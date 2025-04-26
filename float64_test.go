@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -28,6 +29,46 @@ func TestFloat64_IsNaN(t *testing.T) {
 				t.Errorf("Float64.IsNaN() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFloat64_IsInf(t *testing.T) {
+	inf := Float64(math.Inf(1))
+	neginf := Float64(math.Inf(-1))
+
+	tests := []struct {
+		in   Float64
+		sign int
+		want bool
+	}{
+		// infinity
+		{inf, 1, true},
+		{inf, -1, false},
+		{inf, 0, true},
+
+		// -infinity
+		{neginf, 1, false},
+		{neginf, -1, true},
+		{neginf, 0, true},
+
+		// +1.0(finite)
+		{1.0, 1, false},
+		{1.0, -1, false},
+		{1.0, 0, false},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.IsInf(tt.sign)
+		if got != tt.want {
+			t.Errorf("Float64.IsInf(%v) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_IsInf(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.IsInf(0))
 	}
 }
 
