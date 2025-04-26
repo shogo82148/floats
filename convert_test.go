@@ -883,6 +883,10 @@ func TestFloat128_Float16(t *testing.T) {
 			in:   Float128{0x3fe7_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p-24
 			want: 0x0001,
 		},
+		{
+			in:   Float128{0x3fe6_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p-25
+			want: 0x0000,
+		},
 
 		// test rounding to even
 		{
