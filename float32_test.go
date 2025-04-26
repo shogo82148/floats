@@ -30,3 +30,25 @@ func TestFloat32_IsNaN(t *testing.T) {
 		})
 	}
 }
+
+func TestFloat32_Int64(t *testing.T) {
+	tests := []struct {
+		in  Float32
+		out int64
+	}{
+		{0, 0},
+		{1, 1},
+		{2, 2},
+		{-1, -1},
+		{0.5, 0},
+		{0x1p24, 1 << 24},
+		{0x1p62, 1 << 62},
+	}
+
+	for _, test := range tests {
+		got := test.in.Int64()
+		if got != test.out {
+			t.Errorf("Float32.Int64() = %v, want %v", got, test.out)
+		}
+	}
+}

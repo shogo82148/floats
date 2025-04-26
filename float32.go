@@ -19,3 +19,7 @@ type Float32 float32
 func (a Float32) IsNaN() bool {
 	return a != a
 }
+
+func (a Float32) Int64() int64 {
+	return int64(a)
+}
