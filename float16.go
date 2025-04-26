@@ -20,6 +20,14 @@ func (a Float16) IsNaN() bool {
 	return a&(mask16<<shift16) == (mask16<<shift16) && a&fracMask16 != 0
 }
 
+// IsInf reports whether a is an infinity, according to sign.
+// If sign > 0, IsInf reports whether a is positive infinity.
+// If sign < 0, IsInf reports whether a is negative infinity.
+// If sign == 0, IsInf reports whether a is either infinity.
+func (a Float16) IsInf(sign int) bool {
+	return sign >= 0 && a == uvinf16 || sign <= 0 && a == uvneginf16
+}
+
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float16) Int64() int64 {
