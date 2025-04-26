@@ -19,3 +19,9 @@ type Float32 float32
 func (a Float32) IsNaN() bool {
 	return a != a
 }
+
+// Int64 returns the integer value of a, rounding towards zero.
+// If a cannot be represented in an int64, the result is undefined.
+func (a Float32) Int64() int64 {
+	return int64(a)
+}

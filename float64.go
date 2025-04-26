@@ -21,6 +21,7 @@ func (a Float64) IsNaN() bool {
 }
 
 // Int64 returns the integer value of a, rounding towards zero.
+// If a cannot be represented in an int64, the result is undefined.
 func (a Float64) Int64() int64 {
 	return int64(a)
 }

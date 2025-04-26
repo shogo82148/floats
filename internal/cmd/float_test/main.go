@@ -89,6 +89,11 @@ func main() {
 		if err := f128_to_f64(); err != nil {
 			log.Fatal(err)
 		}
+
+	case "f32_to_i64":
+		if err := f32_to_i64(); err != nil {
+			log.Fatal(err)
+		}
 	case "f64_to_i64":
 		if err := f64_to_i64(); err != nil {
 			log.Fatal(err)
@@ -465,6 +470,47 @@ func f128_to_f64() error {
 			log.Printf("f128: %s, f64: %s", s128, s64)
 			log.Printf("got: %x, want: %x", got, f64)
 			return fmt.Errorf("f128(%x).Float64() = %x, want %x", f128, got, f64)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_to_i64() error {
+	for {
+		var s32, i64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s32, &i64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f32, err := parseFloat32(s32)
+		if err != nil {
+			return err
+		}
+
+		u64, err := strconv.ParseUint(i64, 16, 64)
+		if err != nil {
+			return err
+		}
+		i64v := int64(u64)
+
+		got := f32.Int64()
+		if got != i64v {
+			log.Printf("f32: %s, i64: %s", s32, i64)
+			log.Printf("got: %x, want: %x", got, i64v)
+			return fmt.Errorf("f32(%x).Int64() = %x, want %x", f32, got, i64v)
 		}
 		count.Add(1)
 	}

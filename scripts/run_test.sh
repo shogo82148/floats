@@ -26,5 +26,8 @@ cd "$ROOT"
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f128_to_f32 | go run ./internal/cmd/float_test f128_to_f32
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f128_to_f64 | go run ./internal/cmd/float_test f128_to_f64
 
+
 ### convert float to int tests
+
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -rminMag f32_to_i64 | go run ./internal/cmd/float_test f32_to_i64
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -rminMag f64_to_i64 | go run ./internal/cmd/float_test f64_to_i64
