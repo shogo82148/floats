@@ -1653,3 +1653,149 @@ func BenchmarkFloat256_Float32(b *testing.B) {
 		runtime.KeepAlive(f.Float32())
 	}
 }
+
+func TestFloat256_Float64(t *testing.T) {
+	tests := []struct {
+		in   Float256
+		want Float64
+	}{
+		{
+			in: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0.0,
+		},
+		{
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 1.0,
+		},
+		{
+			// -0.0
+			in: Float256{
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: Float64(math.Copysign(0, -1)),
+		},
+		{
+			// Infinity
+			in: Float256{
+				0x7fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: Float64(math.Inf(1)),
+		},
+		{
+			// -Infinity
+			in: Float256{
+				0xffff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: Float64(math.Inf(-1)),
+		},
+		{
+			// NaN
+			in: Float256{
+				0x7fff_f800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: Float64(math.NaN()),
+		},
+
+		// test rounding to nearest even
+		{
+			// 0x1.00000000000008p+00
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0080_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1.0000000000000p+00,
+		},
+		{
+			// 0x1.00000000000008000000000000000000000000000000000000000000001p+00
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0080_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0001,
+			},
+			want: 0x1.0000000000001p+00,
+		},
+		{
+			// 0x1.00000000000017fffffffffffffffffffffffffffffffffffffffffffffp+00
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x017f_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff,
+			},
+			want: 0x1.0000000000001p+00,
+		},
+		{
+			// 0x1.00000000000018p+00
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0180_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1.0000000000002p+00,
+		},
+
+		// overflow
+		{
+			in: Float256{
+				0x403f_efff_ffff_ffff,
+				0xff00_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1.fffffffffffffp+1023, // largest normal number
+		},
+		{
+			in: Float256{
+				0x403f_efff_ffff_ffff,
+				0xff80_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: Float64(math.Inf(1)),
+		},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Float64(); !eq64(got, tt.want) {
+			t.Errorf("Float256(%x).Float64() = %x, want %x", tt.in, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Float64(b *testing.B) {
+	f := Float256{
+		0x3fff_f000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Float64())
+	}
+}
