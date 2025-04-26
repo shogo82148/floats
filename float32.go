@@ -20,7 +20,8 @@ func (a Float32) IsNaN() bool {
 	return a != a
 }
 
-// Int64 converts the Float32 value to an int64 by truncating any fractional part.
+// Int64 returns the integer value of a, rounding towards zero.
+// If a cannot be represented in an int64, the result is undefined.
 func (a Float32) Int64() int64 {
 	return int64(a)
 }
