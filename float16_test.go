@@ -83,6 +83,7 @@ func TestFloat16_Int64(t *testing.T) {
 		}
 	}
 }
+
 func BenchmarkFloat16_Int64(b *testing.B) {
 	f := Float16(0x3c00)
 	for b.Loop() {
