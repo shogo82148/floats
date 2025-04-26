@@ -19,3 +19,9 @@ type Float16 uint16
 func (a Float16) IsNaN() bool {
 	return a&(mask16<<shift16) == (mask16<<shift16) && a&fracMask16 != 0
 }
+
+// Int64 returns the integer value of a, rounding towards zero.
+// If a cannot be represented in an int64, the result is undefined.
+func (a Float16) Int64() int64 {
+	return int64(a.Float64())
+}
