@@ -37,3 +37,33 @@ func (a Float128) IsInf(sign int) bool {
 	b := ints.Uint128(a)
 	return sign >= 0 && b == uvinf128 || sign <= 0 && b == uvneginf128
 }
+
+// Int64 returns the integer value of a, rounding towards zero.
+// If a cannot be represented in an int64, the result is undefined.
+func (a Float128) Int64() int64 {
+	sign, exp, frac := a.split()
+	frac = frac.Rsh(uint(shift128 - exp))
+	ret := int64(frac.Uint64())
+	if sign != 0 {
+		ret = -ret
+	}
+	return ret
+}
+
+func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
+	b := ints.Uint128(a)
+	sign = b[0] & signMask128[0]
+	exp = int((b[0]>>(shift128-64))&mask128) - bias128
+	frac = b.And(fracMask128)
+	if exp == -bias128 {
+		// a is subnormal
+		// normalize
+		l := frac.BitLen()
+		frac = frac.Lsh(uint(shift128-l) + 1)
+		exp = l - (bias128 + shift128)
+	}
+
+	// a is normal
+	frac[0] = frac[0] | (1 << (shift128 - 64))
+	return
+}

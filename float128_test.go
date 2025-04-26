@@ -66,8 +66,32 @@ func TestFloat128_IsInf(t *testing.T) {
 }
 
 func BenchmarkFloat128_IsInf(b *testing.B) {
-	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
+	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.IsInf(0))
+	}
+}
+
+func TestFloat128_Int64(t *testing.T) {
+	tests := []struct {
+		in  Float128
+		out int64
+	}{
+		{Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, 0},
+		{Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, 1},
+		{Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, 2},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Int64(); got != tt.out {
+			t.Errorf("Float128.Int64() = %v, want %v", got, tt.out)
+		}
+	}
+}
+
+func BenchmarkFloat128_Int64(b *testing.B) {
+	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Int64())
 	}
 }
