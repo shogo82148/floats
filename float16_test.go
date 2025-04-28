@@ -90,3 +90,44 @@ func BenchmarkFloat16_Int64(b *testing.B) {
 		runtime.KeepAlive(f.Int64())
 	}
 }
+
+func TestFloat16_Mul(t *testing.T) {
+	tests := []struct {
+		a, b, want Float16
+	}{
+		{0x3c00, 0x0000, 0x0000}, // 1.0 * 0.0 = 0.0
+		{0x3c00, 0x3c00, 0x3c00}, // 1.0 * 1.0 = 1.0
+
+		// handling zero
+		{0x0000, 0x3c00, 0x0000}, //  0.0 *  1.0 =  0.0
+		{0x8000, 0x3c00, 0x8000}, // -0.0 *  1.0 = -0.0
+		{0x0000, 0xbc00, 0x8000}, //  0.0 * -1.0 = -0.0
+		{0x8000, 0xbc00, 0x0000}, // -0.0 * -1.0 =  0.0
+
+		// handling NaN
+		{0x7e00, 0x0000, 0x7e00}, // NaN * 0.0 = NaN
+		{0x0000, 0x7e00, 0x7e00}, // 0.0 * NaN = NaN
+
+		// handling infinity
+		{0x3c00, 0x7c00, 0x7c00}, //  1.0 *  Inf =  Inf
+		{0xbc00, 0x7c00, 0xfc00}, // -1.0 *  Inf = -Inf
+		{0x7c00, 0x3c00, 0x7c00}, //  Inf *  1.0 =  Inf
+		{0x7c00, 0xbc00, 0xfc00}, //  Inf * -1.0 =  Inf
+		{0x7c00, 0x0000, 0x7e00}, //  Inf *  0.0 =  NaN
+		{0x0000, 0x7c00, 0x7e00}, //  0.0 *  Inf = NaN
+	}
+
+	for _, test := range tests {
+		got := test.a.Mul(test.b)
+		if got != test.want {
+			t.Errorf("Float16(%x).Mul(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Mul(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Mul(f))
+	}
+}

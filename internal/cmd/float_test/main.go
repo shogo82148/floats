@@ -34,6 +34,7 @@ func showProgress() {
 }
 
 func main() {
+	start := time.Now()
 	go showProgress()
 
 	if len(os.Args) < 2 {
@@ -106,10 +107,15 @@ func main() {
 		if err := f128_to_i64(); err != nil {
 			log.Fatal(err)
 		}
+
+	case "f16_mul":
+		if err := f16_mul(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
 	}
-
+	log.Printf("%s: %d", time.Since(start), count.Load())
 }
 
 func f16_to_f32() error {
@@ -642,6 +648,39 @@ func f128_to_i64() error {
 			log.Printf("f128: %s, i64: %s", s128, i64)
 			log.Printf("got: %x, want: %x", got, i64v)
 			return fmt.Errorf("f128(%x).Int64() = %x, want %x", f128, got, i64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_mul() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16a, err := parseFloat16(a)
+		if err != nil {
+			return err
+		}
+		f16b, err := parseFloat16(b)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat16(want)
+		if err != nil {
+			return err
+		}
+		got := f16a.Mul(f16b)
+		if !eq16(got, wantf) {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float16(%x).Mul(%x) = %x, want %x", f16a, f16b, got, wantf)
 		}
 		count.Add(1)
 	}

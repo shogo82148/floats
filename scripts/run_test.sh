@@ -33,3 +33,6 @@ cd "$ROOT"
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -rminMag f32_to_i64 | go run ./internal/cmd/float_test f32_to_i64
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -rminMag f64_to_i64 | go run ./internal/cmd/float_test f64_to_i64
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" -rminMag f128_to_i64 | go run ./internal/cmd/float_test f128_to_i64
+
+### f16 operations
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f16_mul | go run ./internal/cmd/float_test f16_mul
