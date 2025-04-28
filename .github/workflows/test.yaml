@@ -39,6 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          # float to float conversions
           - "f16_to_f32"
           - "f16_to_f64"
           - "f16_to_f128"
@@ -51,7 +52,17 @@ jobs:
           - "f128_to_f16"
           - "f128_to_f32"
           - "f128_to_f64"
+
+          # float to int conversions
+          - "f16_to_i64"
+          - "f32_to_i64"
+          - "f64_to_i64"
+          - "f128_to_i64"
+
+          # Float16 operations
           - "f16_mul"
+
+          # Float32 operations
           - "f32_mul"
     timeout-minutes: 30
     steps:
