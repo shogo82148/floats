@@ -19,6 +19,10 @@ var (
 		0xffff_f000_0000_0000, 0x0000_0000_0000_0000,
 		0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
 	}
+	uvnan256 = ints.Uint256{
+		0x7fff_f800_0000_0000, 0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	}
 	// mask for sign bit
 	signMask256 = ints.Uint256{
 		0x8000_0000_0000_0000, 0x0000_0000_0000_0000,
@@ -58,6 +62,88 @@ func (a Float256) Int64() int64 {
 		ret = -ret
 	}
 	return ret
+}
+
+func (a Float256) isZero() bool {
+	return (a[0]&^signMask256[0])|a[1]|a[2]|a[3] == 0
+}
+
+// Mul returns the product of a and b.
+func (a Float256) Mul(b Float256) Float256 {
+	if a.IsNaN() || b.IsNaN() {
+		// a * NaN = NaN
+		// NaN * b = NaN
+		return Float256(uvnan256)
+	}
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+	sign := signA ^ signB
+
+	// handle special cases
+	if expA == mask256-bias256 {
+		// NaN check is done above; a is ±inf
+		if b.isZero() {
+			// ±inf * 0 = NaN
+			return Float256(uvnan256)
+		} else {
+			// ±inf * +finite = ±inf
+			// ±inf * -finite = ∓inf
+			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+		}
+	}
+	if expB == mask256-bias256 {
+		// NaN check is done above; b is ±inf
+		if a.isZero() {
+			// 0 * ±inf = NaN
+			return Float256(uvnan256)
+		} else {
+			// +finite * ±inf = ±inf
+			// -finite * ±inf = ∓inf
+			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+		}
+	}
+	if a.isZero() || b.isZero() {
+		// +0 * ±finite = ±0
+		// -0 * ±finite = ∓0
+		return Float256{sign, 0, 0, 0}
+	}
+
+	// normal case
+	exp := expA + expB
+	frac := fracA.Mul512(fracB)
+	shift := frac.BitLen() - (shift256 + 1)
+	exp += shift - shift256
+
+	if exp < -(bias256 + shift256) {
+		// underflow
+		return Float256{sign, 0, 0, 0}
+	} else if exp <= -bias256 {
+		// the result is subnormal
+		// normalize
+		shift := shift256 - (expA + expB + bias256) + 1
+		one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
+		frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
+		frac = frac.Rsh(uint(shift))
+		return Float256{sign | frac[4], frac[5], frac[6], frac[7]}
+	}
+
+	exp = expA + expB + bias256
+	one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
+	frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
+	shift = frac.BitLen() - (shift256 + 1)
+	exp += shift - shift256
+	if exp >= mask256 {
+		// overflow
+		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+	}
+
+	frac = frac.Rsh(uint(shift))
+	return Float256{
+		sign | uint64(exp)<<(shift256-192) | frac[4]&fracMask256[0],
+		frac[5],
+		frac[6],
+		frac[7],
+	}
 }
 
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
