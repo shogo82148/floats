@@ -90,3 +90,28 @@ func TestFloat64_Int64(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_Mul(t *testing.T) {
+	tests := []struct {
+		a, b Float64
+		want Float64
+	}{
+		{1.0, 2.0, 2.0},
+		{1.0, 0.0, 0.0},
+		{0.0, 1.0, 0.0},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mul(test.b)
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Mul(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Mul(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Mul(f))
+	}
+}

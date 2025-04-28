@@ -35,3 +35,8 @@ func (a Float64) IsInf(sign int) bool {
 func (a Float64) Int64() int64 {
 	return int64(a)
 }
+
+// Mul returns the product of a and b.
+func (a Float64) Mul(b Float64) Float64 {
+	return a * b
+}
