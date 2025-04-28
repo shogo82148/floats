@@ -93,3 +93,27 @@ func TestFloat32_Int64(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Mul(t *testing.T) {
+	tests := []struct {
+		a, b, want Float32
+	}{
+		{0, 0, 0},
+		{1, 1, 1},
+		{2, 3, 6},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mul(test.b)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Mul(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Mul(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Mul(f))
+	}
+}
