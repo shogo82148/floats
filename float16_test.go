@@ -112,14 +112,14 @@ func TestFloat16_Mul(t *testing.T) {
 		{0x3c00, 0x7c00, 0x7c00}, //  1.0 *  Inf =  Inf
 		{0xbc00, 0x7c00, 0xfc00}, // -1.0 *  Inf = -Inf
 		{0x7c00, 0x3c00, 0x7c00}, //  Inf *  1.0 =  Inf
-		{0x7c00, 0xbc00, 0xfc00}, //  Inf * -1.0 =  Inf
+		{0x7c00, 0xbc00, 0xfc00}, //  Inf * -1.0 = -Inf
 		{0x7c00, 0x0000, 0x7e00}, //  Inf *  0.0 =  NaN
-		{0x0000, 0x7c00, 0x7e00}, //  0.0 *  Inf = NaN
+		{0x0000, 0x7c00, 0x7e00}, //  0.0 *  Inf =  NaN
 	}
 
 	for _, test := range tests {
 		got := test.a.Mul(test.b)
-		if got != test.want {
+		if !eq16(got, test.want) {
 			t.Errorf("Float16(%x).Mul(%x) = %x, want %x", test.a, test.b, got, test.want)
 		}
 	}
