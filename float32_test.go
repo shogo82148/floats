@@ -95,12 +95,34 @@ func TestFloat32_Int64(t *testing.T) {
 }
 
 func TestFloat32_Mul(t *testing.T) {
+	nan := Float32(math.NaN())
+	negZero := Float32(math.Copysign(0, -1))
+	inf := Float32(math.Inf(1))
+
 	tests := []struct {
 		a, b, want Float32
 	}{
 		{0, 0, 0},
 		{1, 1, 1},
 		{2, 3, 6},
+
+		// handling zero
+		{0, 1, 0},
+		{negZero, 1, negZero},
+		{0, -1, negZero},
+		{negZero, -1, 0},
+
+		// handling NaN
+		{nan, 0, nan},
+		{0, nan, nan},
+
+		// handling infinity
+		{1, inf, inf},
+		{-1, inf, -inf},
+		{inf, 1, inf},
+		{inf, -1, -inf},
+		{inf, 0, nan},
+		{0, inf, nan},
 	}
 
 	for _, test := range tests {
