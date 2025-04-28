@@ -36,3 +36,6 @@ cd "$ROOT"
 
 ### f16 operations
 "$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f16_mul | go run ./internal/cmd/float_test f16_mul
+
+### f32 operations
+"$ROOT/bin/testfloat_gen" -level 2 -seed "$SEED" f32_mul | go run ./internal/cmd/float_test f32_mul
