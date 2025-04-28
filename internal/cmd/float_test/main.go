@@ -112,6 +112,10 @@ func main() {
 		if err := f16_mul(); err != nil {
 			log.Fatal(err)
 		}
+	case "f32_mul":
+		if err := f32_mul(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
 	}
@@ -681,6 +685,39 @@ func f16_mul() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float16(%x).Mul(%x) = %x, want %x", f16a, f16b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_mul() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f32a, err := parseFloat32(a)
+		if err != nil {
+			return err
+		}
+		f32b, err := parseFloat32(b)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat32(want)
+		if err != nil {
+			return err
+		}
+		got := f32a.Mul(f32b)
+		if !eq32(got, wantf) {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float32(%x).Mul(%x) = %x, want %x", f32a, f32b, got, wantf)
 		}
 		count.Add(1)
 	}
