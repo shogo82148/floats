@@ -109,7 +109,7 @@ func (a Float128) Mul(b Float128) Float128 {
 		one := ints.Uint256{0, 0, 0, 1}
 		frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
 		frac = frac.Rsh(uint(shift))
-		return Float128{sign | frac[0], frac[1]}
+		return Float128{sign | frac[2], frac[3]}
 	}
 
 	exp = expA + expB + bias128
