@@ -171,7 +171,7 @@ func (a Float16) Quo(b Float16) Float16 {
 		return Float16(sign | uint16(frac))
 	}
 
-	frac += 0b11 //+ ((frac >> 3) & 1) // round to nearest even
+	frac += 0b11 + ((frac >> 3) & 1) // round to nearest even
 	frac >>= 3
 	return Float16(sign | uint16(exp)<<shift16 | frac&fracMask16)
 }
