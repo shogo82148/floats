@@ -1,6 +1,8 @@
 package floats
 
-import "math/bits"
+import (
+	"math/bits"
+)
 
 const (
 	uvnan16    = 0x7e00     // NaN value for Float16
@@ -174,6 +176,114 @@ func (a Float16) Quo(b Float16) Float16 {
 	frac += 0b11 + ((frac >> 3) & 1) // round to nearest even
 	frac >>= 3
 	return Float16(sign | uint16(exp)<<shift16 | frac&fracMask16)
+}
+
+// Add returns the sum of a and b.
+func (a Float16) Add(b Float16) Float16 {
+	if a.IsNaN() {
+		// NaN + anything = NaN
+		return a
+	}
+	if b.IsNaN() {
+		// anything + NaN = NaN
+		return b
+	}
+	if a.isZero() {
+		if b.isZero() {
+			//  0 +  0 =  0
+			//  0 + -0 =  0
+			// -0 +  0 =  0
+			// -0 + -0 = -0
+			return a & b
+		}
+		// ±0 + b = b
+		return b
+	}
+	if b.isZero() {
+		// a + ±0 = a
+		return a
+	}
+
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+
+	// handle special cases
+	if expA == mask16-bias16 {
+		// NaN check is done above; a is ±inf
+		if expB == mask16-bias16 {
+			// NaN check is done above; b is ±inf
+			if signA == signB {
+				// ±inf + ±inf = ±inf
+				return Float16(signA | uvinf16)
+			}
+			// ±inf + ∓inf = NaN
+			return uvnan16
+		}
+		// b is finite, the result is ±inf
+		return a
+	}
+	if expB == mask16-bias16 {
+		// NaN check is done above; b is ±inf
+		// NaN and Inf checks are done above; a is finite.
+		return b
+	}
+
+	if expA < expB {
+		// swap a and b
+		signA, signB = signB, signA
+		expA, expB = expB, expA
+		fracA, fracB = fracB, fracA
+	}
+
+	// add the fractions
+	const offset = 16
+	fracA32 := int32(fracA) << offset
+	fracB32 := int32(fracB) << offset
+	fracB32 >>= uint(expA - expB)
+	if signA != 0 {
+		fracA32 = -fracA32
+	}
+	if signB != 0 {
+		fracB32 = -fracB32
+	}
+	frac32 := fracA32 + fracB32
+	sign := uint16(0)
+	if frac32 < 0 {
+		sign = signMask16
+		frac32 = -frac32
+	}
+
+	shift := bits.Len32(uint32(frac32)) - shift16 - 1
+	exp := expA + shift - offset
+
+	// normalize
+	if frac32 == 0 || exp < -(bias16+shift16) {
+		// underflow
+		return Float16(sign)
+	}
+	if exp <= -bias16 {
+		// the result is subnormal
+		shift := offset - (exp + bias16)
+		frac32 += (1<<(shift-1) - 1) + ((frac32 >> shift) & 1) // round to nearest even
+		frac := uint16(frac32 >> shift)
+		return Float16(sign | uint16(frac))
+	}
+	if exp >= mask16-bias16 {
+		// overflow
+		return Float16(sign | (mask16 << shift16))
+	}
+
+	frac32 += (1<<(shift-1) - 1) + ((frac32 >> shift) & 1) // round to nearest even
+	if bits.Len32(uint32(frac32)) > shift16+shift+1 {
+		frac32 >>= 1
+		exp++
+		if exp >= mask16 {
+			// overflow
+			return Float16(sign | (mask16 << shift16))
+		}
+	}
+	frac := uint16(frac32 >> shift)
+	return Float16(sign | uint16(exp+bias16)<<shift16 | frac&fracMask16)
 }
 
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
