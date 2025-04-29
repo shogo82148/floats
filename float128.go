@@ -198,7 +198,16 @@ func (a Float128) Quo(b Float128) Float128 {
 		return Float128{sign | frac[0], frac[1]}
 	}
 
-	frac = frac.Add(ints.Uint128{0, 0b11}).Add(frac.Rsh(3).And(ints.Uint128{0, 1})) // round to nearest even
+	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
+	frac = frac.Add(ints.Uint128{0, 0b11}).Add(frac.Rsh(3).And(ints.Uint128{0, 1}))
+	// detect carry-out caused by rounding
+	if frac.BitLen() > shift128+3 {
+		frac = frac.Rsh(1)
+		exp++
+		if exp >= mask128 { // overflow -> ±Inf
+			return Float128{sign | uvinf128[0], uvinf128[1]}
+		}
+	}
 	frac = frac.Rsh(3)
 	return Float128{sign | uint64(exp)<<(shift128-64) | frac[0]&fracMask128[0], frac[1] & fracMask128[1]}
 }
