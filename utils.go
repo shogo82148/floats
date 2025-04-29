@@ -1,5 +1,7 @@
 package floats
 
+import "github.com/shogo82148/ints"
+
 // squash16 squashes the bits of x to a single bit.
 func squash16(x uint16) uint16 {
 	x |= x >> 8
@@ -18,4 +20,16 @@ func squash64(x uint64) uint64 {
 	x |= x >> 2
 	x |= x >> 1
 	return x & 1
+}
+
+// squash256 squashes the bits of x to a single bit.
+func squash256(x ints.Uint256) uint64 {
+	y := x[0] | x[1] | x[2] | x[3]
+	y |= y >> 32
+	y |= y >> 16
+	y |= y >> 8
+	y |= y >> 4
+	y |= y >> 2
+	y |= y >> 1
+	return y & 1
 }
