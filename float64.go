@@ -45,3 +45,8 @@ func (a Float64) Mul(b Float64) Float64 {
 func (a Float64) Quo(b Float64) Float64 {
 	return a / b
 }
+
+// Add returns the sum of a and b.
+func (a Float64) Add(b Float64) Float64 {
+	return a + b
+}

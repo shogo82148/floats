@@ -71,6 +71,7 @@ jobs:
           # Float64 operations
           - "f64_mul"
           - "f64_div"
+          - "f64_add"
 
           # Float128 operations
           - "f128_mul"

@@ -138,6 +138,10 @@ func main() {
 		if err := f64_div(); err != nil {
 			log.Fatal(err)
 		}
+	case "f64_add":
+		if err := f64_add(); err != nil {
+			log.Fatal(err)
+		}
 
 	case "f128_mul":
 		if err := f128_mul(); err != nil {
@@ -914,6 +918,39 @@ func f64_div() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float64(%x).Quo(%x) = %x, want %x", f64a, f64b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f64_add() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f64a, err := parseFloat64(a)
+		if err != nil {
+			return err
+		}
+		f64b, err := parseFloat64(b)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat64(want)
+		if err != nil {
+			return err
+		}
+		got := f64a.Add(f64b)
+		if !eq64(got, wantf) {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float64(%x).Add(%x) = %x, want %x", f64a, f64b, got, wantf)
 		}
 		count.Add(1)
 	}

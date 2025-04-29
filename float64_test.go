@@ -177,3 +177,37 @@ func BenchmarkFloat64_Quo(b *testing.B) {
 		runtime.KeepAlive(f.Quo(f))
 	}
 }
+
+func TestFloat64_Add(t *testing.T) {
+	nan := Float64(math.NaN())
+	inf := Float64(math.Inf(1))
+
+	tests := []struct {
+		a, b, want Float64
+	}{
+		{1, 1, 2},
+		{2, 3, 5},
+
+		// adding zero
+		{0, 1, 1},
+		{1, 0, 1},
+
+		// handling NaN
+		{nan, 1, nan},
+		{1, nan, nan},
+
+		// handling infinity
+		{inf, 1, inf},
+		{1, inf, inf},
+		{inf, inf, inf},
+		{inf, -inf, nan},
+		{-inf, inf, nan},
+	}
+
+	for _, test := range tests {
+		got := test.a.Add(test.b)
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Add(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
