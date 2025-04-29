@@ -104,6 +104,78 @@ func (a Float16) Mul(b Float16) Float16 {
 	return Float16(sign | uint16(exp<<shift16) | uint16(frac))
 }
 
+// Quo returns the quotient of a and b.
+func (a Float16) Quo(b Float16) Float16 {
+	if a.IsNaN() {
+		// NaN / anything = NaN
+		return a
+	}
+	if b.IsNaN() {
+		// anything / NaN = NaN
+		return b
+	}
+
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+	sign := signA ^ signB
+
+	if b.isZero() {
+		if a.isZero() {
+			// 0 / 0 = NaN
+			return uvnan16
+		}
+		// ±finite / 0 = ±inf
+		return Float16(sign | uvinf16)
+	}
+	if a.isZero() {
+		// 0 / ±finite = 0
+		return Float16(sign)
+	}
+	if expA == mask16-bias16 {
+		// NaN check is done above; a is ±inf
+		if expB == mask16-bias16 {
+			// ±inf / ±inf = NaN
+			return uvnan16
+		} else {
+			// ±inf / finite = ±inf
+			return Float16(sign | uvinf16)
+		}
+	}
+	if expB == mask16-bias16 {
+		// NaN check is done above; b is ±inf
+		// NaN and Inf checks are done above; a is finite.
+		// ±finite / ±inf = 0
+		return Float16(sign)
+	}
+
+	exp := expA - expB + bias16
+	if fracA < fracB {
+		exp--
+		fracA <<= 1
+	}
+	if exp >= mask16 {
+		// overflow
+		return Float16(sign | uvinf16)
+	}
+
+	shift := shift16 + 3 // 1 for the implicit bit, 1 for the rounding bit, 1 for the guard bit
+	fracA32 := uint32(fracA) << shift
+	frac := uint16(fracA32 / uint32(fracB))
+	mod := uint16(fracA32 % uint32(fracB))
+	frac |= squash16(mod)
+	if exp <= 0 {
+		// the result is subnormal
+		shift := -exp + 3 + 1
+		frac += (1<<(shift-1) - 1) + ((frac >> shift) & 1) // round to nearest even
+		frac >>= shift
+		return Float16(sign | uint16(frac))
+	}
+
+	frac += 0b11 + ((frac >> 3) & 1) // round to nearest even
+	frac >>= 3
+	return Float16(sign | uint16(exp)<<shift16 | frac&fracMask16)
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
