@@ -146,6 +146,98 @@ func (a Float256) Mul(b Float256) Float256 {
 	}
 }
 
+// Quo returns the quotient of a and b.
+func (a Float256) Quo(b Float256) Float256 {
+	if a.IsNaN() {
+		return a
+	}
+	if b.IsNaN() {
+		return b
+	}
+
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+	sign := signA ^ signB
+
+	if b.isZero() {
+		if a.isZero() {
+			// 0 / 0 = NaN
+			return Float256(uvnan256)
+		}
+		// ±finite / 0 = ±inf
+		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+	}
+	if a.isZero() {
+		// 0 / finite = 0
+		return Float256{sign, 0, 0, 0}
+	}
+	if expA == mask256-bias256 {
+		// NaN check is done above; a is ±inf
+		if expB == mask256-bias256 {
+			// ±inf / ±inf = NaN
+			return Float256(uvnan256)
+		}
+		// ±inf / finite = ±inf
+		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+	}
+	if expB == mask256-bias256 {
+		// NaN check is done above; b is ±inf
+		// NaN and Inf checks are done above; a is finite.
+		// ±finite / ±inf = 0
+		return Float256{sign, 0, 0, 0}
+	}
+
+	exp := expA - expB + bias256
+	if fracA.Cmp(fracB) < 0 {
+		exp--
+		fracA = fracA.Lsh(1)
+	}
+	if exp >= mask256 {
+		// overflow
+		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+	}
+
+	shift := shift256 + 3 // 1 for the implicit bit, 1 for the rounding bit, 1 for the guard bit
+	fracA512 := fracA.Uint512().Lsh(uint(shift))
+	fracB512 := fracB.Uint512()
+	frac512, mod := fracA512.DivMod(fracB512)
+	frac512[7] |= squash512(mod)
+	frac := frac512.Uint256()
+
+	one := ints.Uint256{0, 0, 0, 1}
+	if exp <= 0 {
+		// the result is subnormal
+		shift := -exp + 3 + 1
+		frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
+		frac = frac.Rsh(uint(shift))
+		return Float256{
+			sign | frac[0],
+			frac[1],
+			frac[2],
+			frac[3],
+		}
+	}
+
+	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
+	frac = frac.Add(ints.Uint256{0, 0, 0, 0b11}).Add(frac.Rsh(3).And(one))
+	// detect carry-out caused by rounding
+	if frac.BitLen() > shift256+3+1 {
+		frac = frac.Rsh(1)
+		exp++
+		if exp >= mask256 {
+			// overflow
+			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+		}
+	}
+	frac = frac.Rsh(3)
+	return Float256{
+		sign | uint64(exp)<<(shift256-192) | frac[0]&fracMask256[0],
+		frac[1],
+		frac[2],
+		frac[3],
+	}
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]

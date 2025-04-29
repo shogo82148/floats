@@ -33,3 +33,15 @@ func squash256(x ints.Uint256) uint64 {
 	y |= y >> 1
 	return y & 1
 }
+
+// squash512 squashes the bits of x to a single bit.
+func squash512(x ints.Uint512) uint64 {
+	y := x[0] | x[1] | x[2] | x[3] | x[4] | x[5] | x[6] | x[7]
+	y |= y >> 32
+	y |= y >> 16
+	y |= y >> 8
+	y |= y >> 4
+	y |= y >> 2
+	y |= y >> 1
+	return y & 1
+}
