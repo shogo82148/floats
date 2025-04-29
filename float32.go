@@ -40,3 +40,8 @@ func (a Float32) Int64() int64 {
 func (a Float32) Mul(b Float32) Float32 {
 	return a * b
 }
+
+// Quo returns the quotient of a and b.
+func (a Float32) Quo(b Float32) Float32 {
+	return a / b
+}
