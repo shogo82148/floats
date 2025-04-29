@@ -139,3 +139,42 @@ func BenchmarkFloat32_Mul(b *testing.B) {
 		runtime.KeepAlive(f.Mul(f))
 	}
 }
+
+func TestFloat32_Quo(t *testing.T) {
+	nan := Float32(math.NaN())
+	inf := Float32(math.Inf(1))
+
+	tests := []struct {
+		a, b, want Float32
+	}{
+		{0, 1, 0},
+		{1, 1, 1},
+
+		// zero division
+		{0, 0, nan},
+		{1, 0, inf},
+
+		// handling NaN
+		{nan, 1, nan},
+		{1, nan, nan},
+
+		// handling infinity
+		{1, inf, 0},
+		{inf, 1, inf},
+		{inf, inf, nan},
+	}
+
+	for _, test := range tests {
+		got := test.a.Quo(test.b)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Quo(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Quo(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Quo(f))
+	}
+}
