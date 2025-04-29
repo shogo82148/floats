@@ -129,6 +129,89 @@ func (a Float128) Mul(b Float128) Float128 {
 	}
 }
 
+// Quo returns the quotient of a and b.
+func (a Float128) Quo(b Float128) Float128 {
+	if a.IsNaN() {
+		// NaN / anything = NaN
+		return a
+	}
+	if b.IsNaN() {
+		// anything / NaN = NaN
+		return b
+	}
+
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+	sign := signA ^ signB
+
+	if b.isZero() {
+		if a.isZero() {
+			// 0 / 0 = NaN
+			return Float128(uvnan128)
+		}
+		// ±finite / 0 = ±inf
+		return Float128{sign | uvinf128[0], uvinf128[1]}
+	}
+	if a.isZero() {
+		// 0 / finite = 0
+		return Float128{sign, 0}
+	}
+	if expA == mask128-bias128 {
+		// NaN check is done above; a is ±inf
+		if expB == mask128-bias128 {
+			// ±inf / ±inf = NaN
+			return Float128(uvnan128)
+		} else {
+			// ±inf / finite = ±inf
+			return Float128{sign | uvinf128[0], uvinf128[1]}
+		}
+	}
+	if expB == mask128-bias128 {
+		// NaN check is done above; b is ±inf
+		// NaN and Inf checks are done above; a is finite.
+		// ±finite / ±inf = 0
+		return Float128{sign, 0}
+	}
+
+	exp := expA - expB + bias128
+	if fracA.Cmp(fracB) < 0 {
+		exp--
+		fracA = fracA.Lsh(1)
+	}
+	if exp >= mask128 {
+		// overflow
+		return Float128{sign | uvinf128[0], uvinf128[1]}
+	}
+
+	shift := shift128 + 3 // 1 for the implicit bit, 1 for the rounding bit, 1 for the guard bit
+	fracA256 := fracA.Uint256().Lsh(uint(shift))
+	fracB256 := fracB.Uint256()
+	frac256, mod := fracA256.DivMod(fracB256)
+	frac256[3] |= squash256(mod)
+	frac := frac256.Uint128()
+
+	if exp <= 0 {
+		// the result is subnormal
+		shift := -exp + 3 + 1
+		frac = frac.Add(ints.Uint128{0, 1}.Lsh(uint(shift - 1)).Sub(ints.Uint128{0, 1})).Add(frac.Rsh(uint(shift)).And(ints.Uint128{0, 1})) // round to nearest even
+		frac = frac.Rsh(uint(shift))
+		return Float128{sign | frac[0], frac[1]}
+	}
+
+	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
+	frac = frac.Add(ints.Uint128{0, 0b11}).Add(frac.Rsh(3).And(ints.Uint128{0, 1}))
+	// detect carry-out caused by rounding
+	if frac.BitLen() > shift128+3+1 {
+		frac = frac.Rsh(1)
+		exp++
+		if exp >= mask128 { // overflow -> ±Inf
+			return Float128{sign | uvinf128[0], uvinf128[1]}
+		}
+	}
+	frac = frac.Rsh(3)
+	return Float128{sign | uint64(exp)<<(shift128-64) | frac[0]&fracMask128[0], frac[1] & fracMask128[1]}
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
