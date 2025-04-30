@@ -378,6 +378,19 @@ func (a Float256) Ne(b Float256) bool {
 	return !a.Eq(b)
 }
 
+// Lt returns a < b.
+//
+// Special cases are:
+//
+//	Lt(NaN, x) == false
+//	Lt(x, NaN) == false
+func (a Float256) Lt(b Float256) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	return a.comparable().Cmp(b.comparable()) < 0
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]
@@ -395,4 +408,15 @@ func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	// a is normal
 	frac[0] = frac[0] | (1 << (shift256 - 192))
 	return
+}
+
+// comparable returns a comparable value for a.
+func (a Float256) comparable() ints.Int256 {
+	i := ints.Int256(a)
+	sign := uint64(int64(i[0]) >> 63)
+	i = i.Xor(ints.Int256{
+		sign & 0x7fff_ffff_ffff_ffff, sign, sign, sign,
+	})
+	i = i.Add(ints.Int256{0, 0, 0, sign & 1})
+	return i
 }
