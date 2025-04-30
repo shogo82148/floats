@@ -310,6 +310,11 @@ func (a Float16) Eq(b Float16) bool {
 	return (a|b)&^signMask16 == 0
 }
 
+// Ne returns a != b.
+func (a Float16) Ne(b Float16) bool {
+	return !a.Eq(b)
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16

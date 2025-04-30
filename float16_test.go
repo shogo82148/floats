@@ -315,3 +315,29 @@ func BenchmarkFloat16_Eq(b *testing.B) {
 		runtime.KeepAlive(f.Eq(f))
 	}
 }
+
+func TestFloat16_Ne(t *testing.T) {
+	tests := []struct {
+		a, b Float16
+		want bool
+	}{
+		{0x3c00, 0x3c00, false},  // 1.0 != 1.0
+		{0x3c00, 0x0000, true},   // 1.0 == 0.0
+		{0x0000, 0x0000, false},  // 0.0 != 0.0
+		{0x8000, 0x8000, false},  // -0.0 != -0.0
+		{uvnan16, uvnan16, true}, // NaN == NaN
+	}
+	for _, test := range tests {
+		got := test.a.Ne(test.b)
+		if got != test.want {
+			t.Errorf("Float16(%x).Ne(%x) = %v, want %v", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Ne(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Ne(f))
+	}
+}
