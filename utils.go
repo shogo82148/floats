@@ -45,3 +45,21 @@ func squash512(x ints.Uint512) uint64 {
 	y |= y >> 1
 	return y & 1
 }
+
+func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
+	one := ints.Uint128{0, 1}
+	mask := one.Lsh(uint(shift - 1)).Sub(one)
+	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+}
+
+func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
+	one := ints.Uint256{0, 0, 0, 1}
+	mask := one.Lsh(uint(shift - 1)).Sub(one)
+	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+}
+
+func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {
+	one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
+	mask := one.Lsh(uint(shift - 1)).Sub(one)
+	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+}
