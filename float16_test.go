@@ -315,6 +315,13 @@ func TestFloat16_Sqrt(t *testing.T) {
 	}
 }
 
+func BenchmarkFloat16_Sqrt(b *testing.B) {
+	f := Float16(0x4000) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Sqrt())
+	}
+}
+
 func TestFloat16_Eq(t *testing.T) {
 	tests := []struct {
 		a, b Float16
