@@ -342,6 +342,29 @@ func (a Float16) Gt(b Float16) bool {
 	return b.Lt(a)
 }
 
+// Le returns a <= b.
+//
+// Special cases are:
+//
+//	Le(x, NaN) == false
+//	Le(NaN, x) == false
+func (a Float16) Le(b Float16) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	return a.comparable() <= b.comparable()
+}
+
+// Ge returns a >= b.
+//
+// Special cases are:
+//
+//	Ge(x, NaN) == false
+//	Ge(NaN, x) == false
+func (a Float16) Ge(b Float16) bool {
+	return b.Le(a)
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
