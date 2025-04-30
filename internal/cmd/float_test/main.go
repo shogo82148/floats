@@ -1115,7 +1115,7 @@ func f32_eq() error {
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float32(%x).Sub(%x) = %t, want %t", f32a, f32b, got, w)
+			return fmt.Errorf("Float32(%x).Eq(%x) = %t, want %t", f32a, f32b, got, w)
 		}
 		count.Add(1)
 	}
@@ -1141,11 +1141,11 @@ func f32_lt() error {
 			return err
 		}
 		w := want != "0"
-		got := f32a.Eq(f32b)
+		got := f32a.Lt(f32b)
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float32(%x).Sub(%x) = %t, want %t", f32a, f32b, got, w)
+			return fmt.Errorf("Float32(%x).Lt(%x) = %t, want %t", f32a, f32b, got, w)
 		}
 		count.Add(1)
 	}
