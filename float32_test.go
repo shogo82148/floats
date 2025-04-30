@@ -117,6 +117,13 @@ func TestFloat32_Neg(t *testing.T) {
 	}
 }
 
+func BenchmarkFloat32_Neg(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Neg())
+	}
+}
+
 func TestFloat32_Mul(t *testing.T) {
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
