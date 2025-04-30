@@ -91,6 +91,38 @@ func TestFloat64_Int64(t *testing.T) {
 	}
 }
 
+func TestFloat64_Neg(t *testing.T) {
+	negZero := Float64(math.Copysign(0, -1))
+	nan := Float64(math.NaN())
+	inf := Float64(math.Inf(1))
+
+	tests := []struct {
+		a    Float64
+		want Float64
+	}{
+		{1, -1},
+		{0, negZero},
+		{negZero, 0},
+		{inf, -inf},
+		{-inf, inf},
+		{nan, nan},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Neg()
+		if !eq64(got, tt.want) {
+			t.Errorf("Float64(%x).Neg() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Neg(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Neg())
+	}
+}
+
 func TestFloat64_Mul(t *testing.T) {
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
