@@ -94,3 +94,23 @@ func (a Float32) Lt(b Float32) bool {
 func (a Float32) Gt(b Float32) bool {
 	return a > b
 }
+
+// Le returns a <= b.
+//
+// Special cases are:
+//
+//	Le(x, NaN) == false
+//	Le(NaN, x) == false
+func (a Float32) Le(b Float32) bool {
+	return a <= b
+}
+
+// Ge returns a >= b.
+//
+// Special cases are:
+//
+//	Ge(x, NaN) == false
+//	Ge(NaN, x) == false
+func (a Float32) Ge(b Float32) bool {
+	return a >= b
+}

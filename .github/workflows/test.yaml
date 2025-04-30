@@ -66,6 +66,7 @@ jobs:
           - "f16_sub"
           - "f16_eq"
           - "f16_lt"
+          - "f16_le"
 
           # Float32 operations
           - "f32_mul"
@@ -74,6 +75,7 @@ jobs:
           - "f32_sub"
           - "f32_eq"
           - "f32_lt"
+          - "f32_le"
 
           # Float64 operations
           - "f64_mul"
