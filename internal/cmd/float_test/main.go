@@ -110,79 +110,79 @@ func main() {
 
 	// Float16 operations
 	case "f16_mul":
-		if err := f16_mul(); err != nil {
+		if err := f16x3("Mul", floats.Float16.Mul); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_div":
-		if err := f16_div(); err != nil {
+		if err := f16x3("Div", floats.Float16.Quo); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_add":
-		if err := f16_add(); err != nil {
+		if err := f16x3("Add", floats.Float16.Add); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_sub":
-		if err := f16_sub(); err != nil {
+		if err := f16x3("Sub", floats.Float16.Sub); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_eq":
-		if err := f16_eq(); err != nil {
+		if err := f16x2bool("Eq", floats.Float16.Eq); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_lt":
-		if err := f16_lt(); err != nil {
+		if err := f16x2bool("Lt", floats.Float16.Lt); err != nil {
 			log.Fatal(err)
 		}
 	case "f16_le":
-		if err := f16_le(); err != nil {
+		if err := f16x2bool("Le", floats.Float16.Le); err != nil {
 			log.Fatal(err)
 		}
 
 	// Float32 operations
 	case "f32_mul":
-		if err := f32_mul(); err != nil {
+		if err := f32x3("Mul", floats.Float32.Mul); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_div":
-		if err := f32_div(); err != nil {
+		if err := f32x3("Div", floats.Float32.Quo); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_add":
-		if err := f32_add(); err != nil {
+		if err := f32x3("Add", floats.Float32.Add); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_sub":
-		if err := f32_sub(); err != nil {
+		if err := f32x3("Sub", floats.Float32.Sub); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_eq":
-		if err := f32_eq(); err != nil {
+		if err := f32x2bool("Eq", floats.Float32.Eq); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_lt":
-		if err := f32_lt(); err != nil {
+		if err := f32x2bool("Lt", floats.Float32.Lt); err != nil {
 			log.Fatal(err)
 		}
 	case "f32_le":
-		if err := f32_le(); err != nil {
+		if err := f32x2bool("Le", floats.Float32.Le); err != nil {
 			log.Fatal(err)
 		}
 
 	// Float64 operations
 	case "f64_mul":
-		if err := f64_mul(); err != nil {
+		if err := f64x3("Mul", floats.Float64.Mul); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_div":
-		if err := f64_div(); err != nil {
+		if err := f64x3("Div", floats.Float64.Quo); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_add":
-		if err := f64_add(); err != nil {
+		if err := f64x3("Add", floats.Float64.Add); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_sub":
-		if err := f64_sub(); err != nil {
+		if err := f64x3("Sub", floats.Float64.Sub); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_sqrt":
@@ -190,45 +190,45 @@ func main() {
 			log.Fatal(err)
 		}
 	case "f64_eq":
-		if err := f64_eq(); err != nil {
+		if err := f64x2bool("Eq", floats.Float64.Eq); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_lt":
-		if err := f64_lt(); err != nil {
+		if err := f64x2bool("Lt", floats.Float64.Lt); err != nil {
 			log.Fatal(err)
 		}
 	case "f64_le":
-		if err := f64_le(); err != nil {
+		if err := f64x2bool("Le", floats.Float64.Le); err != nil {
 			log.Fatal(err)
 		}
 
 	// Float128 operations
 	case "f128_mul":
-		if err := f128_mul(); err != nil {
+		if err := f128x3("Mul", floats.Float128.Mul); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_div":
-		if err := f128_div(); err != nil {
+		if err := f128x3("Div", floats.Float128.Quo); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_add":
-		if err := f128_add(); err != nil {
+		if err := f128x3("Add", floats.Float128.Add); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_sub":
-		if err := f128_sub(); err != nil {
+		if err := f128x3("Sub", floats.Float128.Sub); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_eq":
-		if err := f128_eq(); err != nil {
+		if err := f128x2bool("Eq", floats.Float128.Eq); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_lt":
-		if err := f128_lt(); err != nil {
+		if err := f128x2bool("Lt", floats.Float128.Lt); err != nil {
 			log.Fatal(err)
 		}
 	case "f128_le":
-		if err := f128_le(); err != nil {
+		if err := f128x2bool("Le", floats.Float128.Le); err != nil {
 			log.Fatal(err)
 		}
 
@@ -774,7 +774,7 @@ func f128_to_i64() error {
 	return nil
 }
 
-func f16_mul() error {
+func f16x3(name string, f func(a, b floats.Float16) floats.Float16) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -796,117 +796,18 @@ func f16_mul() error {
 		if err != nil {
 			return err
 		}
-		got := f16a.Mul(f16b)
+		got := f(f16a, f16b)
 		if !eq16(got, wantf) {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float16(%x).Mul(%x) = %x, want %x", f16a, f16b, got, wantf)
+			return fmt.Errorf("Float16(%x).%s(%x) = %x, want %x", f16a, name, f16b, got, wantf)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f16_div() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f16a, err := parseFloat16(a)
-		if err != nil {
-			return err
-		}
-		f16b, err := parseFloat16(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat16(want)
-		if err != nil {
-			return err
-		}
-		got := f16a.Quo(f16b)
-		if !eq16(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float16(%x).Div(%x) = %x, want %x", f16a, f16b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f16_add() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f16a, err := parseFloat16(a)
-		if err != nil {
-			return err
-		}
-		f16b, err := parseFloat16(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat16(want)
-		if err != nil {
-			return err
-		}
-		got := f16a.Add(f16b)
-		if !eq16(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float16(%x).Add(%x) = %x, want %x", f16a, f16b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f16_sub() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f16a, err := parseFloat16(a)
-		if err != nil {
-			return err
-		}
-		f16b, err := parseFloat16(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat16(want)
-		if err != nil {
-			return err
-		}
-		got := f16a.Sub(f16b)
-		if !eq16(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float16(%x).Sub(%x) = %x, want %x", f16a, f16b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f16_eq() error {
+func f16x2bool(name string, f func(a, b floats.Float16) bool) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -925,78 +826,18 @@ func f16_eq() error {
 			return err
 		}
 		w := want != "0"
-		got := f16a.Eq(f16b)
+		got := f(f16a, f16b)
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float16(%x).Eq(%x) = %t, want %t", f16a, f16b, got, w)
+			return fmt.Errorf("Float16(%x).%s(%x) = %t, want %t", f16a, name, f16b, got, w)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f16_lt() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f16a, err := parseFloat16(a)
-		if err != nil {
-			return err
-		}
-		f16b, err := parseFloat16(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f16a.Lt(f16b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float16(%x).Lt(%x) = %t, want %t", f16a, f16b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f16_le() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f16a, err := parseFloat16(a)
-		if err != nil {
-			return err
-		}
-		f16b, err := parseFloat16(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f16a.Le(f16b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float16(%x).Le(%x) = %t, want %t", f16a, f16b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f32_mul() error {
+func f32x3(name string, f func(a, b floats.Float32) floats.Float32) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1018,117 +859,18 @@ func f32_mul() error {
 		if err != nil {
 			return err
 		}
-		got := f32a.Mul(f32b)
+		got := f(f32a, f32b)
 		if !eq32(got, wantf) {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float32(%x).Mul(%x) = %x, want %x", f32a, f32b, got, wantf)
+			return fmt.Errorf("Float32(%x).%s(%x) = %x, want %x", f32a, name, f32b, got, wantf)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f32_div() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f32a, err := parseFloat32(a)
-		if err != nil {
-			return err
-		}
-		f32b, err := parseFloat32(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat32(want)
-		if err != nil {
-			return err
-		}
-		got := f32a.Quo(f32b)
-		if !eq32(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float32(%x).Quo(%x) = %x, want %x", f32a, f32b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f32_add() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f32a, err := parseFloat32(a)
-		if err != nil {
-			return err
-		}
-		f32b, err := parseFloat32(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat32(want)
-		if err != nil {
-			return err
-		}
-		got := f32a.Add(f32b)
-		if !eq32(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float32(%x).Add(%x) = %x, want %x", f32a, f32b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f32_sub() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f32a, err := parseFloat32(a)
-		if err != nil {
-			return err
-		}
-		f32b, err := parseFloat32(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat32(want)
-		if err != nil {
-			return err
-		}
-		got := f32a.Sub(f32b)
-		if !eq32(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float32(%x).Sub(%x) = %x, want %x", f32a, f32b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f32_eq() error {
+func f32x2bool(name string, f func(a, b floats.Float32) bool) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1147,78 +889,18 @@ func f32_eq() error {
 			return err
 		}
 		w := want != "0"
-		got := f32a.Eq(f32b)
+		got := f(f32a, f32b)
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float32(%x).Eq(%x) = %t, want %t", f32a, f32b, got, w)
+			return fmt.Errorf("Float32(%x).%s(%x) = %t, want %t", f32a, name, f32b, got, w)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f32_lt() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f32a, err := parseFloat32(a)
-		if err != nil {
-			return err
-		}
-		f32b, err := parseFloat32(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f32a.Lt(f32b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float32(%x).Lt(%x) = %t, want %t", f32a, f32b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f32_le() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f32a, err := parseFloat32(a)
-		if err != nil {
-			return err
-		}
-		f32b, err := parseFloat32(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f32a.Le(f32b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float32(%x).Le(%x) = %t, want %t", f32a, f32b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f64_mul() error {
+func f64x3(name string, f func(a, b floats.Float64) floats.Float64) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1240,110 +922,11 @@ func f64_mul() error {
 		if err != nil {
 			return err
 		}
-		got := f64a.Mul(f64b)
+		got := f(f64a, f64b)
 		if !eq64(got, wantf) {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Mul(%x) = %x, want %x", f64a, f64b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f64_div() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f64a, err := parseFloat64(a)
-		if err != nil {
-			return err
-		}
-		f64b, err := parseFloat64(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat64(want)
-		if err != nil {
-			return err
-		}
-		got := f64a.Quo(f64b)
-		if !eq64(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Quo(%x) = %x, want %x", f64a, f64b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f64_add() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f64a, err := parseFloat64(a)
-		if err != nil {
-			return err
-		}
-		f64b, err := parseFloat64(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat64(want)
-		if err != nil {
-			return err
-		}
-		got := f64a.Add(f64b)
-		if !eq64(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Add(%x) = %x, want %x", f64a, f64b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f64_sub() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f64a, err := parseFloat64(a)
-		if err != nil {
-			return err
-		}
-		f64b, err := parseFloat64(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat64(want)
-		if err != nil {
-			return err
-		}
-		got := f64a.Sub(f64b)
-		if !eq64(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Sub(%x) = %x, want %x", f64a, f64b, got, wantf)
+			return fmt.Errorf("Float64(%x).%s(%x) = %x, want %x", f64a, name, f64b, got, wantf)
 		}
 		count.Add(1)
 	}
@@ -1379,7 +962,7 @@ func f64_sqrt() error {
 	return nil
 }
 
-func f64_eq() error {
+func f64x2bool(name string, f func(a, b floats.Float64) bool) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1398,78 +981,18 @@ func f64_eq() error {
 			return err
 		}
 		w := want != "0"
-		got := f64a.Eq(f64b)
+		got := f(f64a, f64b)
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float64(%x).Eq(%x) = %t, want %t", f64a, f64b, got, w)
+			return fmt.Errorf("Float64(%x).%s(%x) = %t, want %t", f64a, name, f64b, got, w)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f64_lt() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f64a, err := parseFloat64(a)
-		if err != nil {
-			return err
-		}
-		f64b, err := parseFloat64(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f64a.Lt(f64b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float64(%x).Lt(%x) = %t, want %t", f64a, f64b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f64_le() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f64a, err := parseFloat64(a)
-		if err != nil {
-			return err
-		}
-		f64b, err := parseFloat64(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f64a.Le(f64b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float64(%x).Le(%x) = %t, want %t", f64a, f64b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_mul() error {
+func f128x3(name string, f func(a, b floats.Float128) floats.Float128) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1491,117 +1014,18 @@ func f128_mul() error {
 		if err != nil {
 			return err
 		}
-		got := f128a.Mul(f128b)
+		got := f(f128a, f128b)
 		if !eq128(got, wantf) {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float128(%x).Mul(%x) = %x, want %x", f128a, f128b, got, wantf)
+			return fmt.Errorf("Float128(%x).%s(%x) = %x, want %x", f128a, name, f128b, got, wantf)
 		}
 		count.Add(1)
 	}
 	return nil
 }
 
-func f128_div() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f128a, err := parseFloat128(a)
-		if err != nil {
-			return err
-		}
-		f128b, err := parseFloat128(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat128(want)
-		if err != nil {
-			return err
-		}
-		got := f128a.Quo(f128b)
-		if !eq128(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float128(%x).Quo(%x) = %x, want %x", f128a, f128b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_add() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f128a, err := parseFloat128(a)
-		if err != nil {
-			return err
-		}
-		f128b, err := parseFloat128(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat128(want)
-		if err != nil {
-			return err
-		}
-		got := f128a.Add(f128b)
-		if !eq128(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float128(%x).Add(%x) = %x, want %x", f128a, f128b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_sub() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f128a, err := parseFloat128(a)
-		if err != nil {
-			return err
-		}
-		f128b, err := parseFloat128(b)
-		if err != nil {
-			return err
-		}
-		wantf, err := parseFloat128(want)
-		if err != nil {
-			return err
-		}
-		got := f128a.Sub(f128b)
-		if !eq128(got, wantf) {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float128(%x).Sub(%x) = %x, want %x", f128a, f128b, got, wantf)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_eq() error {
+func f128x2bool(name string, f func(a, b floats.Float128) bool) error {
 	for {
 		var a, b, want, flag string
 		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
@@ -1620,71 +1044,11 @@ func f128_eq() error {
 			return err
 		}
 		w := want != "0"
-		got := f128a.Eq(f128b)
+		got := f(f128a, f128b)
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float128(%x).Eq(%x) = %t, want %t", f128a, f128b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_lt() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f128a, err := parseFloat128(a)
-		if err != nil {
-			return err
-		}
-		f128b, err := parseFloat128(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f128a.Lt(f128b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float128(%x).Lt(%x) = %t, want %t", f128a, f128b, got, w)
-		}
-		count.Add(1)
-	}
-	return nil
-}
-
-func f128_le() error {
-	for {
-		var a, b, want, flag string
-		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return err
-		}
-
-		f128a, err := parseFloat128(a)
-		if err != nil {
-			return err
-		}
-		f128b, err := parseFloat128(b)
-		if err != nil {
-			return err
-		}
-		w := want != "0"
-		got := f128a.Le(f128b)
-		if got != w {
-			log.Printf("a: %s, b: %s, want: %s", a, b, want)
-			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float128(%x).Le(%x) = %t, want %t", f128a, f128b, got, w)
+			return fmt.Errorf("Float128(%x).%s(%x) = %t, want %t", f128a, name, f128b, got, w)
 		}
 		count.Add(1)
 	}
