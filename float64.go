@@ -126,3 +126,9 @@ func (a Float64) Le(b Float64) bool {
 func (a Float64) Ge(b Float64) bool {
 	return a >= b
 }
+
+// FMA returns x * y + z, computed with only one rounding.
+// (That is, FMA returns the fused multiply-add of x, y, and z.)
+func FMA64(x, y, z Float64) Float64 {
+	return Float64(math.FMA(float64(x), float64(y), float64(z)))
+}
