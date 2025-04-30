@@ -290,6 +290,31 @@ func BenchmarkFloat16_Sub(b *testing.B) {
 	}
 }
 
+func TestFloat16_Sqrt(t *testing.T) {
+	tests := []struct {
+		a, want Float16
+	}{
+		// normal numbers
+		{0x3c00, 0x3c00}, // sqrt(1.0) = 1.0
+		{0x4000, 0x3da8}, // sqrt(2.0) = 1.4142
+		{0x4200, 0x3eee}, // sqrt(3.0) = 1.7321
+		{0x4400, 0x4000}, // sqrt(4.0) = 2.0
+
+		// special cases
+		{0x0000, 0x0000}, // sqrt(0.0) = 0.0
+		{0x8000, 0x8000}, // sqrt(-0.0) = -0.0
+		{0x7c00, 0x7c00}, // sqrt(+Inf) = +Inf
+		{0x7e00, 0x7e00}, // sqrt(NaN) = NaN
+		{0xbc00, 0x7e00}, // sqrt(-1) = NaN
+	}
+	for _, test := range tests {
+		got := test.a.Sqrt()
+		if !eq16(got, test.want) {
+			t.Errorf("Float16(%x).Sqrt() = %x, want %x", test.a, got, test.want)
+		}
+	}
+}
+
 func TestFloat16_Eq(t *testing.T) {
 	tests := []struct {
 		a, b Float16
