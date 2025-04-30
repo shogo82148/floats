@@ -355,6 +355,54 @@ func (a Float256) Sub(b Float256) Float256 {
 	return a.Add(b.Neg())
 }
 
+// Sqrt returns the square root of a.
+//
+// Special cases are:
+//
+//	Sqrt(+Inf) = +Inf
+//	Sqrt(±0) = ±0
+//	Sqrt(x < 0) = NaN
+//	Sqrt(NaN) = NaN
+func (a Float256) Sqrt() Float256 {
+	switch {
+	case a.isZero() || a.IsNaN() || a.IsInf(1):
+		return a
+	case a[0]&signMask256[0] != 0:
+		return Float256(uvnan256)
+	}
+
+	_, exp, frac := a.split()
+	if exp%2 != 0 {
+		// odd exp. double x to make it even
+		frac = frac.Lsh(1)
+	}
+	// exponent of square root
+	exp >>= 1
+
+	// generate sqrt(frac) bit by bit
+	frac = frac.Lsh(1)
+	var q, s ints.Uint256 // q = sqrt(frac)
+	r := ints.Uint256{1 << (shift256 + 1 - 192), 0, 0, 0}
+	for !r.IsZero() {
+		t := s.Add(r)
+		if t.Cmp(frac) <= 0 {
+			s = t.Add(r)
+			frac = frac.Sub(t)
+			q = q.Add(r)
+		}
+		frac = frac.Lsh(1)
+		r = r.Rsh(1)
+	}
+
+	// final rounding
+	if !frac.IsZero() {
+		q = q.Add(q.And(ints.Uint256{0, 1}))
+	}
+	q = q.Rsh(1)
+	q = q.Add(ints.Uint256{uint64(exp-1+bias256) << (shift256 - 192), 0, 0, 0})
+	return Float256(q)
+}
+
 // Eq returns a == b.
 // NaNs are not equal to anything, including NaN.
 // -0.0 and 0.0 are equal.

@@ -1573,6 +1573,64 @@ func BenchmarkFloat256_Sub(b *testing.B) {
 	}
 }
 
+func TestFloat256_Sqrt(t *testing.T) {
+	tests := []struct {
+		a, want Float256
+	}{
+		{
+			// 1.0
+			a: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			// 1.0
+			want: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+		},
+		{
+			// 2.0
+			a: Float256{
+				0x4000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			// 1.0
+			want: Float256{
+				0x3fff_f6a0_9e66_7f3b,
+				0xcc90_8b2f_b136_6ea9,
+				0x57d3_e3ad_ec17_5127,
+				0x7509_9da2_f590_b066,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Sqrt()
+		if !eq256(got, tt.want) {
+			t.Errorf("Float256(%x).Sqrt() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Sqrt(b *testing.B) {
+	f := Float256{
+		0x4000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 2.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Sqrt())
+	}
+}
+
 func TestFloat256_Eq(t *testing.T) {
 	tests := []struct {
 		a, b Float256
