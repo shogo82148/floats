@@ -621,3 +621,57 @@ func BenchmarkFloat128_Eq(b *testing.B) {
 		runtime.KeepAlive(f.Eq(f))
 	}
 }
+
+func TestFloat128_Ne(t *testing.T) {
+	tests := []struct {
+		a, b Float128
+		want bool
+	}{
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, // 0x1p-16494
+			want: true,
+		},
+		{
+			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, // 1.0
+			b:    Float128{0x3fff_0000_0000_0001, 0x0000_0000_0000_0001}, // 1.5
+			want: true,
+		},
+		{
+			a:    Float128{0x3fff_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			b:    Float128{0x3fff_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: false,
+		},
+
+		// handling zero
+		{
+			a:    Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0001}, // -1.5
+			b:    Float128{0x8002_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: true,
+		},
+
+		// handling NaN
+		{
+			a:    Float128{0x7fff_8002_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff}, // NaN
+			b:    Float128{0x8002_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Ne(tt.b)
+		if got != tt.want {
+			t.Errorf("Float128(%x).Ne(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Ne(b *testing.B) {
+	f := Float128{
+		0x3fff_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	}
+	for b.Loop() {
+		runtime.KeepAlive(f.Ne(f))
+	}
+}
