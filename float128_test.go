@@ -593,6 +593,16 @@ func TestFloat128_Sqrt(t *testing.T) {
 	}
 }
 
+func BenchmarkFloat128_Sqrt(b *testing.B) {
+	f := Float128{
+		0x4000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 2.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Sqrt())
+	}
+}
+
 func TestFloat128_Eq(t *testing.T) {
 	tests := []struct {
 		a, b Float128
