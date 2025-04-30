@@ -125,6 +125,10 @@ func main() {
 		if err := f16x3("Sub", floats.Float16.Sub); err != nil {
 			log.Fatal(err)
 		}
+	case "f16_sqrt":
+		if err := f16_sqrt(); err != nil {
+			log.Fatal(err)
+		}
 	case "f16_eq":
 		if err := f16x2bool("Eq", floats.Float16.Eq); err != nil {
 			log.Fatal(err)
@@ -807,6 +811,35 @@ func f16x3(name string, f func(a, b floats.Float16) floats.Float16) error {
 	return nil
 }
 
+func f16_sqrt() error {
+	for {
+		var a, want, flag string
+		if _, err := fmt.Scanf("%s %s %s", &a, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16a, err := parseFloat16(a)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat16(want)
+		if err != nil {
+			return err
+		}
+		got := f16a.Sqrt()
+		if !eq16(got, wantf) {
+			log.Printf("a: %s, want: %s", a, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float16(%x).Sqrt() = %x, want %x", f16a, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
 func f16x2bool(name string, f func(a, b floats.Float16) bool) error {
 	for {
 		var a, b, want, flag string
@@ -955,7 +988,7 @@ func f64_sqrt() error {
 		if !eq64(got, wantf) {
 			log.Printf("a: %s, want: %s", a, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Sqrt()) = %x, want %x", f64a, got, wantf)
+			return fmt.Errorf("Float64(%x).Sqrt() = %x, want %x", f64a, got, wantf)
 		}
 		count.Add(1)
 	}
