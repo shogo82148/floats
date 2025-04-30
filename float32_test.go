@@ -94,6 +94,29 @@ func TestFloat32_Int64(t *testing.T) {
 	}
 }
 
+func TestFloat32_Neg(t *testing.T) {
+	negZero := Float32(math.Copysign(0, -1))
+	nan := Float32(math.NaN())
+	inf := Float32(math.Inf(1))
+	tests := []struct {
+		a, want Float32
+	}{
+		{1, -1},
+		{0, negZero},
+		{negZero, 0},
+		{inf, -inf},
+		{-inf, inf},
+		{nan, nan},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Neg()
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Neg() = %x, want %x", got, tt.want)
+		}
+	}
+}
+
 func TestFloat32_Mul(t *testing.T) {
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
