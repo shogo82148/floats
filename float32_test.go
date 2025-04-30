@@ -399,3 +399,40 @@ func BenchmarkFloat32_Lt(b *testing.B) {
 		runtime.KeepAlive(f.Lt(f))
 	}
 }
+
+func TestFloat32_Gt(t *testing.T) {
+	nan := Float32(math.NaN())
+	negZero := Float32(math.Copysign(0, -1))
+	inf := Float32(math.Inf(1))
+
+	tests := []struct {
+		a, b Float32
+		want bool
+	}{
+		{1, 1, false},
+		{2, 3, false},
+		{0, 1, false},
+		{1, 0, true},
+		{0, 0, false},
+		{0, negZero, false},
+		{negZero, 0, false},
+		{nan, 1, false},
+		{1, nan, false},
+		{nan, nan, false},
+		{inf, 1, true},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Gt(tt.b)
+		if got != tt.want {
+			t.Errorf("Float32(%x).Gt(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Gt(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Gt(f))
+	}
+}

@@ -84,3 +84,13 @@ func (a Float32) Ne(b Float32) bool {
 func (a Float32) Lt(b Float32) bool {
 	return a < b
 }
+
+// Gt returns a > b.
+//
+// Special cases are:
+//
+//	Gt(x, NaN) == false
+//	Gt(NaN, x) == false
+func (a Float32) Gt(b Float32) bool {
+	return a > b
+}
