@@ -1314,7 +1314,7 @@ func f64_eq() error {
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float64(%x).Sub(%x) = %t, want %t", f64a, f64b, got, w)
+			return fmt.Errorf("Float64(%x).Eq(%x) = %t, want %t", f64a, f64b, got, w)
 		}
 		count.Add(1)
 	}
