@@ -675,3 +675,77 @@ func BenchmarkFloat128_Ne(b *testing.B) {
 		runtime.KeepAlive(f.Ne(f))
 	}
 }
+
+func TestFloat128_Lt(t *testing.T) {
+	tests := []struct {
+		a, b Float128
+		want bool
+	}{
+		// {
+		// 	a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		// 	b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, // 0x1p-16494
+		// 	want: true,
+		// },
+		// {
+		// 	a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, // 1.0
+		// 	b:    Float128{0x3fff_0000_0000_0001, 0x0000_0000_0000_0001}, // 1.5
+		// 	want: true,
+		// },
+		// {
+		// 	a:    Float128{0xcfff_0000_0000_0000, 0x0000_0000_0000_0000}, // -2.0
+		// 	b:    Float128{0xbfff_0000_0000_0000, 0x0000_0000_0000_0000}, // -1.0
+		// 	want: true,
+		// },
+		{
+			a:    Float128{0xc000_0000_0000_0000, 0x0000_0000_03ff_ff00},
+			b:    Float128{0xc000_0000_0000_0000, 0x0000_0000_0000_0001},
+			want: true,
+		},
+
+		// handling zero
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			b:    Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+			want: false,
+		},
+		{
+			a:    Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			want: false,
+		},
+
+		// handling NaN
+		{
+			a:    Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			want: false,
+		},
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			b:    Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			want: false,
+		},
+		{
+			a:    Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			b:    Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Lt(tt.b)
+		if got != tt.want {
+			t.Errorf("Float128(%x).Lt(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Lt(b *testing.B) {
+	f := Float128{
+		0x3fff_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	}
+	for b.Loop() {
+		runtime.KeepAlive(f.Lt(f))
+	}
+}
