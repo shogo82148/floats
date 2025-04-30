@@ -263,8 +263,8 @@ func (a Float16) Add(b Float16) Float16 {
 	}
 	if exp <= -bias16 {
 		// the result is subnormal
-		shift := offset - (exp + bias16)
-		frac32 += (1<<(shift-1) - 1) + ((frac32 >> shift) & 1) // round to nearest even
+		shift := offset - (expA + bias16) + 1
+		frac32 += (1<<uint(shift-1) - 1) + ((frac32 >> uint(shift)) & 1) // round to nearest even
 		frac := uint16(frac32 >> shift)
 		return Float16(sign | uint16(frac))
 	}
@@ -273,7 +273,7 @@ func (a Float16) Add(b Float16) Float16 {
 		return Float16(sign | (mask16 << shift16))
 	}
 
-	frac32 += (1<<(shift-1) - 1) + ((frac32 >> shift) & 1) // round to nearest even
+	frac32 += (1<<uint(shift-1) - 1) + ((frac32 >> uint(shift)) & 1) // round to nearest even
 	if bits.Len32(uint32(frac32)) > shift16+shift+1 {
 		frac32 >>= 1
 		exp++
