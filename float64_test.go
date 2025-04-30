@@ -288,3 +288,71 @@ func BenchmarkFloat64_Sub(b *testing.B) {
 		runtime.KeepAlive(f.Sub(f))
 	}
 }
+
+func TestFloat64_Eq(t *testing.T) {
+	nan := Float64(math.NaN())
+	negZero := Float64(math.Copysign(0, -1))
+
+	tests := []struct {
+		a, b Float64
+		want bool
+	}{
+		{1, 1, true},
+		{2, 3, false},
+		{0, 1, false},
+		{negZero, 1, false},
+		{0, negZero, true},
+		{negZero, 0, true},
+		{nan, 1, false},
+		{1, nan, false},
+		{nan, nan, false},
+	}
+
+	for _, test := range tests {
+		got := test.a.Eq(test.b)
+		if got != test.want {
+			t.Errorf("Float64(%x).Eq(%x) = %v, want %v", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Eq(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Eq(f))
+	}
+}
+
+func TestFloat64_Ne(t *testing.T) {
+	nan := Float64(math.NaN())
+	negZero := Float64(math.Copysign(0, -1))
+
+	tests := []struct {
+		a, b Float64
+		want bool
+	}{
+		{1, 1, false},
+		{2, 3, true},
+		{0, 1, true},
+		{negZero, 1, true},
+		{0, negZero, false},
+		{negZero, 0, false},
+		{nan, 1, true},
+		{1, nan, true},
+		{nan, nan, true},
+	}
+
+	for _, test := range tests {
+		got := test.a.Ne(test.b)
+		if got != test.want {
+			t.Errorf("Float64(%x).Ne(%x) = %v, want %v", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Ne(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Ne(f))
+	}
+}

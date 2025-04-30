@@ -60,3 +60,17 @@ func (a Float64) Add(b Float64) Float64 {
 func (a Float64) Sub(b Float64) Float64 {
 	return a - b
 }
+
+// Eq returns a == b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float64) Eq(b Float64) bool {
+	return a == b
+}
+
+// Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float64) Ne(b Float64) bool {
+	return a != b
+}
