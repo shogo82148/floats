@@ -6,7 +6,7 @@ SEED=${GITHUB_RUN_ID:-$(date +%s)}
 echo "$SEED"
 
 # shellcheck disable=SC2206
-TEST_NAMES=(${1/,/ })
+TEST_NAMES=(${1//,/ })
 
 ROOT=$(cd "$(dirname "$0")"; cd ..; pwd)
 cd "$ROOT"
