@@ -401,6 +401,29 @@ func (a Float256) Gt(b Float256) bool {
 	return b.Lt(a)
 }
 
+// Le returns a <= b.
+//
+// Special cases are:
+//
+//	Le(x, NaN) == false
+//	Le(NaN, x) == false
+func (a Float256) Le(b Float256) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	return a.comparable().Cmp(b.comparable()) <= 0
+}
+
+// Ge returns a >= b.
+//
+// Special cases are:
+//
+//	Ge(x, NaN) == false
+//	Ge(NaN, x) == false
+func (a Float256) Ge(b Float256) bool {
+	return b.Le(a)
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]
