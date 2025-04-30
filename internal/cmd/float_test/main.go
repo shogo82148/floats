@@ -116,6 +116,10 @@ func main() {
 		if err := f16_div(); err != nil {
 			log.Fatal(err)
 		}
+	case "f16_add":
+		if err := f16_add(); err != nil {
+			log.Fatal(err)
+		}
 
 	case "f32_mul":
 		if err := f32_mul(); err != nil {
@@ -757,6 +761,39 @@ func f16_div() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float16(%x).Div(%x) = %x, want %x", f16a, f16b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_add() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16a, err := parseFloat16(a)
+		if err != nil {
+			return err
+		}
+		f16b, err := parseFloat16(b)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat16(want)
+		if err != nil {
+			return err
+		}
+		got := f16a.Add(f16b)
+		if !eq16(got, wantf) {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float16(%x).Add(%x) = %x, want %x", f16a, f16b, got, wantf)
 		}
 		count.Add(1)
 	}

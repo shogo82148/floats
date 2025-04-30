@@ -173,3 +173,54 @@ func BenchmarkFloat16_Quo(b *testing.B) {
 		runtime.KeepAlive(f.Quo(f))
 	}
 }
+
+func TestFloat16_Add(t *testing.T) {
+	tests := []struct {
+		a, b, want Float16
+	}{
+		{0x3c00, 0x3800, 0x3e00}, // 1.0 +  0.5 = 1.5
+		{0x3c00, 0x3c00, 0x4000}, // 1.0 +  1.0 = 2.0
+		{0x3c00, 0xbc00, 0x0000}, // 1.0 + -1.0 = 0.0
+		{0x2c0d, 0x40c5, 0x40e5},
+		{0x0030, 0x8400, 0x83d0},
+		{0x0001, 0x03fe, 0x03ff},
+		{0x0002, 0x0002, 0x0004}, // 0x1p-23 + 0x1p-23 = 0x1p-22
+		{0x0001, 0x0001, 0x0002}, // 0x1p-24 + 0x1p-24 = 0x1p-23
+
+		// overflow
+		{0x7bc0, 0x77e8, 0x7c00},
+
+		// adding zeros
+		{0x0000, 0x3c00, 0x3c00}, //  0.0 +  1.0 =  1.0
+		{0x3c00, 0x0000, 0x3c00}, //  1.0 +  0.0 =  1.0
+		{0x0000, 0x0000, 0x0000}, //  0.0 +  0.0 =  0.0
+		{0x0000, 0x8000, 0x0000}, //  0.0 + -0.0 =  0.0
+		{0x8000, 0x0000, 0x0000}, // -0.0 +  0.0 =  0.0
+		{0x8000, 0x8000, 0x8000}, // -0.0 + -0.0 = -0.0
+
+		// handling NaN
+		{uvnan16, 0x3c00, uvnan16}, // NaN + 1 = NaN
+		{0x3c00, uvnan16, uvnan16}, // 1 + NaN = NaN
+
+		// handling infinity
+		{0x7c00, 0x3c00, 0x7c00},  //  Inf +  1.0 = Inf
+		{0x3c00, 0x7c00, 0x7c00},  //  1.0 +  Inf = Inf
+		{0x7c00, 0x7c00, 0x7c00},  //  Inf +  inf = Inf
+		{0x7c00, 0xfc00, uvnan16}, //  Inf + -inf = NaN
+		{0xfc00, 0x7c00, uvnan16}, // -inf + Inf = NaN
+	}
+
+	for _, test := range tests {
+		got := test.a.Add(test.b)
+		if !eq16(got, test.want) {
+			t.Errorf("Float16(%x).Add(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Add(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Add(f))
+	}
+}
