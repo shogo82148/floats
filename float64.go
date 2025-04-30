@@ -61,6 +61,18 @@ func (a Float64) Sub(b Float64) Float64 {
 	return a - b
 }
 
+// Sqrt returns the square root of a.
+//
+// Special cases are:
+//
+//	Sqrt(+Inf) = +Inf
+//	Sqrt(±0) = ±0
+//	Sqrt(x < 0) = NaN
+//	Sqrt(NaN) = NaN
+func (a Float64) Sqrt() Float64 {
+	return Float64(math.Sqrt(float64(a)))
+}
+
 // Eq returns a == b.
 // NaNs are not equal to anything, including NaN.
 // -0.0 and 0.0 are equal.

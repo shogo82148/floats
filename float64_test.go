@@ -289,6 +289,49 @@ func BenchmarkFloat64_Sub(b *testing.B) {
 	}
 }
 
+func TestFloat64_Sqrt(t *testing.T) {
+	nan := Float64(math.NaN())
+	negZero := Float64(math.Copysign(0, -1))
+	inf := Float64(math.Inf(1))
+
+	tests := []struct {
+		a    Float64
+		want Float64
+	}{
+		{0, 0},
+		{1, 1},
+		{4, 2},
+		{9, 3},
+
+		// handling NaN
+		{nan, nan},
+
+		// handling negative numbers
+		{-1, nan},
+		{-4, nan},
+
+		// handling zero
+		{negZero, negZero},
+
+		// handling infinity
+		{inf, inf},
+	}
+
+	for _, test := range tests {
+		got := test.a.Sqrt()
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Sqrt() = %x, want %x", test.a, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Sqrt(b *testing.B) {
+	f := Float64(2.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Sqrt())
+	}
+}
+
 func TestFloat64_Eq(t *testing.T) {
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
