@@ -212,6 +212,113 @@ func (a Float128) Quo(b Float128) Float128 {
 	return Float128{sign | uint64(exp)<<(shift128-64) | frac[0]&fracMask128[0], frac[1] & fracMask128[1]}
 }
 
+// Add returns the sum of a and b.
+func (a Float128) Add(b Float128) Float128 {
+	if a.IsNaN() {
+		return a
+	}
+	if b.IsNaN() {
+		return b
+	}
+	if a.isZero() {
+		if b.isZero() {
+			//  0 +  0 =  0
+			//  0 + -0 =  0
+			// -0 +  0 =  0
+			// -0 + -0 = -0
+			return Float128{a[0] & b[0], 0}
+		}
+		// ±0 + b = b
+		return b
+	}
+	if b.isZero() {
+		// a + ±0 = a
+		return a
+	}
+
+	signA, expA, fracA := a.split()
+	signB, expB, fracB := b.split()
+
+	// handle special cases
+	if expA == mask128-bias128 {
+		// NaN check is done above; a is ±inf
+		if expB == mask128-bias128 {
+			if signA == signB {
+				// ±inf + ±inf = ±inf
+				return Float128{signA | uvinf128[0], uvinf128[1]}
+			}
+			// ±inf + ∓inf = NaN
+			return Float128(uvnan128)
+		}
+		// b is finite, the result is ±inf
+		return a
+	}
+	if expB == mask128-bias128 {
+		// NaN check is done above; b is ±inf
+		// NaN and Inf checks are done above; a is finite.
+		return b
+	}
+
+	if expA < expB {
+		// swap a and b
+		signA, signB = signB, signA
+		expA, expB = expB, expA
+		fracA, fracB = fracB, fracA
+	}
+
+	// add the fractions
+	const offset = 128
+	fracA256 := ints.Int256{fracA[0], fracA[1], 0, 0}
+	fracB256 := ints.Int256{fracB[0], fracB[1], 0, 0}
+	fracB256 = fracB256.Rsh(uint(expA - expB))
+	if signA != 0 {
+		fracA256 = fracA256.Neg()
+	}
+	if signB != 0 {
+		fracB256 = fracB256.Neg()
+	}
+	frac256 := fracA256.Add(fracB256)
+	sign := uint64(0)
+	if frac256.Sign() < 0 {
+		sign = signMask128[0]
+		frac256 = frac256.Neg()
+	}
+
+	shift := ints.Uint256(frac256).BitLen() - (shift128 + 1)
+	exp := expA + shift - offset
+
+	if frac256.IsZero() || exp < -(bias128+shift128) {
+		// underflow
+		return Float128{sign, 0}
+	}
+	if exp <= -bias128 {
+		// the result is subnormal
+		shift := offset - (expA + bias128) + 1
+		one := ints.Int256{0, 0, 0, 1}
+		frac256 = frac256.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac256.Rsh(uint(shift)).And(one)) // round to nearest even
+		frac256 = frac256.Rsh(uint(shift))
+		return Float128{sign | frac256[2]&fracMask128[0], frac256[3]}
+	}
+	if exp >= mask128-bias128 {
+		// overflow
+		return Float128{sign | uvinf128[0], uvinf128[1]}
+	}
+
+	one := ints.Int256{0, 0, 0, 1}
+	frac256 = frac256.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac256.Rsh(uint(shift)).And(one)) // round to nearest even
+	// detect carry-out caused by rounding
+	if ints.Uint256(frac256).BitLen() > shift128+shift+1 {
+		frac256 = frac256.Rsh(1)
+		exp++
+		if exp >= mask128 {
+			// overflow
+			return Float128{sign | uvinf128[0], uvinf128[1]}
+		}
+	}
+	frac256 = frac256.Rsh(uint(shift))
+	return Float128{sign | uint64(exp+bias128)<<(shift128-64) | frac256[2]&fracMask128[0], frac256[3]}
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
