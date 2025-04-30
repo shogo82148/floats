@@ -68,6 +68,11 @@ func (a Float256) isZero() bool {
 	return (a[0]&^signMask256[0])|a[1]|a[2]|a[3] == 0
 }
 
+// Neg returns the negation of a.
+func (a Float256) Neg() Float256 {
+	return Float256{a[0] ^ signMask256[0], a[1], a[2], a[3]}
+}
+
 // Mul returns the product of a and b.
 func (a Float256) Mul(b Float256) Float256 {
 	if a.IsNaN() || b.IsNaN() {
