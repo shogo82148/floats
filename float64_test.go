@@ -545,3 +545,37 @@ func BenchmarkFloat64_Ge(b *testing.B) {
 		runtime.KeepAlive(f.Ge(f))
 	}
 }
+
+func TestFMA64(t *testing.T) {
+	nan := Float64(math.NaN())
+	negZero := Float64(math.Copysign(0, -1))
+	//inf := Float64(math.Inf(1))
+
+	tests := []struct {
+		x, y, z, want Float64
+	}{
+		{1, 2, 3, 5},
+		{1, 2, -3, -1},
+		{1, -2, 3, 1},
+		{1, -2, -3, -5},
+		{0, 0, 0, 0},
+		{negZero, negZero, negZero, 0},
+		{nan, 1, 2, nan},
+		{1, nan, 2, nan},
+		{1, 2, nan, nan},
+	}
+
+	for _, test := range tests {
+		got := FMA64(test.x, test.y, test.z)
+		if !eq64(got, test.want) {
+			t.Errorf("FMA64(%x,%x,%x) = %x want %x", test.x, test.y, test.z, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFMA64(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(FMA64(f, f, f))
+	}
+}
