@@ -319,6 +319,19 @@ func (a Float16) Ne(b Float16) bool {
 	return !a.Eq(b)
 }
 
+// Lt returns a < b.
+//
+// Special cases are:
+//
+//	Lt(NaN, x) == false
+//	Lt(x, NaN) == false
+func (a Float16) Lt(b Float16) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	return a.comparable() < b.comparable()
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
@@ -336,4 +349,12 @@ func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	// a is normal
 	frac |= 1 << shift16
 	return
+}
+
+// comparable converts a to a comparable form.
+func (a Float16) comparable() int16 {
+	i := int16(a)
+	i ^= (i >> 15) & 0x7fff
+	i += int16(a >> 15) // normalize -0 to 0
+	return i
 }
