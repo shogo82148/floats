@@ -325,6 +325,29 @@ func (a Float128) Sub(b Float128) Float128 {
 	return a.Add(b.Neg())
 }
 
+// Eq returns a == b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float128) Eq(b Float128) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	if a == b {
+		// a and b have the same bit pattern.
+		return true
+	}
+
+	// check -0 == 0
+	return (a[0]|b[0])&^signMask128[0] == 0 && (a[1]|b[1]) == 0
+}
+
+// Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float128) Ne(b Float128) bool {
+	return !a.Eq(b)
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
