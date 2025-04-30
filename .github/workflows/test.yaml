@@ -64,6 +64,7 @@ jobs:
           - "f16_div"
           - "f16_add"
           - "f16_sub"
+          - "f16_eq"
 
           # Float32 operations
           - "f32_mul"

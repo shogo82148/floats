@@ -296,6 +296,29 @@ func (a Float16) Sub(b Float16) Float16 {
 	return a.Add(b.Neg())
 }
 
+// Eq returns a == b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float16) Eq(b Float16) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	if a == b {
+		// a and b have the same bit pattern.
+		return true
+	}
+
+	// check -0 == 0
+	return (a|b)&^signMask16 == 0
+}
+
+// Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float16) Ne(b Float16) bool {
+	return !a.Eq(b)
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
