@@ -96,6 +96,51 @@ func BenchmarkFloat128_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat128_Neg(t *testing.T) {
+	tests := []struct {
+		a, want Float128
+	}{
+		{
+			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			Float128{0xbfff_0000_0000_0000, 0x0000_0000_0000_0000}, // -1.0
+		},
+		{
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+		},
+		{
+			Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		},
+		{
+			Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+			Float128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000}, // -inf
+		},
+		{
+			Float128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000}, // -inf
+			Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+		},
+		{
+			Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Neg()
+		if !eq128(got, tt.want) {
+			t.Errorf("Float128(%x).Neg() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Neg(b *testing.B) {
+	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Neg())
+	}
+}
+
 func TestFloat128_Mul(t *testing.T) {
 	tests := []struct {
 		a, b, want Float128

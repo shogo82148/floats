@@ -42,6 +42,11 @@ func (a Float16) isZero() bool {
 	return a&^signMask16 == 0
 }
 
+// Neg returns the negation of a.
+func (a Float16) Neg() Float16 {
+	return a ^ signMask16
+}
+
 // Mul returns the product of a and b.
 func (a Float16) Mul(b Float16) Float16 {
 	if a.IsNaN() || b.IsNaN() {

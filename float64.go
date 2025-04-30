@@ -36,6 +36,11 @@ func (a Float64) Int64() int64 {
 	return int64(a)
 }
 
+// Neg returns the negation of a.
+func (a Float64) Neg() Float64 {
+	return -a
+}
+
 // Mul returns the product of a and b.
 func (a Float64) Mul(b Float64) Float64 {
 	return a * b
