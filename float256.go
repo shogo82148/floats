@@ -350,6 +350,11 @@ func (a Float256) Add(b Float256) Float256 {
 	}
 }
 
+// Sub returns the difference of a and b.
+func (a Float256) Sub(b Float256) Float256 {
+	return a.Add(b.Neg())
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]
