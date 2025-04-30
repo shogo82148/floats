@@ -296,6 +296,53 @@ func (a Float16) Sub(b Float16) Float16 {
 	return a.Add(b.Neg())
 }
 
+// Sqrt returns the square root of a.
+//
+// Special cases are:
+//
+//	Sqrt(+Inf) = +Inf
+//	Sqrt(±0) = ±0
+//	Sqrt(x < 0) = NaN
+//	Sqrt(NaN) = NaN
+func (a Float16) Sqrt() Float16 {
+	// special cases
+	switch {
+	case a.isZero() || a.IsNaN() || a.IsInf(1):
+		return a
+	case a&signMask16 != 0:
+		return uvnan16
+	}
+
+	_, exp, frac := a.split()
+	if exp%2 != 0 {
+		// odd exp, double x to make it even
+		frac <<= 1
+	}
+	// exponent of square root
+	exp >>= 1
+
+	// generate sqrt(frac) bit by bit
+	frac <<= 1
+	var q, s uint16 // q = sqrt(frac)
+	r := uint16(1 << (shift16 + 1))
+	for r != 0 {
+		t := s + r
+		if t <= frac {
+			s = t + r
+			frac -= t
+			q += r
+		}
+		frac <<= 1
+		r >>= 1
+	}
+
+	// final rounding
+	if frac != 0 {
+		q += q & 1
+	}
+	return Float16((exp-1+bias16)<<shift16) + Float16(q>>1)
+}
+
 // Eq returns a == b.
 // NaNs are not equal to anything, including NaN.
 // -0.0 and 0.0 are equal.

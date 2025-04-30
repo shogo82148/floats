@@ -125,6 +125,10 @@ func main() {
 		if err := f16_sub(); err != nil {
 			log.Fatal(err)
 		}
+	case "f16_sqrt":
+		if err := f16_sqrt(); err != nil {
+			log.Fatal(err)
+		}
 	case "f16_eq":
 		if err := f16_eq(); err != nil {
 			log.Fatal(err)
@@ -896,6 +900,35 @@ func f16_sub() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float16(%x).Sub(%x) = %x, want %x", f16a, f16b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_sqrt() error {
+	for {
+		var a, want, flag string
+		if _, err := fmt.Scanf("%s %s %s", &a, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f16a, err := parseFloat16(a)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat16(want)
+		if err != nil {
+			return err
+		}
+		got := f16a.Sqrt()
+		if !eq16(got, wantf) {
+			log.Printf("a: %s, want: %s", a, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float16(%x).Sqrt() = %x, want %x", f16a, got, wantf)
 		}
 		count.Add(1)
 	}
