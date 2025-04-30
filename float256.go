@@ -391,6 +391,16 @@ func (a Float256) Lt(b Float256) bool {
 	return a.comparable().Cmp(b.comparable()) < 0
 }
 
+// Gt returns a > b.
+//
+// Special cases are:
+//
+//	Gt(x, NaN) == false
+//	Gt(NaN, x) == false
+func (a Float256) Gt(b Float256) bool {
+	return b.Lt(a)
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]
