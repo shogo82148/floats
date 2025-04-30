@@ -223,6 +223,10 @@ func main() {
 		if err := f128_lt(); err != nil {
 			log.Fatal(err)
 		}
+	case "f128_le":
+		if err := f128_le(); err != nil {
+			log.Fatal(err)
+		}
 
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
@@ -1618,6 +1622,36 @@ func f128_lt() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
 			return fmt.Errorf("Float128(%x).Lt(%x) = %t, want %t", f128a, f128b, got, w)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_le() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f128a, err := parseFloat128(a)
+		if err != nil {
+			return err
+		}
+		f128b, err := parseFloat128(b)
+		if err != nil {
+			return err
+		}
+		w := want != "0"
+		got := f128a.Le(f128b)
+		if got != w {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %t, want: %t", got, w)
+			return fmt.Errorf("Float128(%x).Le(%x) = %t, want %t", f128a, f128b, got, w)
 		}
 		count.Add(1)
 	}
