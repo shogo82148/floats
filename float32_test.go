@@ -324,3 +324,41 @@ func BenchmarkFloat32_Eq(b *testing.B) {
 		runtime.KeepAlive(f.Eq(f))
 	}
 }
+
+func TestFloat32_Ne(t *testing.T) {
+	nan := Float32(math.NaN())
+	negZero := Float32(math.Copysign(0, -1))
+	inf := Float32(math.Inf(1))
+
+	tests := []struct {
+		a, b Float32
+		want bool
+	}{
+		{1, 1, false},
+		{2, 3, true},
+		{0, 1, true},
+		{1, 0, true},
+		{0, 0, false},
+		{0, negZero, false}, // -0.0 == 0.0
+		{negZero, 0, false}, // 0.0 == -0.0
+		{nan, 1, true},      // NaN != 1
+		{1, nan, true},      // 1 != NaN
+		{nan, nan, true},    // NaN != NaN
+		{inf, 1, true},      // Inf != 1
+		{1, inf, true},      // 1 != Inf
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Ne(tt.b)
+		if got != tt.want {
+			t.Errorf("Float32(%x).Ne(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Ne(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Ne(f))
+	}
+}

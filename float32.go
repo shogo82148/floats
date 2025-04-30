@@ -67,3 +67,10 @@ func (a Float32) Sub(b Float32) Float32 {
 func (a Float32) Eq(b Float32) bool {
 	return a == b
 }
+
+// Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float32) Ne(b Float32) bool {
+	return a != b
+}
