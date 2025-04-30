@@ -91,6 +91,32 @@ func BenchmarkFloat16_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat16_Neg(t *testing.T) {
+	tests := []struct {
+		a, want Float16
+	}{
+		{0x3c00, 0xbc00}, // 1.0 = -1.0
+		{0x0000, 0x8000}, // 0.0 = -0.0
+		{0x8000, 0x0000}, // -0.0 = 0.0
+		{0x7c00, 0xfc00}, // +Inf = -Inf
+		{0xfc00, 0x7c00}, // -Inf = +Inf
+		{0x7e00, 0x7e00}, // NaN = NaN
+	}
+	for _, tt := range tests {
+		got := tt.a.Neg()
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16(%x).Neg() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Neg(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Neg())
+	}
+}
+
 func TestFloat16_Mul(t *testing.T) {
 	tests := []struct {
 		a, b, want Float16
