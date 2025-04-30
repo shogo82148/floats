@@ -74,3 +74,13 @@ func (a Float32) Eq(b Float32) bool {
 func (a Float32) Ne(b Float32) bool {
 	return a != b
 }
+
+// Lt returns a < b.
+//
+// Special cases are:
+//
+//	Lt(NaN, x) == false
+//	Lt(x, NaN) == false
+func (a Float32) Lt(b Float32) bool {
+	return a < b
+}
