@@ -299,6 +299,7 @@ func TestFloat16_Eq(t *testing.T) {
 		{0x3c00, 0x0000, false},   // 1.0 != 0.0
 		{0x0000, 0x0000, true},    // 0.0 == 0.0
 		{0x8000, 0x8000, true},    // -0.0 == -0.0
+		{0x0000, 0x8000, true},    // 0.0 == -0.0
 		{uvnan16, uvnan16, false}, // NaN != NaN
 	}
 	for _, test := range tests {
@@ -321,11 +322,12 @@ func TestFloat16_Ne(t *testing.T) {
 		a, b Float16
 		want bool
 	}{
-		{0x3c00, 0x3c00, false},  // 1.0 != 1.0
-		{0x3c00, 0x0000, true},   // 1.0 == 0.0
-		{0x0000, 0x0000, false},  // 0.0 != 0.0
-		{0x8000, 0x8000, false},  // -0.0 != -0.0
-		{uvnan16, uvnan16, true}, // NaN == NaN
+		{0x3c00, 0x3c00, false},  // 1.0 == 1.0
+		{0x3c00, 0x0000, true},   // 1.0 != 0.0
+		{0x0000, 0x0000, false},  // 0.0 == 0.0
+		{0x8000, 0x8000, false},  // -0.0 == -0.0
+		{0x0000, 0x8000, false},  // 0.0 == -0.0
+		{uvnan16, uvnan16, true}, // NaN != NaN
 	}
 	for _, test := range tests {
 		got := test.a.Ne(test.b)
