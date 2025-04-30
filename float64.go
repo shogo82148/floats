@@ -74,3 +74,23 @@ func (a Float64) Eq(b Float64) bool {
 func (a Float64) Ne(b Float64) bool {
 	return a != b
 }
+
+// Lt returns a < b.
+//
+// Special cases are:
+//
+//	Lt(NaN, x) == false
+//	Lt(x, NaN) == false
+func (a Float64) Lt(b Float64) bool {
+	return a < b
+}
+
+// Gt returns a > b.
+//
+// Special cases are:
+//
+//	Gt(x, NaN) == false
+//	Gt(NaN, x) == false
+func (a Float64) Gt(b Float64) bool {
+	return a > b
+}

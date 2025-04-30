@@ -356,3 +356,41 @@ func BenchmarkFloat64_Ne(b *testing.B) {
 		runtime.KeepAlive(f.Ne(f))
 	}
 }
+
+func TestFloat64_Lt(t *testing.T) {
+	nan := Float64(math.NaN())
+	negZero := Float64(math.Copysign(0, -1))
+	inf := Float64(math.Inf(1))
+
+	tests := []struct {
+		a, b Float64
+		want bool
+	}{
+		{1, 1, false},
+		{2, 3, true},
+		{0, 1, true},
+		{negZero, 1, true},
+		{0, negZero, false},
+		{negZero, 0, false},
+		{nan, 1, false},
+		{1, nan, false},
+		{nan, nan, false},
+		{inf, 1, false},
+		{1, inf, true},
+		{inf, inf, false},
+	}
+
+	for _, test := range tests {
+		got := test.a.Lt(test.b)
+		if got != test.want {
+			t.Errorf("Float64(%x).Lt(%x) = %v, want %v", test.a, test.b, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Lt(b *testing.B) {
+	f := Float64(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Lt(f))
+	}
+}
