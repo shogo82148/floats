@@ -332,6 +332,16 @@ func (a Float16) Lt(b Float16) bool {
 	return a.comparable() < b.comparable()
 }
 
+// Gt returns a > b.
+//
+// Special cases are:
+//
+//	Gt(x, NaN) == false
+//	Gt(NaN, x) == false
+func (a Float16) Gt(b Float16) bool {
+	return b.Lt(a)
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16

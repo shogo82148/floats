@@ -372,3 +372,25 @@ func BenchmarkFloat16_Lt(b *testing.B) {
 		runtime.KeepAlive(f.Lt(f))
 	}
 }
+
+func TestFloat16_Gt(t *testing.T) {
+	tests := []struct {
+		a, b Float16
+		want bool
+	}{
+		{0x3c00, 0x3c00, false},   // 1.0 > 1.0
+		{0x3c00, 0x0000, true},    // 1.0 > 0.0
+		{0x0000, 0x3c00, false},   // 0.0 > 1.0
+		{0x0000, 0x0000, false},   // 0.0 > 0.0
+		{0x8000, 0x8000, false},   // -0.0 > -0.0
+		{0x0000, 0x8000, false},   // 0.0 > -0.0
+		{0x8000, 0x0000, false},   // -0.0 > 0.0
+		{uvnan16, uvnan16, false}, // NaN > NaN
+	}
+	for _, test := range tests {
+		got := test.a.Gt(test.b)
+		if got != test.want {
+			t.Errorf("Float16(%x).Gt(%x) = %v, want %v", test.a, test.b, got, test.want)
+		}
+	}
+}
