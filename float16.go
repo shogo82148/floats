@@ -291,6 +291,11 @@ func (a Float16) Add(b Float16) Float16 {
 	return Float16(sign | uint16(exp+bias16)<<shift16 | frac&fracMask16)
 }
 
+// Sub returns the difference of a and b.
+func (a Float16) Sub(b Float16) Float16 {
+	return a.Add(b.Neg())
+}
+
 func (a Float16) split() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
