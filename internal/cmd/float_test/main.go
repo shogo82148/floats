@@ -154,6 +154,10 @@ func main() {
 		if err := f32_sub(); err != nil {
 			log.Fatal(err)
 		}
+	case "f32_eq":
+		if err := f32_eq(); err != nil {
+			log.Fatal(err)
+		}
 
 	case "f64_mul":
 		if err := f64_mul(); err != nil {
@@ -1078,6 +1082,36 @@ func f32_sub() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float32(%x).Sub(%x) = %x, want %x", f32a, f32b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_eq() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f32a, err := parseFloat32(a)
+		if err != nil {
+			return err
+		}
+		f32b, err := parseFloat32(b)
+		if err != nil {
+			return err
+		}
+		w := want != "0"
+		got := f32a.Eq(f32b)
+		if got != w {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %t, want: %t", got, w)
+			return fmt.Errorf("Float32(%x).Sub(%x) = %t, want %t", f32a, f32b, got, w)
 		}
 		count.Add(1)
 	}
