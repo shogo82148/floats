@@ -297,6 +297,8 @@ func (a Float16) Sub(b Float16) Float16 {
 }
 
 // Eq returns a == b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
 func (a Float16) Eq(b Float16) bool {
 	if a.IsNaN() || b.IsNaN() {
 		return false
@@ -311,6 +313,8 @@ func (a Float16) Eq(b Float16) bool {
 }
 
 // Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
 func (a Float16) Ne(b Float16) bool {
 	return !a.Eq(b)
 }
