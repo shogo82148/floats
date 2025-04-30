@@ -70,6 +70,8 @@ func (a Float32) Sub(b Float32) Float32 {
 //	Sqrt(x < 0) = NaN
 //	Sqrt(NaN) = NaN
 func (a Float32) Sqrt() Float32 {
+	// This operation involves two rounds of rounding, so it is technically incorrect.
+	// However, it always returns the correct result in practice.
 	return Float32(math.Sqrt(float64(a)))
 }
 
