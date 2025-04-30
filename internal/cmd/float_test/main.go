@@ -171,6 +171,10 @@ func main() {
 		if err := f128_add(); err != nil {
 			log.Fatal(err)
 		}
+	case "f128_sub":
+		if err := f128_sub(); err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
 	}
@@ -1202,6 +1206,39 @@ func f128_add() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float128(%x).Add(%x) = %x, want %x", f128a, f128b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_sub() error {
+	for {
+		var a, b, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s", &a, &b, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f128a, err := parseFloat128(a)
+		if err != nil {
+			return err
+		}
+		f128b, err := parseFloat128(b)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat128(want)
+		if err != nil {
+			return err
+		}
+		got := f128a.Sub(f128b)
+		if !eq128(got, wantf) {
+			log.Printf("a: %s, b: %s, want: %s", a, b, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float128(%x).Sub(%x) = %x, want %x", f128a, f128b, got, wantf)
 		}
 		count.Add(1)
 	}

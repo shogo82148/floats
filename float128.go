@@ -320,6 +320,11 @@ func (a Float128) Add(b Float128) Float128 {
 	return Float128{sign | uint64(exp+bias128)<<(shift128-64) | frac256[2]&fracMask128[0], frac256[3]}
 }
 
+// Sub returns the difference of a and b.
+func (a Float128) Sub(b Float128) Float128 {
+	return a.Add(b.Neg())
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
