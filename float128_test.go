@@ -553,6 +553,46 @@ func BenchmarkFloat128_Sub(b *testing.B) {
 	}
 }
 
+func TestFloat128_Sqrt(t *testing.T) {
+	tests := []struct {
+		a, want Float128
+	}{
+		{
+			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			want: Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+		},
+		{
+			a:    Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+			want: Float128{0x3fff_6a09_e667_f3bc, 0xc908_b2fb_1366_ea95}, // 1.414213562373095
+		},
+
+		// special cases
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		},
+		{
+			a:    Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+			want: Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, // -0.0
+		},
+		{
+			a:    Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+			want: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+		},
+		{
+			a:    Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+			want: Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, // NaN
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Sqrt()
+		if !eq128(got, tt.want) {
+			t.Errorf("Float128(%x).Sqrt() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
 func TestFloat128_Eq(t *testing.T) {
 	tests := []struct {
 		a, b Float128
