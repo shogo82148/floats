@@ -1372,7 +1372,7 @@ func f64_sqrt() error {
 		if !eq64(got, wantf) {
 			log.Printf("a: %s, want: %s", a, want)
 			log.Printf("got: %x, want: %x", got, wantf)
-			return fmt.Errorf("Float64(%x).Sqrt()) = %x, want %x", f64a, got, wantf)
+			return fmt.Errorf("Float64(%x).Sqrt() = %x, want %x", f64a, got, wantf)
 		}
 		count.Add(1)
 	}
