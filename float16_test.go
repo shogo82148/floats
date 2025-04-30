@@ -316,7 +316,7 @@ func TestFloat16_Sqrt(t *testing.T) {
 }
 
 func BenchmarkFloat16_Sqrt(b *testing.B) {
-	f := Float16(0x4000) // 1.0
+	f := Float16(0x4000) // 2.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Sqrt())
 	}

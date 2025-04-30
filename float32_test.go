@@ -286,6 +286,41 @@ func BenchmarkFloat32_Sub(b *testing.B) {
 	}
 }
 
+func TestFloat32_Sqrt(t *testing.T) {
+	nan := Float32(math.NaN())
+	negZero := Float32(math.Copysign(0, -1))
+	inf := Float32(math.Inf(1))
+
+	tests := []struct {
+		a, want Float32
+	}{
+		{0, 0},
+		{1, 1},
+		{4, 2},
+
+		// special cases
+		{0, 0},
+		{negZero, negZero},
+		{inf, inf},
+		{nan, nan},
+		{-1, nan},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Sqrt()
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32(%x).Sqrt() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Sqrt(b *testing.B) {
+	f := Float32(2.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Sqrt())
+	}
+}
+
 func TestFloat32_Eq(t *testing.T) {
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
