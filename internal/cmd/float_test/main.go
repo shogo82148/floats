@@ -189,6 +189,10 @@ func main() {
 		if err := f64_sub(); err != nil {
 			log.Fatal(err)
 		}
+	case "f64_sqrt":
+		if err := f64_sqrt(); err != nil {
+			log.Fatal(err)
+		}
 	case "f64_eq":
 		if err := f64_eq(); err != nil {
 			log.Fatal(err)
@@ -1373,6 +1377,35 @@ func f64_sub() error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float64(%x).Sub(%x) = %x, want %x", f64a, f64b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f64_sqrt() error {
+	for {
+		var a, want, flag string
+		if _, err := fmt.Scanf("%s %s %s", &a, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f64a, err := parseFloat64(a)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat64(want)
+		if err != nil {
+			return err
+		}
+		got := f64a.Sqrt()
+		if !eq64(got, wantf) {
+			log.Printf("a: %s, want: %s", a, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float64(%x).Sqrt() = %x, want %x", f64a, got, wantf)
 		}
 		count.Add(1)
 	}

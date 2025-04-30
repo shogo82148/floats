@@ -55,7 +55,7 @@ jobs:
           - "f32_mul,f32_div,f32_add,f32_sub,f32_eq,f32_lt,f32_le"
 
           # Float64 operations
-          - "f64_mul,f64_div,f64_add,f64_sub,f64_eq,f64_lt,f64_le"
+          - "f64_mul,f64_div,f64_add,f64_sub,f64_sqrt,f64_eq,f64_lt,f64_le"
 
           # Float128 operations
           - "f128_mul,f128_div,f128_add,f128_sub,f128_eq,f128_lt,f128_le"
