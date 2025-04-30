@@ -40,7 +40,7 @@ jobs:
       matrix:
         test:
           # float to float conversions
-          - "f16_to_f32,16_to_f64,f16_to_f128"
+          - "f16_to_f32,f16_to_f64,f16_to_f128"
           - "f32_to_f16,f32_to_f64,f32_to_f128"
           - "f64_to_f16,f64_to_f32,f64_to_f128"
           - "f128_to_f16,f128_to_f32,f128_to_f64"
