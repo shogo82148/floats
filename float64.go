@@ -94,3 +94,13 @@ func (a Float64) Lt(b Float64) bool {
 func (a Float64) Gt(b Float64) bool {
 	return a > b
 }
+
+// Le returns a <= b.
+//
+// Special cases are:
+//
+//	Le(x, NaN) == false
+//	Le(NaN, x) == false
+func (a Float64) Le(b Float64) bool {
+	return a <= b
+}
