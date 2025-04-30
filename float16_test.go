@@ -250,3 +250,42 @@ func BenchmarkFloat16_Add(b *testing.B) {
 		runtime.KeepAlive(f.Add(f))
 	}
 }
+
+func TestFloat16_Sub(t *testing.T) {
+	tests := []struct {
+		a, b, want Float16
+	}{
+		{0x3c00, 0x3800, 0x3800}, // 1.0 -  0.5 = 0.5
+
+		// handling zeros
+		{0x0000, 0x3c00, 0xbc00}, //  0.0 -  1.0 =  1.0
+		{0x3c00, 0x0000, 0x3c00}, //  1.0 -  0.0 =  1.0
+		{0x0000, 0x0000, 0x0000}, //  0.0 -  0.0 =  0.0
+		{0x0000, 0x8000, 0x0000}, //  0.0 - -0.0 =  0.0
+		{0x8000, 0x0000, 0x8000}, // -0.0 -  0.0 = -0.0
+		{0x8000, 0x8000, 0x0000}, // -0.0 - -0.0 =  0.0
+
+		// handling NaN
+		{uvnan16, 0x3c00, uvnan16}, // NaN - 1 = NaN
+		{0x3c00, uvnan16, uvnan16}, // 1 - NaN = NaN
+
+		// handling infinity
+		{0x7c00, 0x3c00, 0x7c00}, //  Inf -  1.0 = Inf
+		{0x3c00, 0x7c00, 0xfc00}, //  1.0 -  Inf = -Inf
+		{0x7c00, 0x7c00, 0x7e00}, //  Inf -  inf = NaN
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Sub(tt.b)
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16(%x).Sub(%x) = %x, want %x", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Sub(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Sub(f))
+	}
+}
