@@ -371,6 +371,13 @@ func (a Float256) Eq(b Float256) bool {
 	return (a[0]|b[0])&^signMask256[0]|a[1]|b[1]|a[2]|b[2]|a[3]|b[3] == 0
 }
 
+// Ne returns a != b.
+// NaNs are not equal to anything, including NaN.
+// -0.0 and 0.0 are equal.
+func (a Float256) Ne(b Float256) bool {
+	return !a.Eq(b)
+}
+
 func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]

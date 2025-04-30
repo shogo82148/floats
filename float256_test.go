@@ -1671,3 +1671,85 @@ func BenchmarkFloat256_Eq(b *testing.B) {
 		runtime.KeepAlive(f.Eq(f))
 	}
 }
+
+func TestFloat256_Ne(t *testing.T) {
+	tests := []struct {
+		a, b Float256
+		want bool
+	}{
+		{
+			// 1.0
+			a: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			// 1.0
+			b: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: false,
+		},
+
+		// handling zero
+		{
+			// 0.0
+			a: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			// -0.0
+			b: Float256{
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: false,
+		},
+
+		// handling NaN
+		{
+			// NaN
+			a: Float256{
+				0x7fff_f800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			// NaN
+			b: Float256{
+				0x7fff_f800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Ne(tt.b)
+		if got != tt.want {
+			t.Errorf("Float256(%x).Ne(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Ne(b *testing.B) {
+	f := Float256{
+		0x3fff_f000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Ne(f))
+	}
+}
