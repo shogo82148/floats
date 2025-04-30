@@ -227,6 +227,10 @@ func main() {
 		if err := f128x3("Sub", floats.Float128.Sub); err != nil {
 			log.Fatal(err)
 		}
+	case "f128_sqrt":
+		if err := f128_sqrt(); err != nil {
+			log.Fatal(err)
+		}
 	case "f128_eq":
 		if err := f128x2bool("Eq", floats.Float128.Eq); err != nil {
 			log.Fatal(err)
@@ -1085,6 +1089,35 @@ func f128x3(name string, f func(a, b floats.Float128) floats.Float128) error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float128(%x).%s(%x) = %x, want %x", f128a, name, f128b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_sqrt() error {
+	for {
+		var a, want, flag string
+		if _, err := fmt.Scanf("%s %s %s", &a, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f128a, err := parseFloat128(a)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat128(want)
+		if err != nil {
+			return err
+		}
+		got := f128a.Sqrt()
+		if !eq128(got, wantf) {
+			log.Printf("a: %s, want: %s", a, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float128(%x).Sqrt = %x, want %x", f128a, got, wantf)
 		}
 		count.Add(1)
 	}
