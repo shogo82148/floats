@@ -106,15 +106,13 @@ func (a Float128) Mul(b Float128) Float128 {
 		// the result is subnormal
 		// normalize
 		shift := shift128 - (expA + expB + bias128) + 1
-		one := ints.Uint256{0, 0, 0, 1}
-		frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
+		frac = roundToNearestEven256(frac, uint(shift))
 		frac = frac.Rsh(uint(shift))
 		return Float128{sign | frac[2], frac[3]}
 	}
 
 	exp = expA + expB + bias128
-	one := ints.Uint256{0, 0, 0, 1}
-	frac = frac.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac.Rsh(uint(shift)).And(one)) // round to nearest even
+	frac = roundToNearestEven256(frac, uint(shift))
 	shift = frac.BitLen() - (shift128 + 1)
 	exp += shift - shift128
 	if exp >= mask128 {
@@ -193,13 +191,13 @@ func (a Float128) Quo(b Float128) Float128 {
 	if exp <= 0 {
 		// the result is subnormal
 		shift := -exp + 3 + 1
-		frac = frac.Add(ints.Uint128{0, 1}.Lsh(uint(shift - 1)).Sub(ints.Uint128{0, 1})).Add(frac.Rsh(uint(shift)).And(ints.Uint128{0, 1})) // round to nearest even
+		frac = roundToNearestEven128(frac, uint(shift))
 		frac = frac.Rsh(uint(shift))
 		return Float128{sign | frac[0], frac[1]}
 	}
 
 	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
-	frac = frac.Add(ints.Uint128{0, 0b11}).Add(frac.Rsh(3).And(ints.Uint128{0, 1}))
+	frac = roundToNearestEven128(frac, uint(3))
 	// detect carry-out caused by rounding
 	if frac.BitLen() > shift128+3+1 {
 		frac = frac.Rsh(1)
@@ -294,8 +292,7 @@ func (a Float128) Add(b Float128) Float128 {
 	if exp <= -bias128 {
 		// the result is subnormal
 		shift := offset - (expA + bias128) + 1
-		one := ints.Int256{0, 0, 0, 1}
-		frac256 = frac256.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac256.Rsh(uint(shift)).And(one)) // round to nearest even
+		frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
 		frac256 = frac256.Rsh(uint(shift))
 		return Float128{sign | frac256[2]&fracMask128[0], frac256[3]}
 	}
@@ -304,8 +301,7 @@ func (a Float128) Add(b Float128) Float128 {
 		return Float128{sign | uvinf128[0], uvinf128[1]}
 	}
 
-	one := ints.Int256{0, 0, 0, 1}
-	frac256 = frac256.Add(one.Lsh(uint(shift - 1)).Sub(one)).Add(frac256.Rsh(uint(shift)).And(one)) // round to nearest even
+	frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
 	// detect carry-out caused by rounding
 	if ints.Uint256(frac256).BitLen() > shift128+shift+1 {
 		frac256 = frac256.Rsh(1)
