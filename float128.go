@@ -348,6 +348,29 @@ func (a Float128) Ne(b Float128) bool {
 	return !a.Eq(b)
 }
 
+// Lt returns a < b.
+//
+// Special cases are:
+//
+//	Lt(NaN, x) == false
+//	Lt(x, NaN) == false
+func (a Float128) Lt(b Float128) bool {
+	if a.IsNaN() || b.IsNaN() {
+		return false
+	}
+	return a.comparable().Cmp(b.comparable()) < 0
+}
+
+// Gt returns a > b.
+//
+// Special cases are:
+//
+//	Gt(x, NaN) == false
+//	Gt(NaN, x) == false
+func (a Float128) Gt(b Float128) bool {
+	return b.Lt(a)
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
@@ -365,4 +388,14 @@ func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	// a is normal
 	frac[0] = frac[0] | (1 << (shift128 - 64))
 	return
+}
+
+func (a Float128) comparable() ints.Int128 {
+	i := ints.Int128(a)
+	i = i.Xor(ints.Int128{
+		uint64(int64(i[0]) >> 63 & 0x7fff_ffff_ffff_ffff),
+		uint64(int64(i[0]) >> 63),
+	})
+	i = i.Add(ints.Int128{0, i[0] >> 63}) // normalize -0 to 0
+	return i
 }
