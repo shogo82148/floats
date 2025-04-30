@@ -61,6 +61,18 @@ func (a Float32) Sub(b Float32) Float32 {
 	return a - b
 }
 
+// Sqrt returns the square root of a.
+//
+// Special cases are:
+//
+//	Sqrt(+Inf) = +Inf
+//	Sqrt(±0) = ±0
+//	Sqrt(x < 0) = NaN
+//	Sqrt(NaN) = NaN
+func (a Float32) Sqrt() Float32 {
+	return Float32(math.Sqrt(float64(a)))
+}
+
 // Eq returns a == b.
 // NaNs are not equal to anything, including NaN.
 // -0.0 and 0.0 are equal.

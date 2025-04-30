@@ -159,6 +159,10 @@ func main() {
 		if err := f32x3("Sub", floats.Float32.Sub); err != nil {
 			log.Fatal(err)
 		}
+	case "f32_sqrt":
+		if err := f32_sqrt(); err != nil {
+			log.Fatal(err)
+		}
 	case "f32_eq":
 		if err := f32x2bool("Eq", floats.Float32.Eq); err != nil {
 			log.Fatal(err)
@@ -897,6 +901,35 @@ func f32x3(name string, f func(a, b floats.Float32) floats.Float32) error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %x, want: %x", got, wantf)
 			return fmt.Errorf("Float32(%x).%s(%x) = %x, want %x", f32a, name, f32b, got, wantf)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_sqrt() error {
+	for {
+		var a, want, flag string
+		if _, err := fmt.Scanf("%s %s %s", &a, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f32a, err := parseFloat32(a)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat32(want)
+		if err != nil {
+			return err
+		}
+		got := f32a.Sqrt()
+		if !eq32(got, wantf) {
+			log.Printf("a: %s, want: %s", a, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("Float32(%x).Sqrt() = %x, want %x", f32a, got, wantf)
 		}
 		count.Add(1)
 	}
