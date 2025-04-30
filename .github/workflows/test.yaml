@@ -73,6 +73,7 @@ jobs:
           - "f32_add"
           - "f32_sub"
           - "f32_eq"
+          - "f32_lt"
 
           # Float64 operations
           - "f64_mul"
