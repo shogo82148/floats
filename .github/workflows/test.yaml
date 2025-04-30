@@ -40,54 +40,25 @@ jobs:
       matrix:
         test:
           # float to float conversions
-          - "f16_to_f32"
-          - "f16_to_f64"
-          - "f16_to_f128"
-          - "f32_to_f16"
-          - "f32_to_f64"
-          - "f32_to_f128"
-          - "f64_to_f16"
-          - "f64_to_f32"
-          - "f64_to_f128"
-          - "f128_to_f16"
-          - "f128_to_f32"
-          - "f128_to_f64"
+          - "f16_to_f32,f16_to_f64,f16_to_f128"
+          - "f32_to_f16,f32_to_f64,f32_to_f128"
+          - "f64_to_f16,f64_to_f32,f64_to_f128"
+          - "f128_to_f16,f128_to_f32,f128_to_f64"
 
           # float to int conversions
-          - "f16_to_i64"
-          - "f32_to_i64"
-          - "f64_to_i64"
-          - "f128_to_i64"
+          - "f16_to_i64,f32_to_i64,f64_to_i64,f128_to_i64"
 
           # Float16 operations
-          - "f16_mul"
-          - "f16_div"
-          - "f16_add"
-          - "f16_sub"
-          - "f16_eq"
-          - "f16_lt"
-          - "f16_le"
+          - "f16_mul,f16_div,f16_add,f16_sub,f16_eq,f16_lt,f16_le"
 
           # Float32 operations
-          - "f32_mul"
-          - "f32_div"
-          - "f32_add"
-          - "f32_sub"
-          - "f32_eq"
-          - "f32_lt"
-          - "f32_le"
+          - "f32_mul,f32_div,f32_add,f32_sub,f32_eq,f32_lt,f32_le"
 
           # Float64 operations
-          - "f64_mul"
-          - "f64_div"
-          - "f64_add"
-          - "f64_sub"
+          - "f64_mul,f64_div,f64_add,f64_sub"
 
           # Float128 operations
-          - "f128_mul"
-          - "f128_div"
-          - "f128_add"
-          - "f128_sub"
+          - "f128_mul,f128_div,f128_add,f128_sub"
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
