@@ -1549,7 +1549,7 @@ func f128_eq() error {
 		if got != w {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
-			return fmt.Errorf("Float128(%x).Sub(%x) = %t, want %t", f128a, f128b, got, w)
+			return fmt.Errorf("Float128(%x).Eq(%x) = %t, want %t", f128a, f128b, got, w)
 		}
 		count.Add(1)
 	}
