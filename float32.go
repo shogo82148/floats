@@ -50,3 +50,8 @@ func (a Float32) Quo(b Float32) Float32 {
 func (a Float32) Add(b Float32) Float32 {
 	return a + b
 }
+
+// Sub returns the difference of a and b.
+func (a Float32) Sub(b Float32) Float32 {
+	return a - b
+}
