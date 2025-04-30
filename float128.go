@@ -384,6 +384,16 @@ func (a Float128) Le(b Float128) bool {
 	return a.comparable().Cmp(b.comparable()) <= 0
 }
 
+// Ge returns a >= b.
+//
+// Special cases are:
+//
+//	Ge(x, NaN) == false
+//	Ge(NaN, x) == false
+func (a Float128) Ge(b Float128) bool {
+	return b.Le(a)
+}
+
 func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]

@@ -867,3 +867,57 @@ func BenchmarkFloat128_Le(b *testing.B) {
 		runtime.KeepAlive(f.Le(f))
 	}
 }
+
+func TestFloat128_Ge(t *testing.T) {
+	tests := []struct {
+		a, b Float128
+		want bool
+	}{
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, // 0x1p-16494
+			want: false,
+		},
+		{
+			a:    Float128{0x3fff_0000_0000_0001, 0x0000_0000_0000_0001}, // 1.5
+			b:    Float128{0x3fff_0000_0000_0001, 0x0000_0000_0000_0001}, // 1.5
+			want: true,
+		},
+		{
+			a:    Float128{0xcfff_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			b:    Float128{0xbfff_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: false,
+		},
+
+		// handling zero
+		{
+			a:    Float128{0x8002_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			b:    Float128{0x8002_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: true,
+		},
+
+		// handling NaN
+		{
+			a:    Float128{0x7fff_8002_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff}, // NaN
+			b:    Float128{0x8002_ffdf_ffdf_ffdf, 0xffff_f7ff_f7ff_f7ff},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.a.Ge(tt.b)
+		if got != tt.want {
+			t.Errorf("Float128(%x).Ge(%x) = %v, want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Ge(b *testing.B) {
+	f := Float128{
+		0x3fff_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(f.Ge(f))
+	}
+}
