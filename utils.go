@@ -86,8 +86,9 @@ func roundToNearestEven32(x uint32, shift uint) uint32 {
 
 func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
 	one := ints.Uint128{0, 1}
-	mask := one.Lsh(uint(shift - 1)).Sub(one)
-	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+	mask := one.Lsh(shift - 1).Sub(one)
+	x = x.Add(mask).Add(x.Rsh(shift).And(one))
+	return x.Rsh(shift)
 }
 
 func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {

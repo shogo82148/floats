@@ -197,21 +197,19 @@ func (a Float128) Quo(b Float128) Float128 {
 		// the result is subnormal
 		shift := -exp + 3 + 1
 		frac = roundToNearestEven128(frac, uint(shift))
-		frac = frac.Rsh(uint(shift))
 		return Float128{sign | frac[0], frac[1]}
 	}
 
 	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
 	frac = roundToNearestEven128(frac, uint(3))
 	// detect carry-out caused by rounding
-	if frac.BitLen() > shift128+3+1 {
+	if frac[0]&(1<<(shift128-64+1)) != 0 {
 		frac = frac.Rsh(1)
 		exp++
 		if exp >= mask128 { // overflow -> ±Inf
 			return Float128{sign | uvinf128[0], uvinf128[1]}
 		}
 	}
-	frac = frac.Rsh(3)
 	return Float128{sign | uint64(exp)<<(shift128-64) | frac[0]&fracMask128[0], frac[1] & fracMask128[1]}
 }
 
@@ -538,13 +536,11 @@ func FMA128(x, y, z Float128) Float128 {
 	if expP <= 0 {
 		n := uint(1 - expP)
 		frac = roundToNearestEven128(frac, n+14)
-		frac = frac.Rsh(n + 14)
 		return Float128{signP | frac[0], frac[1]}
 	}
 
 	// Round and break ties to even
 	frac = roundToNearestEven128(frac, 14)
-	frac = frac.Rsh(14)
 	if frac[0]&(1<<(shift128+1-64)) != 0 {
 		expP++
 		frac = frac.Rsh(1)
