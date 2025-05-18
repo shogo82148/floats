@@ -190,7 +190,7 @@ func (a Float128) Quo(b Float128) Float128 {
 	fracA256 := fracA.Uint256().Lsh(uint(shift))
 	fracB256 := fracB.Uint256()
 	frac256, mod := fracA256.DivMod(fracB256)
-	frac256[3] |= squash256(mod)
+	frac256[3] |= nonzero64(mod[0]) | nonzero64(mod[1]) | nonzero64(mod[2]) | nonzero64(mod[3])
 	frac := frac256.Uint128()
 
 	if exp <= 0 {
@@ -469,4 +469,90 @@ func (a Float128) comparable() ints.Int128 {
 	})
 	i = i.Add(ints.Int128{0, i[0] >> 63}) // normalize -0 to 0
 	return i
+}
+
+// FMA128 returns x * y + z, computed with only one rounding.
+// (That is, FMA128 returns the fused multiply-add of x, y, and z.)
+func FMA128(x, y, z Float128) Float128 {
+	if x.isZero() || y.isZero() || x[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) || y[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) {
+		return x.Mul(y).Add(z)
+	}
+	if z.isZero() {
+		return x.Mul(y)
+	}
+	// Handle non-finite z separately. Evaluating x*y+z where
+	// x and y are finite, but z is infinite, should always result in z.
+	if z[0]&(mask128<<(shift128-64)) == (mask128 << (shift128 - 64)) {
+		return z
+	}
+
+	// Split x, y, z into sign, exponent, mantissa.
+	signX, expX, fracX := x.split()
+	signY, expY, fracY := y.split()
+	signZ, expZ, fracZ0 := z.split()
+
+	// Compute product p = x*y as sign, exponent, mantissa.
+	expP := expX + expY + 1
+	fracP := fracX.Lsh(14).Mul256(fracY.Lsh(15))
+	signP := signX ^ signY // product sign
+
+	// Normalize the product
+	is254zero := uint((^fracP[0] >> 62) & 1)
+	fracP = fracP.Lsh(is254zero)
+	expP -= int(is254zero)
+
+	fracZ := fracZ0.Uint256().Lsh(14 + 128)
+
+	// Swap addition operands so |p| >= |z|
+	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
+		signP, signZ = signZ, signP
+		expP, expZ = expZ, expP
+		fracP, fracZ = fracZ, fracP
+	}
+
+	// Special case: if p == -z the result is always +0 since neither operand is zero.
+	if signP != signZ && expP == expZ && fracP.Cmp(fracZ) == 0 {
+		return Float128{0, 0}
+	}
+
+	// Align mantissa
+	fracZ = shrcompress256(fracZ, uint(expP-expZ))
+
+	// Compute resulting significands, normalizing if necessary.
+	var frac ints.Uint128
+	if signP == signZ {
+		// Adding fracP + fracZ
+		fracP = fracP.Add(fracZ)
+		expP += int(fracP[0] >> 63)
+		frac = shrcompress256(fracP, uint(128+fracP[0]>>63)).Uint128()
+	} else {
+		// Subtracting fracP - fracZ
+		fracP = fracP.Sub(fracZ)
+		nz := fracP.LeadingZeros() - 1
+		expP -= nz
+		frac = shrcompress256(fracP.Lsh(uint(nz)), 64).Uint128()
+	}
+
+	// check for underflow
+	expP += bias128
+	if expP <= 0 {
+		n := uint(1 - expP)
+		frac = roundToNearestEven128(frac, n+14)
+		return Float128{signP | frac[0], frac[1]}
+	}
+
+	// Round and break ties to even
+	frac = roundToNearestEven128(frac, 14)
+	if frac[0]&(1<<(shift128+1-64)) != 0 {
+		expP++
+		frac = frac.Rsh(1)
+	}
+	if expP >= mask128 {
+		// overflow
+		return Float128{signP | uvinf128[0], uvinf128[1]}
+	}
+	return Float128{
+		signP | uint64(expP)<<(shift128-64) | frac[0]&fracMask128[0],
+		frac[1] & fracMask128[1],
+	}
 }

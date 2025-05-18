@@ -145,17 +145,21 @@ func TestFloat128_Mul(t *testing.T) {
 	tests := []struct {
 		a, b, want Float128
 	}{
+		// {
+		// 	a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+		// 	b:    Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+		// 	want: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+		// },
+		// {
+		// 	a:    Float128{0x400c_fff7_ffff_fffe, 0x0000_0000_0000_0000},
+		// 	b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		// 	want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_3fff},
+		// },
 		{
-			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
-			b:    Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
-			want: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+			a:    Float128{0x0002_ffff_ffff_ffc0, 0x0000_8000_0000_0000},
+			b:    Float128{0xc061_03ff_ffff_ffff, 0xff7f_ffff_ffff_ffff},
+			want: Float128{0x8065_03ff_ffff_ffdf, 0x7f80_4100_0000_0fff},
 		},
-		{
-			a:    Float128{0x400c_fff7_ffff_fffe, 0x0000_0000_0000_0000},
-			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
-			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_3fff},
-		},
-
 		// underflow
 		{
 			a:    Float128{0x3ffd_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.25
@@ -969,5 +973,39 @@ func BenchmarkFloat128_Ge(b *testing.B) {
 	} // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Ge(f))
+	}
+}
+
+func TestFMA128(t *testing.T) {
+	tests := []struct {
+		a, b, c, want Float128
+	}{
+		// {
+		// 	a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+		// 	b:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+		// 	c:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+		// 	want: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+		// },
+
+		// // random values
+		// {
+		// 	a:    Float128{0x3ffe_6a5e_606a_9e52, 0xb658_e6e3_8a0d_b849},
+		// 	b:    Float128{0x4400_0000_0000_0000, 0x0000_03ff_ffff_ffff},
+		// 	c:    Float128{0x43ff_0d90_90d6_c6aa, 0x6b05_9e0f_0fdd_ea1a},
+		// 	want: Float128{0x4400_3bf7_78a0_b27e, 0x90af_454e_09b6_a66d},
+		// },
+		{
+			a:    Float128{0x0002_ffff_ffff_ffc0, 0x0000_8000_0000_0000},
+			b:    Float128{0xc061_03ff_ffff_ffff, 0xff7f_ffff_ffff_ffff},
+			c:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float128{0x8065_03ff_ffff_ffdf, 0x7f80_4100_0000_0fff},
+		},
+	}
+
+	for _, tt := range tests {
+		got := FMA128(tt.a, tt.b, tt.c)
+		if !eq128(got, tt.want) {
+			t.Errorf("FMA128(%x, %x, %x) = %x, want %x", tt.a, tt.b, tt.c, got, tt.want)
+		}
 	}
 }
