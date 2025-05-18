@@ -49,10 +49,10 @@ jobs:
           - "f16_to_i64,f32_to_i64,f64_to_i64,f128_to_i64"
 
           # Float16 operations
-          - "f16_mul,f16_div,f16_add,f16_sub,f16_sqrt,f16_eq,f16_lt,f16_le"
+          - "f16_mul,f16_div,f16_add,f16_sub,f16_sqrt,f16_eq,f16_lt,f16_le,f16_mulAdd"
 
           # Float32 operations
-          - "f32_mul,f32_div,f32_add,f32_sub,f32_sqrt,f32_eq,f32_lt,f32_le"
+          - "f32_mul,f32_div,f32_add,f32_sub,f32_sqrt,f32_eq,f32_lt,f32_le,f32_mulAdd"
 
           # Float64 operations
           - "f64_mul,f64_div,f64_add,f64_sub,f64_sqrt,f64_eq,f64_lt,f64_le,f64_mulAdd"
