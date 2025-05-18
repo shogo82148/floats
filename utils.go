@@ -79,7 +79,7 @@ func shrcompress32(x uint32, n uint) uint32 {
 		return nonzero32(x)
 	}
 	y := x >> n
-	y |= nonzero32(x & (1<<n - 1))
+	y |= nonzero32(x & ((1<<n) - 1))
 	return y
 }
 
