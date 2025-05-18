@@ -1012,6 +1012,18 @@ func TestFMA128(t *testing.T) {
 			c:    Float128{0xc1c0_ffff_ffff_ffff, 0xffff_ffff_ffff_ff80},
 			want: Float128{0x46ea_0000_0000_0000, 0x0040_0000_5fff_ffef},
 		},
+		{
+			a:    Float128{0xa0ca_0000_07ff_fffb, 0xffff_ffff_ffff_ffff},
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			c:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			a:    Float128{0xbfff_ad02_6c25_e937, 0x8b14_ba22_3a4b_dff8},
+			b:    Float128{0xfffe_ffff_ffff_ffff, 0xffff_dfff_f7ff_fffe},
+			c:    Float128{0x8f1b_0000_1fff_ffff, 0xffff_ff7f_ffff_ffff},
+			want: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
 
 		// handling zero, Inf, NaN
 		{
