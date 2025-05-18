@@ -543,6 +543,7 @@ func FMA128(x, y, z Float128) Float128 {
 
 	// Round and break ties to even
 	frac = roundToNearestEven128(frac, 14)
+	frac = frac.Rsh(14)
 	if frac[0]&(1<<(shift128+1-64)) != 0 {
 		expP++
 		frac = frac.Rsh(1)
