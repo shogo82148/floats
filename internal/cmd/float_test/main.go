@@ -255,6 +255,10 @@ func main() {
 		if err := f128x2bool("Le", floats.Float128.Le); err != nil {
 			log.Fatal(err)
 		}
+	case "f128_mulAdd":
+		if err := f128_mulAdd(); err != nil {
+			log.Fatal(err)
+		}
 
 	default:
 		log.Fatalf("unknown test name: %q", os.Args[1])
@@ -1269,6 +1273,42 @@ func f128x2bool(name string, f func(a, b floats.Float128) bool) error {
 			log.Printf("a: %s, b: %s, want: %s", a, b, want)
 			log.Printf("got: %t, want: %t", got, w)
 			return fmt.Errorf("Float128(%x).%s(%x) = %t, want %t", f128a, name, f128b, got, w)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_mulAdd() error {
+	for {
+		var a, b, c, want, flag string
+		if _, err := fmt.Scanf("%s %s %s %s %s", &a, &b, &c, &want, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+		f128a, err := parseFloat128(a)
+		if err != nil {
+			return err
+		}
+		f128b, err := parseFloat128(b)
+		if err != nil {
+			return err
+		}
+		f128c, err := parseFloat128(c)
+		if err != nil {
+			return err
+		}
+		wantf, err := parseFloat128(want)
+		if err != nil {
+			return err
+		}
+		got := floats.FMA128(f128a, f128b, f128c)
+		if !eq128(got, wantf) {
+			log.Printf("a: %s, b: %s, c: %s, want: %s", a, b, c, want)
+			log.Printf("got: %x, want: %x", got, wantf)
+			return fmt.Errorf("FMA128(%x, %x, %x) = %x, want %x", f128a, f128b, f128c, got, wantf)
 		}
 		count.Add(1)
 	}

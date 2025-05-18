@@ -155,7 +155,11 @@ func TestFloat128_Mul(t *testing.T) {
 			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
 			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_3fff},
 		},
-
+		{
+			a:    Float128{0x0002_ffff_ffff_ffc0, 0x0000_8000_0000_0000},
+			b:    Float128{0xc061_03ff_ffff_ffff, 0xff7f_ffff_ffff_ffff},
+			want: Float128{0x8065_03ff_ffff_ffdf, 0x7f80_4100_0000_0fff},
+		},
 		// underflow
 		{
 			a:    Float128{0x3ffd_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.25
@@ -969,5 +973,83 @@ func BenchmarkFloat128_Ge(b *testing.B) {
 	} // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Ge(f))
+	}
+}
+
+func TestFMA128(t *testing.T) {
+	tests := []struct {
+		a, b, c, want Float128
+	}{
+		{
+			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			b:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			c:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			want: Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, // 2.0
+		},
+		{
+			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			b:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			c:    Float128{0xc000_0000_0000_0000, 0x0000_0000_0000_0000}, // -2.0
+			want: Float128{0xbfff_0000_0000_0000, 0x0000_0000_0000_0000}, // -1.0
+		},
+		{
+			a:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			b:    Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, // 1.0
+			c:    Float128{0xbfff_0000_0000_0000, 0x0000_0000_0000_0000}, // -1.0
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		},
+
+		// random values
+		{
+			a:    Float128{0x3ffe_6a5e_606a_9e52, 0xb658_e6e3_8a0d_b849},
+			b:    Float128{0x4400_0000_0000_0000, 0x0000_03ff_ffff_ffff},
+			c:    Float128{0x43ff_0d90_90d6_c6aa, 0x6b05_9e0f_0fdd_ea1a},
+			want: Float128{0x4400_3bf7_78a0_b27e, 0x90af_454e_09b6_a66d},
+		},
+		{
+			a:    Float128{0x3f80_0000_0000_0000, 0x0040_0000_4000_0000},
+			b:    Float128{0x4769_0000_0000_0000, 0x0000_0000_1fff_ffef},
+			c:    Float128{0xc1c0_ffff_ffff_ffff, 0xffff_ffff_ffff_ff80},
+			want: Float128{0x46ea_0000_0000_0000, 0x0040_0000_5fff_ffef},
+		},
+		{
+			a:    Float128{0xa0ca_0000_07ff_fffb, 0xffff_ffff_ffff_ffff},
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			c:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			a:    Float128{0xbfff_ad02_6c25_e937, 0x8b14_ba22_3a4b_dff8},
+			b:    Float128{0xfffe_ffff_ffff_ffff, 0xffff_dfff_f7ff_fffe},
+			c:    Float128{0x8f1b_0000_1fff_ffff, 0xffff_ff7f_ffff_ffff},
+			want: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000},
+		},
+
+		// handling zero, Inf, NaN
+		{
+			a:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			b:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			c:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+			want: Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		},
+		{
+			a:    Float128{0x0002_ffff_ffff_ffc0, 0x0000_8000_0000_0000},
+			b:    Float128{0xc061_03ff_ffff_ffff, 0xff7f_ffff_ffff_ffff},
+			c:    Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000},
+			want: Float128{0x8065_03ff_ffff_ffdf, 0x7f80_4100_0000_0fff},
+		},
+		{
+			a:    Float128{0x0002_ffff_ffff_ffc0, 0x0000_8000_0000_0000},
+			b:    Float128{0xc061_03ff_ffff_ffff, 0xff7f_ffff_ffff_ffff},
+			c:    Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+			want: Float128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000}, // +inf
+		},
+	}
+
+	for _, tt := range tests {
+		got := FMA128(tt.a, tt.b, tt.c)
+		if !eq128(got, tt.want) {
+			t.Errorf("FMA128(%x, %x, %x) = %x, want %x", tt.a, tt.b, tt.c, got, tt.want)
+		}
 	}
 }
