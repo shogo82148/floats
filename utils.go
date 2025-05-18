@@ -2,22 +2,8 @@ package floats
 
 import "github.com/shogo82148/ints"
 
-func zero16(x uint16) uint16 {
-	if x == 0 {
-		return 1
-	}
-	return 0
-}
-
 func nonzero16(x uint16) uint16 {
 	if x != 0 {
-		return 1
-	}
-	return 0
-}
-
-func zero32(x uint32) uint32 {
-	if x == 0 {
 		return 1
 	}
 	return 0
@@ -30,15 +16,11 @@ func nonzero32(x uint32) uint32 {
 	return 0
 }
 
-// squash64 squashes the bits of x to a single bit.
-func squash64(x uint64) uint64 {
-	x |= x >> 32
-	x |= x >> 16
-	x |= x >> 8
-	x |= x >> 4
-	x |= x >> 2
-	x |= x >> 1
-	return x & 1
+func nonzero64(x uint64) uint64 {
+	if x != 0 {
+		return 1
+	}
+	return 0
 }
 
 // squash256 squashes the bits of x to a single bit.
@@ -65,26 +47,32 @@ func squash512(x ints.Uint512) uint64 {
 	return y & 1
 }
 
-func shrcompress16(x uint16, n uint) uint16 {
-	if n >= 16 {
-		return nonzero16(x)
-	}
-	y := x >> n
-	y |= nonzero16(x & (1<<n - 1))
-	return y
-}
-
 func shrcompress32(x uint32, n uint) uint32 {
 	if n >= 32 {
 		return nonzero32(x)
 	}
 	y := x >> n
-	y |= nonzero32(x & ((1<<n) - 1))
+	y |= nonzero32(x & ((1 << n) - 1))
+	return y
+}
+
+func shrcompress64(x uint64, n uint) uint64 {
+	if n >= 64 {
+		return nonzero64(x)
+	}
+	y := x >> n
+	y |= nonzero64(x & ((1 << n) - 1))
 	return y
 }
 
 func roundToNearestEven16(x uint16, shift uint) uint16 {
 	mask := uint16(1)<<(shift-1) - 1
+	x = (x + mask) + ((x >> shift) & 1)
+	return x >> shift
+}
+
+func roundToNearestEven32(x uint32, shift uint) uint32 {
+	mask := uint32(1)<<(shift-1) - 1
 	x = (x + mask) + ((x >> shift) & 1)
 	return x >> shift
 }

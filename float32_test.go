@@ -546,3 +546,39 @@ func BenchmarkFloat32_Ge(b *testing.B) {
 		runtime.KeepAlive(f.Ge(f))
 	}
 }
+
+func TestFMA32(t *testing.T) {
+	nan := Float32(math.NaN())
+	negZero := Float32(math.Copysign(0, -1))
+	inf := Float32(math.Inf(1))
+
+	tests := []struct {
+		a, b, c, want Float32
+	}{
+		{1, 1, 1, 2},   // 1.0 * 1.0 + 1.0 = 2.0
+		{1, 1, -2, -1}, // 1.0 * 1.0 + -2.0 = -1.0
+
+		// special cases
+		{0, 1, 2, 2},
+		{1, 0, 2, 2},
+		{negZero, 0, 2, 2},
+		{0, negZero, 2, 2},
+		{nan, 1, 2, nan},
+		{1, nan, 2, nan},
+		{1, 1.5, inf, inf},
+	}
+
+	for _, test := range tests {
+		got := FMA32(test.a, test.b, test.c)
+		if !eq32(got, test.want) {
+			t.Errorf("FMA32(%x, %x, %x) = %x, want %x", test.a, test.b, test.c, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFMA32(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(FMA32(f, f, f))
+	}
+}

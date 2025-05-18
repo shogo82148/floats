@@ -391,7 +391,7 @@ func (a Float128) Float16() Float16 {
 		// round to nearest even
 		roundBit := -exp + shift128 - (bias16 + shift16 - 1) - 64
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
-		frac[0] |= squash64(frac[1])
+		frac[0] |= nonzero64(frac[1])
 		frac[0] += halfMinusULP + ((frac[0] >> uint(roundBit)) & 1)
 		return Float16(sign | uint16(frac[0]>>roundBit))
 	}
@@ -399,7 +399,7 @@ func (a Float128) Float16() Float16 {
 	// the result is normal number
 	// round to nearest even
 	const halfMinusULP = 1<<(shift128-shift16-64-1) - 1
-	a[0] |= squash64(a[1])
+	a[0] |= nonzero64(a[1])
 	a[0] += halfMinusULP + ((a[0] >> uint(shift128-shift16-64)) & 1)
 
 	exp16 := uint16((a[0]>>(shift128-64))&mask128) - bias128 + bias16
@@ -436,7 +436,7 @@ func (a Float128) Float32() Float32 {
 		// round to nearest even
 		roundBit := -exp + shift128 - (bias32 + shift32 - 1) - 64
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
-		frac[0] |= squash64(frac[1])
+		frac[0] |= nonzero64(frac[1])
 		frac[0] += halfMinusULP + ((frac[0] >> uint(roundBit)) & 1)
 		return Float32(math.Float32frombits(sign | uint32(frac[0]>>uint(roundBit))))
 	}
@@ -444,7 +444,7 @@ func (a Float128) Float32() Float32 {
 	// the result is normal number
 	// round to nearest even
 	const halfMinusULP = 1<<(shift128-shift32-64-1) - 1
-	a[0] |= squash64(a[1])
+	a[0] |= nonzero64(a[1])
 	a[0] += halfMinusULP + ((a[0] >> uint(shift128-shift32-64)) & 1)
 
 	exp32 := uint32((a[0]>>(shift128-64))&mask128) - bias128 + bias32
@@ -570,7 +570,7 @@ func (a Float256) Float16() Float16 {
 		// round to nearest even
 		roundBit := -exp + shift256 - (bias16 + shift16 - 1) - 192
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
-		frac[0] |= squash64(frac[1]) | squash64(frac[2]) | squash64(frac[3])
+		frac[0] |= nonzero64(frac[1]) | nonzero64(frac[2]) | nonzero64(frac[3])
 		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
 		return Float16(sign | uint16(frac[0]>>roundBit))
 	}
@@ -578,7 +578,7 @@ func (a Float256) Float16() Float16 {
 	// the result is normal number
 	// round to nearest even
 	const halfMinusULP = 1<<(shift256-shift16-192-1) - 1
-	a[0] |= squash64(a[1]) | squash64(a[2]) | squash64(a[3])
+	a[0] |= nonzero64(a[1]) | nonzero64(a[2]) | nonzero64(a[3])
 	a[0] += halfMinusULP + ((a[0] >> uint(shift256-shift16-192)) & 1)
 
 	exp16 := uint16((a[0]>>(shift256-192))&mask256 - bias256 + bias16)
@@ -615,7 +615,7 @@ func (a Float256) Float32() Float32 {
 		// round to nearest even
 		roundBit := -exp + shift256 - (bias32 + shift32 - 1) - 192
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
-		frac[0] |= squash64(frac[1]) | squash64(frac[2]) | squash64(frac[3])
+		frac[0] |= nonzero64(frac[1]) | nonzero64(frac[2]) | nonzero64(frac[3])
 		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
 		return Float32(math.Float32frombits(sign | uint32(frac[0]>>uint(roundBit))))
 	}
@@ -623,7 +623,7 @@ func (a Float256) Float32() Float32 {
 	// the result is normal number
 	// round to nearest even
 	const halfMinusULP = 1<<(shift256-shift32-192-1) - 1
-	a[0] |= squash64(a[1]) | squash64(a[2]) | squash64(a[3])
+	a[0] |= nonzero64(a[1]) | nonzero64(a[2]) | nonzero64(a[3])
 	a[0] += halfMinusULP + ((a[0] >> uint(shift256-shift32-192)) & 1)
 
 	exp32 := uint32((a[0]>>(shift256-192))&mask256 - bias256 + bias32)
