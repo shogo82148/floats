@@ -530,7 +530,7 @@ func FMA128(x, y, z Float128) Float128 {
 		fracP = fracP.Sub(fracZ)
 		nz := fracP.LeadingZeros() - 1
 		expP -= nz
-		frac = shrcompress256(fracP.Lsh(uint(nz)), 64).Uint128()
+		frac = shrcompress256(fracP.Lsh(uint(nz)), 128).Uint128()
 	}
 
 	// check for underflow
@@ -538,6 +538,7 @@ func FMA128(x, y, z Float128) Float128 {
 	if expP <= 0 {
 		n := uint(1 - expP)
 		frac = roundToNearestEven128(frac, n+14)
+		frac = frac.Rsh(n + 14)
 		return Float128{signP | frac[0], frac[1]}
 	}
 
