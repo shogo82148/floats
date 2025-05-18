@@ -487,3 +487,37 @@ func BenchmarkFloat16_Ge(b *testing.B) {
 		runtime.KeepAlive(f.Ge(f))
 	}
 }
+
+func TestFMA16(t *testing.T) {
+	tests := []struct {
+		a, b, c, want Float16
+	}{
+		{0x3c00, 0x3c00, 0x3c00, 0x4000}, // 1.0 * 1.0 + 1.0 = 2.0
+		{0x3c00, 0x3c00, 0xc000, 0xbc00}, // 1.0 * 1.0 + -2.0 = -1.0
+		{0x086f, 0xb41c, 0x0400, 0x01b9},
+		{0x03df, 0x0001, 0x8400, 0x8400},
+		{0xa836, 0x0001, 0x03ff, 0x03ff},
+
+		// overflow
+		{0x7810, 0x43af, 0x0001, 0x7c00},
+
+		{0x3c00, 0x3c00, 0x0000, 0x3c00}, // 1.0 * 1.0 + 0.0 = 1.0
+		{0x3c00, 0x0000, 0x0000, 0x0000}, // 1.0 * 0.0 + 0.0 = 0.0
+		{0x3c00, 0x3c00, 0xbc00, 0x0000}, // 1.0 * 1.0 + -1.0 = 0.0
+		{0x890f, 0x03ff, 0x0000, 0x8000},
+		{uvnan16, uvnan16, uvnan16, uvnan16},
+	}
+	for _, test := range tests {
+		got := FMA16(test.a, test.b, test.c)
+		if !eq16(got, test.want) {
+			t.Errorf("FMA16(%x, %x, %x) = %x, want %x", test.a, test.b, test.c, got, test.want)
+		}
+	}
+}
+
+func BenchmarkFMA16(b *testing.B) {
+	f := Float16(0x3c00) // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(FMA16(f, f, f))
+	}
+}
