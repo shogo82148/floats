@@ -114,7 +114,7 @@ func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
 	one := ints.Uint256{0, 0, 0, 1}
 	mask := one.Lsh(shift - 1).Sub(one)
 	x = x.Add(mask).Add(x.Rsh(shift).And(one))
-	return x
+	return x.Rsh(shift)
 }
 
 func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {

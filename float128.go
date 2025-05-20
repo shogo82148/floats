@@ -112,20 +112,17 @@ func (a Float128) Mul(b Float128) Float128 {
 		// normalize
 		shift := shift128 - (expA + expB + bias128) + 1
 		frac = roundToNearestEven256(frac, uint(shift))
-		frac = frac.Rsh(uint(shift))
 		return Float128{sign | frac[2], frac[3]}
 	}
 
 	exp = expA + expB + bias128
 	frac = roundToNearestEven256(frac, uint(shift))
-	shift = frac.BitLen() - (shift128 + 1)
+	shift = frac.BitLen() + shift - (shift128 + 1)
 	exp += shift - shift128
 	if exp >= mask128 {
 		// overflow
 		return Float128{sign | uvinf128[0], uvinf128[1]}
 	}
-
-	frac = frac.Rsh(uint(shift))
 	return Float128{
 		sign | uint64(exp)<<(shift128-64) | frac[2]&fracMask128[0],
 		frac[3],
@@ -296,7 +293,6 @@ func (a Float128) Add(b Float128) Float128 {
 		// the result is subnormal
 		shift := offset - (expA + bias128) + 1
 		frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
-		frac256 = frac256.Rsh(uint(shift))
 		return Float128{sign | frac256[2]&fracMask128[0], frac256[3]}
 	}
 	if exp >= mask128-bias128 {
@@ -306,7 +302,7 @@ func (a Float128) Add(b Float128) Float128 {
 
 	frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
 	// detect carry-out caused by rounding
-	if ints.Uint256(frac256).BitLen() > shift128+shift+1 {
+	if ints.Uint256(frac256).BitLen() > shift128+1 {
 		frac256 = frac256.Rsh(1)
 		exp++
 		if exp >= mask128 {
@@ -314,7 +310,6 @@ func (a Float128) Add(b Float128) Float128 {
 			return Float128{sign | uvinf128[0], uvinf128[1]}
 		}
 	}
-	frac256 = frac256.Rsh(uint(shift))
 	return Float128{sign | uint64(exp+bias128)<<(shift128-64) | frac256[2]&fracMask128[0], frac256[3]}
 }
 
