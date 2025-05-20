@@ -31,6 +31,14 @@ func nonzero256(x ints.Uint256) ints.Uint256 {
 	return ints.Uint256{0, 0, 0, 0}
 }
 
+func nonzero512(x ints.Uint512) ints.Uint512 {
+	y := x[0] | x[1] | x[2] | x[3] | x[4] | x[5] | x[6] | x[7]
+	if y != 0 {
+		return ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
+	}
+	return ints.Uint512{0, 0, 0, 0, 0, 0, 0, 0}
+}
+
 // squash512 squashes the bits of x to a single bit.
 func squash512(x ints.Uint512) uint64 {
 	y := x[0] | x[1] | x[2] | x[3] | x[4] | x[5] | x[6] | x[7]
@@ -72,6 +80,17 @@ func shrcompress256(x ints.Uint256, n uint) ints.Uint256 {
 	return y
 }
 
+func shrcompress512(x ints.Uint512, n uint) ints.Uint512 {
+	if n >= 512 {
+		return nonzero512(x)
+	}
+	one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
+	mask := one.Lsh(n).Sub(one)
+	y := x.Rsh(n)
+	y = y.Or(nonzero512(x.And(mask)))
+	return y
+}
+
 func roundToNearestEven16(x uint16, shift uint) uint16 {
 	mask := uint16(1)<<(shift-1) - 1
 	x = (x + mask) + ((x >> shift) & 1)
@@ -93,8 +112,9 @@ func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
 
 func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
 	one := ints.Uint256{0, 0, 0, 1}
-	mask := one.Lsh(uint(shift - 1)).Sub(one)
-	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+	mask := one.Lsh(shift - 1).Sub(one)
+	x = x.Add(mask).Add(x.Rsh(shift).And(one))
+	return x
 }
 
 func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {

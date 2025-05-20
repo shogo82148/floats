@@ -501,3 +501,91 @@ func (a Float256) comparable() ints.Int256 {
 	i = i.Add(ints.Int256{0, 0, 0, sign & 1})
 	return i
 }
+
+// FMA256 returns x * y + z, computed with only one rounding.
+// (That is, FMA256 returns the fused multiply-add of x, y, and z.)
+func FMA256(x, y, z Float256) Float256 {
+	if x.isZero() || y.isZero() || x[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) || y[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) {
+		return x.Mul(y).Add(z)
+	}
+	if z.isZero() {
+		return x.Mul(y)
+	}
+	// Handle non-finite z separately. Evaluating x*y+z where
+	// x and y are finite, but z is infinite, should always result in z.
+	if z[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) {
+		return z
+	}
+
+	// Split x, y, z into sign, exponent, mantissa.
+	signX, expX, fracX := x.split()
+	signY, expY, fracY := y.split()
+	signZ, expZ, fracZ0 := z.split()
+
+	// Compute product p = x*y as sign, exponent, mantissa.
+	expP := expX + expY + 1
+	fracP := fracX.Lsh(18).Mul512(fracY.Lsh(19))
+	signP := signX ^ signY // product sign
+
+	// Normalize the product
+	is510zero := uint((^fracP[0] >> 62) & 1)
+	fracP = fracP.Lsh(is510zero)
+	expP -= int(is510zero)
+
+	fracZ := fracZ0.Uint512().Lsh(18 + 256)
+
+	// Swap addition operands so |p| >= |z|
+	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
+		signP, signZ = signZ, signP
+		expP, expZ = expZ, expP
+		fracP, fracZ = fracZ, fracP
+	}
+
+	// Special case: if p == -z the result is always +0 since neither operand is zero.
+	if signP != signZ && expP == expZ && fracP.Cmp(fracZ) == 0 {
+		return Float256{0, 0, 0, 0}
+	}
+
+	// Align mantissa
+	fracZ = shrcompress512(fracZ, uint(expP-expZ))
+
+	// Compute resulting significands, normalizing if necessary.
+	var frac ints.Uint256
+	if signP == signZ {
+		// Adding fracP + fracZ
+		fracP = fracP.Add(fracZ)
+		expP += int(fracP[0] >> 63)
+		frac = shrcompress512(fracP, uint(256+fracP[0]>>63)).Uint256()
+	} else {
+		// Subtracting fracP - fracZ
+		fracP = fracP.Sub(fracZ)
+		nz := fracP.LeadingZeros() - 1
+		expP -= nz
+		frac = shrcompress512(fracP.Lsh(uint(nz)), 256).Uint256()
+	}
+
+	// check for underflow
+	expP += bias256
+	if expP <= 0 {
+		n := uint(1 - expP)
+		frac = roundToNearestEven256(frac, n+18).Rsh(n + 18)
+		return Float256{signP | frac[0], frac[1], frac[2], frac[3]}
+	}
+
+	// Round and break ties to even
+	frac = roundToNearestEven256(frac, 18).Rsh(18)
+	if frac[0]&(1<<(shift256+1-192)) != 0 {
+		expP++
+		frac = frac.Rsh(1)
+	}
+	if expP >= mask256 {
+		// Overflow
+		return Float256{signP | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+	}
+	return Float256{
+		signP | uint64(expP)<<(shift256-192) | frac[0]&fracMask256[0],
+		frac[1],
+		frac[2],
+		frac[3],
+	}
+}

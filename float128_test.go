@@ -1053,3 +1053,13 @@ func TestFMA128(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFMA128(b *testing.B) {
+	f := Float128{
+		0x3fff_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	} // 1.0
+	for b.Loop() {
+		runtime.KeepAlive(FMA128(f, f, f))
+	}
+}
