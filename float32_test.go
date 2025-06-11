@@ -72,6 +72,34 @@ func BenchmarkFloat32_IsInf(b *testing.B) {
 	}
 }
 
+func TestFloat32_Signbit(t *testing.T) {
+	tests := []struct {
+		in   Float32
+		want bool
+	}{
+		{0, false},
+		{1, false},
+		{-1, true},
+		{Float32(math.Copysign(0, -1)), true}, // -0.0
+		{Float32(math.Inf(1)), false},         // +Inf
+		{Float32(math.Inf(-1)), true},         // -Inf
+	}
+
+	for _, tt := range tests {
+		got := tt.in.Signbit()
+		if got != tt.want {
+			t.Errorf("Float32.Signbit() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat32_Signbit(b *testing.B) {
+	f := Float32(1.0)
+	for b.Loop() {
+		runtime.KeepAlive(f.Signbit())
+	}
+}
+
 func TestFloat32_Int64(t *testing.T) {
 	tests := []struct {
 		in  Float32

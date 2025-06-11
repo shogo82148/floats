@@ -38,6 +38,11 @@ func (a Float128) IsInf(sign int) bool {
 	return sign >= 0 && b == uvinf128 || sign <= 0 && b == uvneginf128
 }
 
+// Signbit reports whether x is negative or negative zero.
+func (a Float128) Signbit() bool {
+	return a[0]&signMask128[0] != 0
+}
+
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float128) Int64() int64 {

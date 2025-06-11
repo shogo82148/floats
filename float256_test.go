@@ -100,6 +100,53 @@ func BenchmarkFloat256_IsInf(b *testing.B) {
 	}
 }
 
+func TestFloat256_Signbit(t *testing.T) {
+	tests := []struct {
+		in   Float256
+		want bool
+	}{
+		{
+			// 1.0
+			in: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: false,
+		},
+		{
+			// -1.0
+			in: Float256{
+				0xbfff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.Signbit()
+		if got != tt.want {
+			t.Errorf("Float256.Signbit() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Signbit(b *testing.B) {
+	f := Float256{
+		0x3fff_f000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000,
+	}
+	for b.Loop() {
+		runtime.KeepAlive(f.Signbit())
+	}
+}
+
 func TestFloat256_Int64(t *testing.T) {
 	tests := []struct {
 		in  Float256
