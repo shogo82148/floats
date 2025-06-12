@@ -30,6 +30,11 @@ func (a Float64) IsInf(sign int) bool {
 	return math.IsInf(float64(a), sign)
 }
 
+// Signbit reports whether x is negative or negative zero.
+func (a Float64) Signbit() bool {
+	return math.Signbit(float64(a))
+}
+
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float64) Int64() int64 {
