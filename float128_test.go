@@ -121,6 +121,24 @@ func BenchmarkFloat128_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat128_IsZero(t *testing.T) {
+	tests := []struct {
+		in   Float128
+		want bool
+	}{
+		{Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, true},  // +0.0
+		{Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000}, true},  // -0.0
+		{Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, false}, // 1.0
+		{Float128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000}, false}, // NaN
+	}
+	for _, tt := range tests {
+		got := tt.in.IsZero()
+		if got != tt.want {
+			t.Errorf("Float128.IsZero(%x) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestFloat128_Neg(t *testing.T) {
 	tests := []struct {
 		a, want Float128

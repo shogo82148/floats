@@ -214,6 +214,50 @@ func BenchmarkFloat256_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat256_IsZero(t *testing.T) {
+	tests := []struct {
+		a    Float256
+		want bool
+	}{
+		{
+			// 0.0
+			a: Float256{
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: true,
+		},
+		{
+			// -0.0
+			a: Float256{
+				0x8000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: true,
+		},
+		{
+			// 1.0
+			a: Float256{
+				0x3fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		got := tt.a.IsZero()
+		if got != tt.want {
+			t.Errorf("Float256.IsZero() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
 func TestFloat256_Neg(t *testing.T) {
 	tests := []struct {
 		a, want Float256

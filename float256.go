@@ -69,7 +69,8 @@ func (a Float256) Int64() int64 {
 	return ret
 }
 
-func (a Float256) isZero() bool {
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float256) IsZero() bool {
 	return (a[0]&^signMask256[0])|a[1]|a[2]|a[3] == 0
 }
 
@@ -92,7 +93,7 @@ func (a Float256) Mul(b Float256) Float256 {
 	// handle special cases
 	if expA == mask256-bias256 {
 		// NaN check is done above; a is ±inf
-		if b.isZero() {
+		if b.IsZero() {
 			// ±inf * 0 = NaN
 			return Float256(uvnan256)
 		} else {
@@ -103,7 +104,7 @@ func (a Float256) Mul(b Float256) Float256 {
 	}
 	if expB == mask256-bias256 {
 		// NaN check is done above; b is ±inf
-		if a.isZero() {
+		if a.IsZero() {
 			// 0 * ±inf = NaN
 			return Float256(uvnan256)
 		} else {
@@ -112,7 +113,7 @@ func (a Float256) Mul(b Float256) Float256 {
 			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
 		}
 	}
-	if a.isZero() || b.isZero() {
+	if a.IsZero() || b.IsZero() {
 		// +0 * ±finite = ±0
 		// -0 * ±finite = ∓0
 		return Float256{sign, 0, 0, 0}
@@ -166,15 +167,15 @@ func (a Float256) Quo(b Float256) Float256 {
 	signB, expB, fracB := b.split()
 	sign := signA ^ signB
 
-	if b.isZero() {
-		if a.isZero() {
+	if b.IsZero() {
+		if a.IsZero() {
 			// 0 / 0 = NaN
 			return Float256(uvnan256)
 		}
 		// ±finite / 0 = ±inf
 		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
 	}
-	if a.isZero() {
+	if a.IsZero() {
 		// 0 / finite = 0
 		return Float256{sign, 0, 0, 0}
 	}
@@ -249,8 +250,8 @@ func (a Float256) Add(b Float256) Float256 {
 		// NaN + b = NaN
 		return Float256(uvnan256)
 	}
-	if a.isZero() {
-		if b.isZero() {
+	if a.IsZero() {
+		if b.IsZero() {
 			//  0 +  0 =  0
 			//  0 + -0 =  0
 			// -0 +  0 =  0
@@ -260,7 +261,7 @@ func (a Float256) Add(b Float256) Float256 {
 		// ±0 + b = b
 		return b
 	}
-	if b.isZero() {
+	if b.IsZero() {
 		// a + ±0 = a
 		return a
 	}
@@ -366,7 +367,7 @@ func (a Float256) Sub(b Float256) Float256 {
 //	Sqrt(NaN) = NaN
 func (a Float256) Sqrt() Float256 {
 	switch {
-	case a.isZero() || a.IsNaN() || a.IsInf(1):
+	case a.IsZero() || a.IsNaN() || a.IsInf(1):
 		return a
 	case a[0]&signMask256[0] != 0:
 		return Float256(uvnan256)
@@ -506,10 +507,10 @@ func (a Float256) comparable() ints.Int256 {
 // FMA256 returns x * y + z, computed with only one rounding.
 // (That is, FMA256 returns the fused multiply-add of x, y, and z.)
 func FMA256(x, y, z Float256) Float256 {
-	if x.isZero() || y.isZero() || x[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) || y[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) {
+	if x.IsZero() || y.IsZero() || x[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) || y[0]&(mask256<<(shift256-192)) == mask256<<(shift256-192) {
 		return x.Mul(y).Add(z)
 	}
-	if z.isZero() {
+	if z.IsZero() {
 		return x.Mul(y)
 	}
 	// Handle non-finite z separately. Evaluating x*y+z where
