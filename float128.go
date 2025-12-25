@@ -55,7 +55,8 @@ func (a Float128) Int64() int64 {
 	return ret
 }
 
-func (a Float128) isZero() bool {
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float128) IsZero() bool {
 	return (a[0]&^signMask128[0])|a[1] == 0
 }
 
@@ -79,7 +80,7 @@ func (a Float128) Mul(b Float128) Float128 {
 	// handle special cases
 	if expA == mask128-bias128 {
 		// NaN check is done above; a is ±inf
-		if b.isZero() {
+		if b.IsZero() {
 			// ±inf * 0 = NaN
 			return Float128(uvnan128)
 		} else {
@@ -90,7 +91,7 @@ func (a Float128) Mul(b Float128) Float128 {
 	}
 	if expB == mask128-bias128 {
 		// NaN check is done above; b is ±inf
-		if a.isZero() {
+		if a.IsZero() {
 			// 0 * ±inf = NaN
 			return Float128(uvnan128)
 		} else {
@@ -99,7 +100,7 @@ func (a Float128) Mul(b Float128) Float128 {
 			return Float128{sign | uvinf128[0], uvinf128[1]}
 		}
 	}
-	if a.isZero() || b.isZero() {
+	if a.IsZero() || b.IsZero() {
 		// 0 * finite = 0
 		return Float128{sign, 0}
 	}
@@ -149,15 +150,15 @@ func (a Float128) Quo(b Float128) Float128 {
 	signB, expB, fracB := b.split()
 	sign := signA ^ signB
 
-	if b.isZero() {
-		if a.isZero() {
+	if b.IsZero() {
+		if a.IsZero() {
 			// 0 / 0 = NaN
 			return Float128(uvnan128)
 		}
 		// ±finite / 0 = ±inf
 		return Float128{sign | uvinf128[0], uvinf128[1]}
 	}
-	if a.isZero() {
+	if a.IsZero() {
 		// 0 / finite = 0
 		return Float128{sign, 0}
 	}
@@ -223,8 +224,8 @@ func (a Float128) Add(b Float128) Float128 {
 	if b.IsNaN() {
 		return b
 	}
-	if a.isZero() {
-		if b.isZero() {
+	if a.IsZero() {
+		if b.IsZero() {
 			//  0 +  0 =  0
 			//  0 + -0 =  0
 			// -0 +  0 =  0
@@ -234,7 +235,7 @@ func (a Float128) Add(b Float128) Float128 {
 		// ±0 + b = b
 		return b
 	}
-	if b.isZero() {
+	if b.IsZero() {
 		// a + ±0 = a
 		return a
 	}
@@ -333,7 +334,7 @@ func (a Float128) Sub(b Float128) Float128 {
 //	Sqrt(NaN) = NaN
 func (a Float128) Sqrt() Float128 {
 	switch {
-	case a.isZero() || a.IsNaN() || a.IsInf(1):
+	case a.IsZero() || a.IsNaN() || a.IsInf(1):
 		return a
 	case a[0]&signMask128[0] != 0:
 		return Float128(uvnan128)
@@ -472,10 +473,10 @@ func (a Float128) comparable() ints.Int128 {
 // FMA128 returns x * y + z, computed with only one rounding.
 // (That is, FMA128 returns the fused multiply-add of x, y, and z.)
 func FMA128(x, y, z Float128) Float128 {
-	if x.isZero() || y.isZero() || x[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) || y[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) {
+	if x.IsZero() || y.IsZero() || x[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) || y[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) {
 		return x.Mul(y).Add(z)
 	}
-	if z.isZero() {
+	if z.IsZero() {
 		return x.Mul(y)
 	}
 	// Handle non-finite z separately. Evaluating x*y+z where

@@ -122,6 +122,25 @@ func TestFloat32_Int64(t *testing.T) {
 	}
 }
 
+func TestFloat32_IsZero(t *testing.T) {
+	tests := []struct {
+		in   Float32
+		want bool
+	}{
+		{0, true},
+		{Float32(math.Copysign(0, -1)), true}, // -0.0
+		{1, false},
+		{-1, false},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.IsZero()
+		if got != tt.want {
+			t.Errorf("Float32.IsZero() = %v, want %v", got, tt.want)
+		}
+	}
+}
+
 func TestFloat32_Neg(t *testing.T) {
 	negZero := Float32(math.Copysign(0, -1))
 	nan := Float32(math.NaN())

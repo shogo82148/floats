@@ -44,6 +44,11 @@ func (a Float32) Int64() int64 {
 	return int64(a)
 }
 
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float32) IsZero() bool {
+	return a == 0
+}
+
 // Neg returns the negation of a.
 func (a Float32) Neg() Float32 {
 	return -a

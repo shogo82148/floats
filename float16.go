@@ -43,7 +43,8 @@ func (a Float16) Int64() int64 {
 	return int64(a.Float64())
 }
 
-func (a Float16) isZero() bool {
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float16) IsZero() bool {
 	return a&^signMask16 == 0
 }
 
@@ -65,7 +66,7 @@ func (a Float16) Mul(b Float16) Float16 {
 	// special cases
 	if expA == mask16-bias16 {
 		// NaN check is done above; a is ±inf
-		if b.isZero() {
+		if b.IsZero() {
 			// ±inf * 0 = NaN
 			return uvnan16
 		} else {
@@ -76,7 +77,7 @@ func (a Float16) Mul(b Float16) Float16 {
 	}
 	if expB == mask16-bias16 {
 		// NaN check is done above; b is ±inf
-		if a.isZero() {
+		if a.IsZero() {
 			// 0 * ±inf = NaN
 			return uvnan16
 		} else {
@@ -131,15 +132,15 @@ func (a Float16) Quo(b Float16) Float16 {
 	signB, expB, fracB := b.split()
 	sign := signA ^ signB
 
-	if b.isZero() {
-		if a.isZero() {
+	if b.IsZero() {
+		if a.IsZero() {
 			// 0 / 0 = NaN
 			return uvnan16
 		}
 		// ±finite / 0 = ±inf
 		return Float16(sign | uvinf16)
 	}
-	if a.isZero() {
+	if a.IsZero() {
 		// 0 / ±finite = 0
 		return Float16(sign)
 	}
@@ -198,8 +199,8 @@ func (a Float16) Add(b Float16) Float16 {
 		// anything + NaN = NaN
 		return b
 	}
-	if a.isZero() {
-		if b.isZero() {
+	if a.IsZero() {
+		if b.IsZero() {
 			//  0 +  0 =  0
 			//  0 + -0 =  0
 			// -0 +  0 =  0
@@ -209,7 +210,7 @@ func (a Float16) Add(b Float16) Float16 {
 		// ±0 + b = b
 		return b
 	}
-	if b.isZero() {
+	if b.IsZero() {
 		// a + ±0 = a
 		return a
 	}
@@ -312,7 +313,7 @@ func (a Float16) Sub(b Float16) Float16 {
 func (a Float16) Sqrt() Float16 {
 	// special cases
 	switch {
-	case a.isZero() || a.IsNaN() || a.IsInf(1):
+	case a.IsZero() || a.IsNaN() || a.IsInf(1):
 		return a
 	case a&signMask16 != 0:
 		return uvnan16
@@ -448,10 +449,10 @@ func (a Float16) comparable() int16 {
 // (That is, FMA16 returns the fused multiply-add of x, y, and z.)
 func FMA16(x, y, z Float16) Float16 {
 	// Inf or NaN involved. At most one rounding will occur.
-	if x.isZero() || y.isZero() || x&uvinf16 == uvinf16 || y&uvinf16 == uvinf16 {
+	if x.IsZero() || y.IsZero() || x&uvinf16 == uvinf16 || y&uvinf16 == uvinf16 {
 		return x.Mul(y).Add(z)
 	}
-	if z.isZero() {
+	if z.IsZero() {
 		return x.Mul(y)
 	}
 	// Handle non-finite z separately. Evaluating x*y+z where

@@ -118,6 +118,24 @@ func BenchmarkFloat16_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat16_IsZero(t *testing.T) {
+	tests := []struct {
+		in   Float16
+		want bool
+	}{
+		{0x0000, true},  // +0.0
+		{0x8000, true},  // -0.0
+		{0x3c00, false}, // 1.0
+		{0xbc00, false}, // -1.0
+	}
+	for _, test := range tests {
+		got := test.in.IsZero()
+		if got != test.want {
+			t.Errorf("Float16.IsZero() = %v, want %v", got, test.want)
+		}
+	}
+}
+
 func TestFloat16_Neg(t *testing.T) {
 	tests := []struct {
 		a, want Float16
