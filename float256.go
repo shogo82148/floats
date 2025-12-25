@@ -156,11 +156,10 @@ func (a Float256) Mul(b Float256) Float256 {
 
 // Quo returns the quotient of a and b.
 func (a Float256) Quo(b Float256) Float256 {
-	if a.IsNaN() {
-		return a
-	}
-	if b.IsNaN() {
-		return b
+	if a.IsNaN() || b.IsNaN() {
+		// a / NaN = NaN
+		// NaN / b = NaN
+		return Float256(uvnan256)
 	}
 
 	signA, expA, fracA := a.split()
@@ -245,11 +244,10 @@ func (a Float256) Quo(b Float256) Float256 {
 
 // Add returns the sum of a and b.
 func (a Float256) Add(b Float256) Float256 {
-	if a.IsNaN() {
-		return a
-	}
-	if b.IsNaN() {
-		return b
+	if a.IsNaN() || b.IsNaN() {
+		// a + NaN = NaN
+		// NaN + b = NaN
+		return Float256(uvnan256)
 	}
 	if a.isZero() {
 		if b.isZero() {
