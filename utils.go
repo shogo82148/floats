@@ -1,6 +1,11 @@
 package floats
 
-import "github.com/shogo82148/ints"
+import (
+	"github.com/shogo82148/ints"
+)
+
+var lowerHex = "0123456789abcdef"
+var upperHex = "0123456789ABCDEF"
 
 func nonzero16(x uint16) uint16 {
 	if x != 0 {
