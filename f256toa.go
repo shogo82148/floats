@@ -7,6 +7,13 @@ import (
 	"github.com/shogo82148/ints"
 )
 
+var _ fmt.Formatter = Float256{}
+
+// Format implements [fmt.Formatter].
+func (a Float256) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
+}
+
 var _ fmt.Stringer = Float256{}
 
 // String returns the string representation of a.

@@ -1,5 +1,73 @@
 package floats
 
+import (
+	"fmt"
+	"io"
+)
+
+type floatN interface {
+	IsNaN() bool
+	Signbit() bool
+	Append(dst []byte, fmt byte, prec int) []byte
+}
+
+func format(x floatN, s fmt.State, verb rune) {
+	if x.IsNaN() {
+		_, _ = io.WriteString(s, "NaN")
+		return
+	}
+
+	var prefix []byte
+	var data []byte
+
+	// sign
+	if !x.Signbit() {
+		if s.Flag('+') {
+			prefix = append(prefix, '+')
+		} else if s.Flag(' ') {
+			prefix = append(prefix, ' ')
+		}
+	}
+
+	switch verb {
+	case 'b':
+		data = x.Append(data, 'b', -1)
+	case 'f', 'e', 'E', 'g', 'G', 'x', 'X':
+		if prec, ok := s.Precision(); ok {
+			data = x.Append(data, byte(verb), prec)
+		} else {
+			data = x.Append(data, byte(verb), -1)
+		}
+	case 'v':
+		data = x.Append(data, 'g', -1)
+	}
+
+	if w, ok := s.Width(); ok {
+		var buf [1]byte
+		if s.Flag('-') {
+			_, _ = s.Write(prefix)
+			_, _ = s.Write(data)
+			buf[0] = ' '
+			for i := len(data); i < w; i++ {
+				_, _ = s.Write(buf[:1])
+			}
+		} else {
+			buf[0] = ' '
+			for i := len(data); i < w; i++ {
+				_, _ = s.Write(buf[:1])
+			}
+			_, _ = s.Write(prefix)
+			_, _ = s.Write(data)
+		}
+		return
+	}
+
+	if len(prefix) > 0 {
+		_, _ = s.Write(prefix)
+	}
+	_, _ = s.Write(data)
+}
+
 func formatDigits(dst []byte, neg bool, d *decimal, shortest bool, prec int, fmt byte) []byte {
 	switch fmt {
 	case 'e', 'E':

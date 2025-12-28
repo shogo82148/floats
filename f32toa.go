@@ -5,6 +5,13 @@ import (
 	"strconv"
 )
 
+var _ fmt.Formatter = Float32(0)
+
+// Format implements [fmt.Formatter].
+func (a Float32) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
+}
+
 var _ fmt.Stringer = Float32(0)
 
 // String returns the string representation of a.

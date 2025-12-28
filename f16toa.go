@@ -6,6 +6,13 @@ import (
 	"fmt"
 )
 
+var _ fmt.Formatter = Float16(0)
+
+// Format implements [fmt.Formatter].
+func (a Float16) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
+}
+
 var _ fmt.Stringer = Float16(0)
 
 // String returns the string representation of a.
