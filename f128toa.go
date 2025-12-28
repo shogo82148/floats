@@ -154,7 +154,9 @@ func (a Float128) append(dst []byte, fmt byte, prec int) []byte {
 	exp := int((b[0]>>(shift128-64))&mask128) - bias128
 	sign := b[0] & signMask128[0]
 	frac := b.And(fracMask128)
-	if exp > -bias128 {
+	if exp == -bias128 {
+		exp++
+	} else {
 		frac[0] = frac[0] | (1 << (shift128 - 64))
 	}
 	d := new(decimal)
