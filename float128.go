@@ -46,7 +46,7 @@ func (a Float128) Signbit() bool {
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float128) Int64() int64 {
-	sign, exp, frac := a.split()
+	sign, exp, frac := a.normalize()
 	frac = frac.Rsh(uint(shift128 - exp))
 	ret := int64(frac.Uint64())
 	if sign != 0 {
@@ -73,8 +73,8 @@ func (a Float128) Mul(b Float128) Float128 {
 		return Float128(uvnan128)
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 	sign := signA ^ signB
 
 	// handle special cases
@@ -143,8 +143,8 @@ func (a Float128) Quo(b Float128) Float128 {
 		return Float128(uvnan128)
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 	sign := signA ^ signB
 
 	if b.IsZero() {
@@ -236,8 +236,8 @@ func (a Float128) Add(b Float128) Float128 {
 		return a
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 
 	// handle special cases
 	if expA == mask128-bias128 {
@@ -336,7 +336,7 @@ func (a Float128) Sqrt() Float128 {
 		return Float128(uvnan128)
 	}
 
-	_, exp, frac := a.split()
+	_, exp, frac := a.normalize()
 	if exp%2 != 0 {
 		// odd exp, double x to make it even
 		frac = frac.Lsh(1)
@@ -437,7 +437,8 @@ func (a Float128) Ge(b Float128) bool {
 	return b.Le(a)
 }
 
-func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
+// normalize returns the sign, exponent, and normalized fraction of a.
+func (a Float128) normalize() (sign uint64, exp int, frac ints.Uint128) {
 	b := ints.Uint128(a)
 	sign = b[0] & signMask128[0]
 	exp = int((b[0]>>(shift128-64))&mask128) - bias128
@@ -453,6 +454,22 @@ func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
 
 	// a is normal
 	frac[0] = frac[0] | (1 << (shift128 - 64))
+	return
+}
+
+// split returns the sign, exponent, and fraction of a.
+func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
+	b := ints.Uint128(a)
+	sign = b[0] & signMask128[0]
+	exp = int((b[0]>>(shift128-64))&mask128) - bias128
+	frac = b.And(fracMask128)
+	if exp == -bias128 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac[0] = frac[0] | (1 << (shift128 - 64))
+	}
 	return
 }
 
@@ -482,9 +499,9 @@ func FMA128(x, y, z Float128) Float128 {
 	}
 
 	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.split()
-	signY, expY, fracY := y.split()
-	signZ, expZ, fracZ0 := z.split()
+	signX, expX, fracX := x.normalize()
+	signY, expY, fracY := y.normalize()
+	signZ, expZ, fracZ0 := z.normalize()
 
 	// Compute product p = x*y as sign, exponent, mantissa.
 	expP := expX + expY + 1

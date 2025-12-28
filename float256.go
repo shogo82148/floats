@@ -60,7 +60,7 @@ func (a Float256) Signbit() bool {
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float256) Int64() int64 {
-	sign, exp, frac := a.split()
+	sign, exp, frac := a.normalize()
 	frac = frac.Rsh(uint(shift256 - exp))
 	ret := int64(frac.Uint64())
 	if sign != 0 {
@@ -86,8 +86,8 @@ func (a Float256) Mul(b Float256) Float256 {
 		// NaN * b = NaN
 		return Float256(uvnan256)
 	}
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 	sign := signA ^ signB
 
 	// handle special cases
@@ -163,8 +163,8 @@ func (a Float256) Quo(b Float256) Float256 {
 		return Float256(uvnan256)
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 	sign := signA ^ signB
 
 	if b.IsZero() {
@@ -266,8 +266,8 @@ func (a Float256) Add(b Float256) Float256 {
 		return a
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 
 	// handle special cases
 	if expA == mask256-bias256 {
@@ -373,7 +373,7 @@ func (a Float256) Sqrt() Float256 {
 		return Float256(uvnan256)
 	}
 
-	_, exp, frac := a.split()
+	_, exp, frac := a.normalize()
 	if exp%2 != 0 {
 		// odd exp. double x to make it even
 		frac = frac.Lsh(1)
@@ -474,7 +474,8 @@ func (a Float256) Ge(b Float256) bool {
 	return b.Le(a)
 }
 
-func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
+// normalize returns the sign, exponent, and normalized fraction of a.
+func (a Float256) normalize() (sign uint64, exp int, frac ints.Uint256) {
 	b := ints.Uint256(a)
 	sign = b[0] & signMask256[0]
 	exp = int((b[0]>>(shift256-192))&mask256) - bias256
@@ -490,6 +491,22 @@ func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
 
 	// a is normal
 	frac[0] = frac[0] | (1 << (shift256 - 192))
+	return
+}
+
+// split returns the sign, exponent, and fraction of a.
+func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
+	b := ints.Uint256(a)
+	sign = b[0] & signMask256[0]
+	exp = int((b[0]>>(shift256-192))&mask256) - bias256
+	frac = b.And(fracMask256)
+	if exp == -bias256 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac[0] = frac[0] | (1 << (shift256 - 192))
+	}
 	return
 }
 
@@ -520,9 +537,9 @@ func FMA256(x, y, z Float256) Float256 {
 	}
 
 	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.split()
-	signY, expY, fracY := y.split()
-	signZ, expZ, fracZ0 := z.split()
+	signX, expX, fracX := x.normalize()
+	signY, expY, fracY := y.normalize()
+	signZ, expZ, fracZ0 := z.normalize()
 
 	// Compute product p = x*y as sign, exponent, mantissa.
 	expP := expX + expY + 1

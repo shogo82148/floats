@@ -20,43 +20,36 @@ func (a Float256) Text(fmt byte, prec int) string {
 }
 
 // Append appends the string representation of a in the given format and precision to buf and returns the extended buffer.
-func (a Float256) Append(buf []byte, fmt byte, prec int) []byte {
+func (a Float256) Append(dst []byte, fmt byte, prec int) []byte {
 	// special numbers
 	switch {
 	case a.IsNaN():
-		return append(buf, "NaN"...)
+		return append(dst, "NaN"...)
 	case a.IsInf(1):
-		return append(buf, "+Inf"...)
+		return append(dst, "+Inf"...)
 	case a.IsInf(-1):
-		return append(buf, "-Inf"...)
+		return append(dst, "-Inf"...)
 	}
 
 	switch fmt {
 	case 'b':
-		return a.appendBin(buf)
+		return a.appendBin(dst)
 	case 'x', 'X':
-		return a.appendHex(buf, fmt, prec)
+		return a.appendHex(dst, fmt, prec)
 	case 'f', 'e', 'E', 'g', 'G':
-		return a.append(buf, fmt, prec)
+		return a.append(dst, fmt, prec)
 	}
 
 	// unknown format
-	return append(buf, '%', fmt)
+	return append(dst, '%', fmt)
 }
 
 func (a Float256) appendBin(dst []byte) []byte {
-	if a.Signbit() {
+	sign, exp, frac := a.split()
+	exp -= shift256
+	if sign != 0 {
 		dst = append(dst, '-')
 	}
-	b := ints.Uint256(a)
-	exp := int((b[0]>>(shift256-192))&mask256) - bias256
-	frac := b.And(fracMask256)
-	if exp == -bias256 {
-		exp++
-	} else {
-		frac[0] = frac[0] | (1 << (shift256 - 192))
-	}
-	exp -= shift256
 
 	dst = frac.Append(dst, 10)
 	dst = append(dst, 'p')
@@ -72,7 +65,7 @@ func (a Float256) appendBin(dst []byte) []byte {
 
 // %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
 func (a Float256) appendHex(dst []byte, fmt byte, prec int) []byte {
-	sign, exp, frac := a.split()
+	sign, exp, frac := a.normalize()
 
 	// sign, 0x, leading digit
 	if sign != 0 {
@@ -149,13 +142,7 @@ func (a Float256) appendHex(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float256) append(dst []byte, fmt byte, prec int) []byte {
-	b := ints.Uint256(a)
-	exp := int((b[0]>>(shift256-192))&mask256) - bias256
-	sign := b[0] & signMask256[0]
-	frac := b.And(fracMask256)
-	if exp > -bias256 {
-		frac[0] = frac[0] | (1 << (shift256 - 192))
-	}
+	sign, exp, frac := a.split()
 	d := new(decimal)
 	d.AssignUint256(frac)
 	d.Shift(exp - shift256)

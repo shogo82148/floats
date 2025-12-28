@@ -19,91 +19,86 @@ func (a Float16) Text(fmt byte, prec int) string {
 }
 
 // Append appends the string representation of a in the given format and precision to buf and returns the extended buffer.
-func (a Float16) Append(buf []byte, fmt byte, prec int) []byte {
+func (a Float16) Append(dst []byte, fmt byte, prec int) []byte {
 	// special numbers
 	switch {
 	case a.IsNaN():
-		return append(buf, "NaN"...)
+		return append(dst, "NaN"...)
 	case a.IsInf(1):
-		return append(buf, "+Inf"...)
+		return append(dst, "+Inf"...)
 	case a.IsInf(-1):
-		return append(buf, "-Inf"...)
+		return append(dst, "-Inf"...)
 	}
 
 	switch fmt {
 	case 'b':
-		return a.appendBin(buf)
+		return a.appendBin(dst)
 	case 'x', 'X':
-		return a.appendHex(buf, fmt, prec)
+		return a.appendHex(dst, fmt, prec)
 	case 'f', 'e', 'E', 'g', 'G':
-		return a.append(buf, fmt, prec)
+		return a.append(dst, fmt, prec)
 	}
 
 	// unknown format
-	return append(buf, '%', fmt)
+	return append(dst, '%', fmt)
 }
 
-func (a Float16) appendBin(buf []byte) []byte {
-	if a&signMask16 != 0 {
-		buf = append(buf, '-')
-	}
-	exp := int(a>>shift16&mask16) - bias16
-	frac := a & fracMask16
-	if exp == -bias16 {
-		exp++
-	} else {
-		frac |= 1 << shift16
-	}
+func (a Float16) appendBin(dst []byte) []byte {
+	sign, exp, frac := a.split()
 	exp -= shift16
+
+	if sign != 0 {
+		dst = append(dst, '-')
+	}
 
 	switch {
 	case frac >= 1000:
-		buf = append(buf, byte((frac/1000)%10)+'0')
+		dst = append(dst, byte((frac/1000)%10)+'0')
 		fallthrough
 	case frac >= 100:
-		buf = append(buf, byte((frac/100)%10)+'0')
+		dst = append(dst, byte((frac/100)%10)+'0')
 		fallthrough
 	case frac >= 10:
-		buf = append(buf, byte((frac/10)%10)+'0')
+		dst = append(dst, byte((frac/10)%10)+'0')
 		fallthrough
 	default:
-		buf = append(buf, byte(frac%10)+'0')
+		dst = append(dst, byte(frac%10)+'0')
 	}
 
-	buf = append(buf, 'p')
+	dst = append(dst, 'p')
 	if exp >= 0 {
-		buf = append(buf, '+')
+		dst = append(dst, '+')
 	} else {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 		exp = -exp
 	}
 
 	switch {
 	case exp >= 10:
-		buf = append(buf, byte(exp/10)+'0')
+		dst = append(dst, byte(exp/10)+'0')
 		fallthrough
 	default:
-		buf = append(buf, byte(exp%10)+'0')
+		dst = append(dst, byte(exp%10)+'0')
 	}
-	return buf
+	return dst
 }
 
-func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
-	sign, exp, frac := a.split()
+func (a Float16) appendHex(dst []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.normalize()
 	if sign != 0 {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 	}
-	buf = append(buf, '0', fmt) // 0x or 0X
+	dst = append(dst, '0', fmt) // 0x or 0X
 	if a.IsZero() {
-		buf = append(buf, '0')
+		dst = append(dst, '0')
 		if prec >= 1 {
-			buf = append(buf, '.')
+			dst = append(dst, '.')
 			for range prec {
-				buf = append(buf, '0')
+				dst = append(dst, '0')
 			}
 		}
-		buf = append(buf, fmt-('x'-'p')) // 'p' or 'P'
-		return append(buf, "+00"...)
+		dst = append(dst, fmt-('x'-'p')) // 'p' or 'P'
+		return append(dst, "+00"...)
 	}
 
 	hex := lowerHex
@@ -114,19 +109,19 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 	switch {
 	case prec < 0:
 		if frac&0x3ff == 0 {
-			buf = append(buf, '1')
+			dst = append(dst, '1')
 		} else if frac&0x3f == 0 {
-			buf = append(buf, '1', '.')
-			buf = append(buf, hex[(frac>>6)&0xF])
+			dst = append(dst, '1', '.')
+			dst = append(dst, hex[(frac>>6)&0xF])
 		} else if frac&0x3 == 0 {
-			buf = append(buf, '1', '.')
-			buf = append(buf, hex[(frac>>6)&0xF])
-			buf = append(buf, hex[(frac>>2)&0xF])
+			dst = append(dst, '1', '.')
+			dst = append(dst, hex[(frac>>6)&0xF])
+			dst = append(dst, hex[(frac>>2)&0xF])
 		} else {
-			buf = append(buf, '1', '.')
-			buf = append(buf, hex[(frac>>6)&0xF])
-			buf = append(buf, hex[(frac>>2)&0xF])
-			buf = append(buf, hex[(frac<<2)&0xF])
+			dst = append(dst, '1', '.')
+			dst = append(dst, hex[(frac>>6)&0xF])
+			dst = append(dst, hex[(frac>>2)&0xF])
+			dst = append(dst, hex[(frac<<2)&0xF])
 		}
 	case prec == 0:
 		// round to nearest even
@@ -134,7 +129,7 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 		if frac >= 1<<(shift16+1) {
 			exp++
 		}
-		buf = append(buf, '1')
+		dst = append(dst, '1')
 	case prec == 1:
 		// round to nearest even
 		frac += 0x1f + (frac>>6)&1
@@ -143,8 +138,8 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 			frac >>= 1
 		}
 
-		buf = append(buf, '1', '.')
-		buf = append(buf, hex[(frac>>6)&0xF])
+		dst = append(dst, '1', '.')
+		dst = append(dst, hex[(frac>>6)&0xF])
 	case prec == 2:
 		// round to nearest even
 		frac += 1 + (frac>>2)&1
@@ -153,39 +148,32 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 			frac >>= 1
 		}
 
-		buf = append(buf, '1', '.')
-		buf = append(buf, hex[(frac>>6)&0xF])
-		buf = append(buf, hex[(frac>>2)&0xF])
+		dst = append(dst, '1', '.')
+		dst = append(dst, hex[(frac>>6)&0xF])
+		dst = append(dst, hex[(frac>>2)&0xF])
 	default:
-		buf = append(buf, '1', '.')
-		buf = append(buf, hex[(frac>>6)&0xF])
-		buf = append(buf, hex[(frac>>2)&0xF])
-		buf = append(buf, hex[(frac<<2)&0xF])
+		dst = append(dst, '1', '.')
+		dst = append(dst, hex[(frac>>6)&0xF])
+		dst = append(dst, hex[(frac>>2)&0xF])
+		dst = append(dst, hex[(frac<<2)&0xF])
 		for i := 3; i < prec; i++ {
-			buf = append(buf, '0')
+			dst = append(dst, '0')
 		}
 	}
 
-	buf = append(buf, fmt-('x'-'p'))
+	dst = append(dst, fmt-('x'-'p'))
 	if exp >= 0 {
-		buf = append(buf, '+')
+		dst = append(dst, '+')
 	} else {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 		exp = -exp
 	}
-	buf = append(buf, byte(exp/10)+'0', byte(exp%10)+'0')
-	return buf
+	dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
+	return dst
 }
 
-func (a Float16) append(buf []byte, fmt byte, prec int) []byte {
-	sign := uint16(a & signMask16)
-	exp := int((a>>shift16)&mask16) - bias16
-	frac := uint16(a & fracMask16)
-	if exp == -bias16 {
-		exp++
-	} else {
-		frac |= 1 << shift16
-	}
+func (a Float16) append(dst []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.split()
 
 	d := new(decimal)
 	d.AssignUint64(uint64(frac))
@@ -216,7 +204,7 @@ func (a Float16) append(buf []byte, fmt byte, prec int) []byte {
 			d.Round(prec)
 		}
 	}
-	return formatDigits(buf, sign != 0, d, shortest, prec, fmt)
+	return formatDigits(dst, sign != 0, d, shortest, prec, fmt)
 }
 
 func roundShortest16(d *decimal, frac uint16, exp int) {

@@ -60,8 +60,8 @@ func (a Float16) Mul(b Float16) Float16 {
 		// NaN * b = NaN
 		return uvnan16
 	}
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 
 	// special cases
 	if expA == mask16-bias16 {
@@ -125,8 +125,8 @@ func (a Float16) Quo(b Float16) Float16 {
 		return uvnan16
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 	sign := signA ^ signB
 
 	if b.IsZero() {
@@ -209,8 +209,8 @@ func (a Float16) Add(b Float16) Float16 {
 		return a
 	}
 
-	signA, expA, fracA := a.split()
-	signB, expB, fracB := b.split()
+	signA, expA, fracA := a.normalize()
+	signB, expB, fracB := b.normalize()
 
 	// handle special cases
 	if expA == mask16-bias16 {
@@ -313,7 +313,7 @@ func (a Float16) Sqrt() Float16 {
 		return uvnan16
 	}
 
-	_, exp, frac := a.split()
+	_, exp, frac := a.normalize()
 	if exp%2 != 0 {
 		// odd exp, double x to make it even
 		frac <<= 1
@@ -412,7 +412,8 @@ func (a Float16) Ge(b Float16) bool {
 	return b.Le(a)
 }
 
-func (a Float16) split() (sign uint16, exp int, frac uint16) {
+// normalize returns the sign, exponent, and normalized fraction of a.
+func (a Float16) normalize() (sign uint16, exp int, frac uint16) {
 	sign = uint16(a & signMask16)
 	exp = int((a>>shift16)&mask16) - bias16
 	frac = uint16(a & fracMask16)
@@ -428,6 +429,21 @@ func (a Float16) split() (sign uint16, exp int, frac uint16) {
 
 	// a is normal
 	frac |= 1 << shift16
+	return
+}
+
+func (a Float16) split() (sign uint16, exp int, frac uint16) {
+	sign = uint16(a & signMask16)
+	exp = int((a>>shift16)&mask16) - bias16
+	frac = uint16(a & fracMask16)
+
+	if exp == -bias16 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac |= 1 << shift16
+	}
 	return
 }
 
@@ -456,9 +472,9 @@ func FMA16(x, y, z Float16) Float16 {
 	}
 
 	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.split()
-	signY, expY, fracY := y.split()
-	signZ, expZ, fracZ0 := z.split()
+	signX, expX, fracX := x.normalize()
+	signY, expY, fracY := y.normalize()
+	signZ, expZ, fracZ0 := z.normalize()
 
 	// Compute product p = x*y as sign, exponent, mantissa.
 	expP := expX + expY + 1

@@ -142,7 +142,8 @@ func (a Float32) Ge(b Float32) bool {
 	return a >= b
 }
 
-func (a Float32) split() (sign uint32, exp int, frac uint32) {
+// normalize returns the sign, exponent, and normalized fraction of a.
+func (a Float32) normalize() (sign uint32, exp int, frac uint32) {
 	b := math.Float32bits(float32(a))
 	sign = b & signMask32
 	exp = int((b>>shift32)&mask32) - bias32
@@ -166,9 +167,9 @@ func (a Float32) split() (sign uint32, exp int, frac uint32) {
 // (That is, FMA32 returns the fused multiply-add of x, y, and z.)
 func FMA32(x, y, z Float32) Float32 {
 	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.split()
-	signY, expY, fracY := y.split()
-	signZ, expZ, fracZ0 := z.split()
+	signX, expX, fracX := x.normalize()
+	signY, expY, fracY := y.normalize()
+	signZ, expZ, fracZ0 := z.normalize()
 
 	// Inf or NaN involved. At most one rounding will occur.
 	if x == 0 || y == 0 || expX == mask32-bias32 || expY == mask32-bias32 {
