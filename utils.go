@@ -1,6 +1,8 @@
 package floats
 
-import "github.com/shogo82148/ints"
+import (
+	"github.com/shogo82148/ints"
+)
 
 func nonzero16(x uint16) uint16 {
 	if x != 0 {
@@ -121,4 +123,13 @@ func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {
 	one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
 	mask := one.Lsh(uint(shift - 1)).Sub(one)
 	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
+}
+
+// nibble returns the hexadecimal character for the low 4 bits of x.
+func nibble(fmt byte, x byte) byte {
+	x &= 0xf
+	if x < 10 {
+		return '0' + x
+	}
+	return ('A' + (x - 10)) | (fmt & ('a' - 'A'))
 }
