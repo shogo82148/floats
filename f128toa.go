@@ -199,7 +199,7 @@ func roundShortest128(d *decimal, frac ints.Uint128, exp int) {
 	}
 
 	one := ints.Uint128{0, 1}
-	minexp := -bias16 + 1 // minimum possible exponent
+	minexp := -bias128 + 1 // minimum possible exponent
 
 	// d = frac << (exp - shift16)
 	// Next highest floating point number is frac+1 << exp-shift16.
