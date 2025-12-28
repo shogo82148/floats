@@ -196,7 +196,7 @@ func roundShortest256(d *decimal, frac ints.Uint256, exp int) {
 	}
 
 	one := ints.Uint256{0, 0, 0, 1}
-	minexp := -bias16 + 1 // minimum possible exponent
+	minexp := -bias256 + 1 // minimum possible exponent
 
 	// d = frac << (exp - shift16)
 	// Next highest floating point number is frac+1 << exp-shift16.
