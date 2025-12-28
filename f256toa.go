@@ -20,28 +20,28 @@ func (a Float256) Text(fmt byte, prec int) string {
 }
 
 // Append appends the string representation of a in the given format and precision to buf and returns the extended buffer.
-func (a Float256) Append(buf []byte, fmt byte, prec int) []byte {
+func (a Float256) Append(dst []byte, fmt byte, prec int) []byte {
 	// special numbers
 	switch {
 	case a.IsNaN():
-		return append(buf, "NaN"...)
+		return append(dst, "NaN"...)
 	case a.IsInf(1):
-		return append(buf, "+Inf"...)
+		return append(dst, "+Inf"...)
 	case a.IsInf(-1):
-		return append(buf, "-Inf"...)
+		return append(dst, "-Inf"...)
 	}
 
 	switch fmt {
 	case 'b':
-		return a.appendBin(buf)
+		return a.appendBin(dst)
 	case 'x', 'X':
-		return a.appendHex(buf, fmt, prec)
+		return a.appendHex(dst, fmt, prec)
 	case 'f', 'e', 'E', 'g', 'G':
-		return a.append(buf, fmt, prec)
+		return a.append(dst, fmt, prec)
 	}
 
 	// unknown format
-	return append(buf, '%', fmt)
+	return append(dst, '%', fmt)
 }
 
 func (a Float256) appendBin(dst []byte) []byte {

@@ -20,33 +20,33 @@ func (a Float128) Text(fmt byte, prec int) string {
 }
 
 // Append appends the string representation of a in the given format and precision to buf and returns the extended buffer.
-func (a Float128) Append(buf []byte, fmt byte, prec int) []byte {
+func (a Float128) Append(dst []byte, fmt byte, prec int) []byte {
 	// special numbers
 	switch {
 	case a.IsNaN():
-		return append(buf, "NaN"...)
+		return append(dst, "NaN"...)
 	case a.IsInf(1):
-		return append(buf, "+Inf"...)
+		return append(dst, "+Inf"...)
 	case a.IsInf(-1):
-		return append(buf, "-Inf"...)
+		return append(dst, "-Inf"...)
 	}
 
 	switch fmt {
 	case 'b':
-		return a.appendBin(buf)
+		return a.appendBin(dst)
 	case 'x', 'X':
-		return a.appendHex(buf, fmt, prec)
+		return a.appendHex(dst, fmt, prec)
 	case 'f', 'e', 'E', 'g', 'G':
-		return a.append(buf, fmt, prec)
+		return a.append(dst, fmt, prec)
 	}
 
 	// unknown format
-	return append(buf, '%', fmt)
+	return append(dst, '%', fmt)
 }
 
-func (a Float128) appendBin(buf []byte) []byte {
+func (a Float128) appendBin(dst []byte) []byte {
 	if a.Signbit() {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 	}
 	b := ints.Uint128(a)
 	exp := int((b[0]>>(shift128-64))&mask128) - bias128
@@ -58,40 +58,40 @@ func (a Float128) appendBin(buf []byte) []byte {
 	}
 	exp -= shift128
 
-	buf = frac.Append(buf, 10)
-	buf = append(buf, 'p')
+	dst = frac.Append(dst, 10)
+	dst = append(dst, 'p')
 	if exp >= 0 {
-		buf = append(buf, '+')
+		dst = append(dst, '+')
 	} else {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 		exp = -exp
 	}
-	buf = strconv.AppendInt(buf, int64(exp), 10)
+	dst = strconv.AppendInt(dst, int64(exp), 10)
 
-	return buf
+	return dst
 }
 
 // %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
-func (a Float128) appendHex(buf []byte, fmt byte, prec int) []byte {
+func (a Float128) appendHex(dst []byte, fmt byte, prec int) []byte {
 	sign, exp, frac := a.split()
 
 	// sign, 0x, leading digit
 	if sign != 0 {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 	}
-	buf = append(buf, '0', fmt) // 0x or 0X
+	dst = append(dst, '0', fmt) // 0x or 0X
 	if a.IsZero() {
-		buf = append(buf, '0')
+		dst = append(dst, '0')
 		if prec >= 1 {
-			buf = append(buf, '.')
+			dst = append(dst, '.')
 			for range prec {
-				buf = append(buf, '0')
+				dst = append(dst, '0')
 			}
 		}
-		buf = append(buf, fmt-('x'-'p')) // 'p' or 'P'
-		return append(buf, "+00"...)
+		dst = append(dst, fmt-('x'-'p')) // 'p' or 'P'
+		return append(dst, "+00"...)
 	}
-	buf = append(buf, '1')
+	dst = append(dst, '1')
 
 	hex := lowerHex
 	if fmt == 'X' {
@@ -121,32 +121,32 @@ func (a Float128) appendHex(buf []byte, fmt byte, prec int) []byte {
 	// .fraction
 	frac = frac.Lsh(4) // remove leading 1
 	if prec < 0 && !frac.IsZero() {
-		buf = append(buf, '.')
+		dst = append(dst, '.')
 		for !frac.IsZero() {
-			buf = append(buf, hex[frac.Rsh(124).Uint64()&0xf])
+			dst = append(dst, hex[frac.Rsh(124).Uint64()&0xf])
 			frac = frac.Lsh(4)
 		}
 	} else if prec > 0 {
-		buf = append(buf, '.')
+		dst = append(dst, '.')
 		for range prec {
-			buf = append(buf, hex[frac.Rsh(124).Uint64()&0xf])
+			dst = append(dst, hex[frac.Rsh(124).Uint64()&0xf])
 			frac = frac.Lsh(4)
 		}
 	}
 
 	// p±
-	buf = append(buf, fmt-('x'-'p')) // 'p' or 'P'
+	dst = append(dst, fmt-('x'-'p')) // 'p' or 'P'
 	if exp >= 0 {
-		buf = append(buf, '+')
+		dst = append(dst, '+')
 	} else {
-		buf = append(buf, '-')
+		dst = append(dst, '-')
 		exp = -exp
 	}
 	if exp < 10 {
-		buf = append(buf, '0')
+		dst = append(dst, '0')
 	}
-	buf = strconv.AppendInt(buf, int64(exp), 10)
-	return buf
+	dst = strconv.AppendInt(dst, int64(exp), 10)
+	return dst
 }
 
 func (a Float128) append(dst []byte, fmt byte, prec int) []byte {
