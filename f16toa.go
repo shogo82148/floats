@@ -30,6 +30,7 @@ func (a Float16) Append(buf []byte, fmt byte, prec int) []byte {
 
 	switch fmt {
 	case 'b':
+		return a.appendBin(buf)
 	case 'x', 'X':
 		return a.appendHex(buf, fmt, prec)
 	case 'f', 'F':
@@ -39,6 +40,51 @@ func (a Float16) Append(buf []byte, fmt byte, prec int) []byte {
 
 	// unknown format
 	return append(buf, '%', fmt)
+}
+
+func (a Float16) appendBin(buf []byte) []byte {
+	if a&signMask16 != 0 {
+		buf = append(buf, '-')
+	}
+	exp := int(a>>shift16&mask16) - bias16
+	frac := a & fracMask16
+	if exp == -bias16 {
+		exp++
+	} else {
+		frac |= 1 << shift16
+	}
+	exp -= shift16
+
+	switch {
+	case frac >= 1000:
+		buf = append(buf, byte((frac/1000)%10)+'0')
+		fallthrough
+	case frac >= 100:
+		buf = append(buf, byte((frac/100)%10)+'0')
+		fallthrough
+	case frac >= 10:
+		buf = append(buf, byte((frac/10)%10)+'0')
+		fallthrough
+	default:
+		buf = append(buf, byte(frac%10)+'0')
+	}
+
+	buf = append(buf, 'p')
+	if exp >= 0 {
+		buf = append(buf, '+')
+	} else {
+		buf = append(buf, '-')
+		exp = -exp
+	}
+
+	switch {
+	case exp >= 10:
+		buf = append(buf, byte(exp/10)+'0')
+		fallthrough
+	default:
+		buf = append(buf, byte(exp%10)+'0')
+	}
+	return buf
 }
 
 func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {

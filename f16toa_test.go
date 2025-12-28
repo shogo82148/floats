@@ -12,6 +12,18 @@ func TestFloat16_Text(t *testing.T) {
 		prec int
 		s    string
 	}{
+		/****** binary exponent formats ******/
+		{0, 'b', -1, "0p-24"},
+		{0x8000, 'b', -1, "-0p-24"},
+		{exact16(math.Inf(1)), 'x', -1, "+Inf"},
+		{exact16(math.Inf(-1)), 'x', -1, "-Inf"},
+		{exact16(math.NaN()), 'x', -1, "NaN"},
+
+		{0x0001, 'b', -1, "1p-24"},
+		{exact16(1), 'b', -1, "1024p-10"},
+		{exact16(1.5), 'b', -1, "1536p-10"},
+		{exact16(65504), 'b', -1, "2047p+5"},
+
 		/******* hexadecimal formats *******/
 		{0, 'x', -1, "0x0p+00"},
 		{0x8000, 'x', -1, "-0x0p+00"},
