@@ -36,8 +36,8 @@ func (a Float128) Append(buf []byte, fmt byte, prec int) []byte {
 		return a.appendBin(buf)
 	case 'x', 'X':
 		return a.appendHex(buf, fmt, prec)
-		// case 'f', 'e', 'E', 'g', 'G':
-		// 	return a.append(buf, fmt, prec)
+	case 'f', 'e', 'E', 'g', 'G':
+		return a.append(buf, fmt, prec)
 	}
 
 	// unknown format
@@ -147,4 +147,29 @@ func (a Float128) appendHex(buf []byte, fmt byte, prec int) []byte {
 	}
 	buf = strconv.AppendInt(buf, int64(exp), 10)
 	return buf
+}
+
+func (a Float128) append(dst []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.split()
+	d := new(decimal)
+	d.AssignUint128(frac)
+	d.Shift(exp - shift128)
+	shortest := prec < 0
+	if shortest {
+		// TODO: implement roundShortest128
+	} else {
+		// Round appropriately.
+		switch fmt {
+		case 'e', 'E':
+			d.Round(prec + 1)
+		case 'f':
+			d.Round(d.dp + prec)
+		case 'g', 'G':
+			if prec == 0 {
+				prec = 1
+			}
+			d.Round(prec)
+		}
+	}
+	return formatDigits(dst, sign != 0, d, shortest, prec, fmt)
 }

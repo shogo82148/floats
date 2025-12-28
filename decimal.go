@@ -11,11 +11,13 @@
 
 package floats
 
+import "github.com/shogo82148/ints"
+
 type decimal struct {
-	d     [800]byte // digits, big-endian representation
-	nd    int       // number of digits used
-	dp    int       // decimal point
-	trunc bool      // discarded nonzero digits beyond d[:nd]
+	d     [12800]byte // digits, big-endian representation
+	nd    int         // number of digits used
+	dp    int         // decimal point
+	trunc bool        // discarded nonzero digits beyond d[:nd]
 }
 
 func (a *decimal) String() string {
@@ -76,7 +78,7 @@ func trim(a *decimal) {
 	}
 }
 
-// Assign v to a.
+// AssignUint64 v to a.
 func (a *decimal) AssignUint64(v uint64) {
 	var buf [24]byte
 
@@ -97,6 +99,14 @@ func (a *decimal) AssignUint64(v uint64) {
 		a.nd++
 	}
 	a.dp = a.nd
+	trim(a)
+}
+
+// AssignUint128 v to a.
+func (a *decimal) AssignUint128(v ints.Uint128) {
+	d := v.Append(a.d[:0], 10)
+	a.nd = len(d)
+	a.dp = len(d)
 	trim(a)
 }
 
