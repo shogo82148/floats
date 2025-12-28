@@ -1,9 +1,59 @@
 package floats
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
+
+func TestFloat16_Format(t *testing.T) {
+	tests := []struct {
+		format string
+		x      Float16
+		want   string
+	}{
+		// verb "%b"
+		{"%b", exact16(0), "0p-24"},
+
+		// verb "%f"
+		{"%f", exact16(0.5), "0.5"},
+		{"%f", exact16(-0.5), "-0.5"},
+		{"%+f", exact16(0.5), "+0.5"},
+		{"%+f", exact16(-0.5), "-0.5"},
+		{"% f", exact16(0.5), " 0.5"},
+		{"% f", exact16(-0.5), "-0.5"},
+		{"%8f", exact16(0.5), "     0.5"},
+		{"%-8f", exact16(0.5), "0.5     "},
+		{"%.2f", exact16(0.5), "0.50"},
+
+		// verb "%e"
+		{"%.6e", exact16(0.5), "5.000000e-01"},
+
+		// verb "%g"
+		{"%g", exact16(0.5), "0.5"},
+		{"%.1g", exact16(0.25), "0.2"},
+		// verb "%x"
+		{"%x", exact16(0.5), "0x1p-01"},
+		{"%#x", exact16(0.5), "0x1p-01"},
+		{"%.1x", exact16(0.5), "0x1.0p-01"},
+
+		// verb "%X"
+		{"%X", exact16(0.5), "0X1P-01"},
+		{"%#X", exact16(0.5), "0X1P-01"},
+		{"%.1X", exact16(0.5), "0X1.0P-01"},
+
+		// verb "%v"
+		{"%v", exact16(0.5), "0.5"},
+		{"%v", exact16(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got := fmt.Sprintf(tt.format, tt.x)
+		if got != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
 
 func TestFloat16_Text(t *testing.T) {
 	tests := []struct {

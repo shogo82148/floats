@@ -1,11 +1,62 @@
 package floats
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
 	"github.com/shogo82148/ints"
 )
+
+func TestFloat256_Format(t *testing.T) {
+	tests := []struct {
+		format string
+		x      Float256
+		want   string
+	}{
+		// verb "%b"
+		{"%b", exact256(0), "0p-262378"},
+
+		// verb "%f"
+		{"%f", exact256(0.5), "0.5"},
+		{"%f", exact256(-0.5), "-0.5"},
+		{"%+f", exact256(0.5), "+0.5"},
+		{"%+f", exact256(-0.5), "-0.5"},
+		{"% f", exact256(0.5), " 0.5"},
+		{"% f", exact256(-0.5), "-0.5"},
+		{"%8f", exact256(0.5), "     0.5"},
+		{"%-8f", exact256(0.5), "0.5     "},
+		{"%.2f", exact256(0.5), "0.50"},
+
+		// verb "%e"
+		{"%.6e", exact256(0.5), "5.000000e-01"},
+
+		// verb "%g"
+		{"%g", exact256(0.5), "0.5"},
+		{"%.1g", exact256(0.25), "0.2"},
+
+		// verb "%x"
+		{"%x", exact256(0.5), "0x1p-01"},
+		{"%#x", exact256(0.5), "0x1p-01"},
+		{"%.1x", exact256(0.5), "0x1.0p-01"},
+
+		// verb "%X"
+		{"%X", exact256(0.5), "0X1P-01"},
+		{"%#X", exact256(0.5), "0X1P-01"},
+		{"%.1X", exact256(0.5), "0X1.0P-01"},
+
+		// verb "%v"
+		{"%v", exact256(0.5), "0.5"},
+		{"%v", exact256(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got := fmt.Sprintf(tt.format, tt.x)
+		if got != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
 
 func TestFloat256_Text(t *testing.T) {
 	tests := []struct {
