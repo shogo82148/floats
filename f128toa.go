@@ -34,8 +34,8 @@ func (a Float128) Append(buf []byte, fmt byte, prec int) []byte {
 	switch fmt {
 	case 'b':
 		return a.appendBin(buf)
-		// case 'x', 'X':
-		// 	return a.appendHex(buf, fmt, prec)
+	case 'x', 'X':
+		return a.appendHex(buf, fmt, prec)
 		// case 'f', 'e', 'E', 'g', 'G':
 		// 	return a.append(buf, fmt, prec)
 	}
@@ -68,5 +68,83 @@ func (a Float128) appendBin(buf []byte) []byte {
 	}
 	buf = strconv.AppendInt(buf, int64(exp), 10)
 
+	return buf
+}
+
+// %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
+func (a Float128) appendHex(buf []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.split()
+
+	// sign, 0x, leading digit
+	if sign != 0 {
+		buf = append(buf, '-')
+	}
+	buf = append(buf, '0', fmt) // 0x or 0X
+	if a.IsZero() {
+		buf = append(buf, '0')
+		if prec >= 1 {
+			buf = append(buf, '.')
+			for range prec {
+				buf = append(buf, '0')
+			}
+		}
+		buf = append(buf, fmt-('x'-'p')) // 'p' or 'P'
+		return append(buf, "+00"...)
+	}
+	buf = append(buf, '1')
+
+	hex := lowerHex
+	if fmt == 'X' {
+		hex = upperHex
+	}
+
+	// Shift digits so leading 1 (if any) is at bit 1<<124.
+	frac = frac.Lsh(124 - shift128)
+
+	// Round if requested.
+	if prec >= 0 && prec < 31 {
+		one := ints.Uint128{0, 1}
+		shift := uint(prec * 4)
+		extra := frac.Lsh(shift).And(one.Lsh(124).Sub(one))
+		frac = frac.Rsh(124 - shift)
+		if extra.Or(frac.And(one)).Cmp(one.Lsh(123)) > 0 {
+			frac = frac.Add(one)
+		}
+		frac = frac.Lsh(124 - shift)
+		if frac.Cmp(one.Lsh(125)) >= 0 {
+			// rounded up, e.g., 0x1.ffff... + 0x0.000...1 = 0x2.000...
+			frac = frac.Rsh(1)
+			exp++
+		}
+	}
+
+	// .fraction
+	frac = frac.Lsh(4) // remove leading 1
+	if prec < 0 && !frac.IsZero() {
+		buf = append(buf, '.')
+		for !frac.IsZero() {
+			buf = append(buf, hex[frac.Rsh(124).Uint64()&0xf])
+			frac = frac.Lsh(4)
+		}
+	} else if prec > 0 {
+		buf = append(buf, '.')
+		for range prec {
+			buf = append(buf, hex[frac.Rsh(124).Uint64()&0xf])
+			frac = frac.Lsh(4)
+		}
+	}
+
+	// p±
+	buf = append(buf, fmt-('x'-'p')) // 'p' or 'P'
+	if exp >= 0 {
+		buf = append(buf, '+')
+	} else {
+		buf = append(buf, '-')
+		exp = -exp
+	}
+	if exp < 10 {
+		buf = append(buf, '0')
+	}
+	buf = strconv.AppendInt(buf, int64(exp), 10)
 	return buf
 }
