@@ -7,6 +7,28 @@ func formatDigits(dst []byte, neg bool, d *decimal, shortest bool, prec int, fmt
 	case 'f':
 		return fmtF(dst, neg, d, prec)
 	case 'g', 'G':
+		// trailing fractional zeros in 'e' form will be trimmed.
+		eprec := prec
+		if eprec > d.nd && d.nd >= d.dp {
+			eprec = d.nd
+		}
+		// %e is used if the exponent from the conversion
+		// is less than -4 or greater than or equal to the precision.
+		// if precision was the shortest possible, use precision 6 for this decision.
+		if shortest {
+			eprec = 6
+		}
+		exp := d.dp - 1
+		if exp < -4 || exp >= eprec {
+			if prec > d.nd {
+				prec = d.nd
+			}
+			return fmtE(dst, neg, d, prec-1, fmt+'e'-'g')
+		}
+		if prec > d.dp {
+			prec = d.nd
+		}
+		return fmtF(dst, neg, d, max(prec-d.dp, 0))
 	}
 
 	// unknown format
