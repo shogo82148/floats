@@ -178,7 +178,15 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float16) append(buf []byte, fmt byte, prec int) []byte {
-	sign, exp, frac := a.split()
+	sign := uint16(a & signMask16)
+	exp := int((a>>shift16)&mask16) - bias16
+	frac := uint16(a & fracMask16)
+	if exp == -bias16 {
+		exp++
+	} else {
+		frac |= 1 << shift16
+	}
+
 	d := new(decimal)
 	d.AssignUint64(uint64(frac))
 	d.Shift(exp - shift16)
