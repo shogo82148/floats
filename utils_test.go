@@ -15,6 +15,14 @@ func exact16(f float64) Float16 {
 	return ret
 }
 
+// exact128 returns the Float128 representation of f.
+// It panics if f does not have an exact Float128 representation.
 func exact128(f float64) Float128 {
 	return Float64(f).Float128()
+}
+
+// exact256 returns the Float256 representation of f.
+// It panics if f does not have an exact Float256 representation.
+func exact256(f float64) Float256 {
+	return Float64(f).Float256()
 }
