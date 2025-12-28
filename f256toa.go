@@ -72,6 +72,79 @@ func (a Float256) appendBin(dst []byte) []byte {
 
 // %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
 func (a Float256) appendHex(dst []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.split()
+
+	// sign, 0x, leading digit
+	if sign != 0 {
+		dst = append(dst, '-')
+	}
+	dst = append(dst, '0', fmt) // 0x or 0X
+	if a.IsZero() {
+		dst = append(dst, '0')
+		if prec >= 1 {
+			dst = append(dst, '.')
+			for range prec {
+				dst = append(dst, '0')
+			}
+		}
+		dst = append(dst, fmt-('x'-'p')) // 'p' or 'P'
+		return append(dst, "+00"...)
+	}
+	dst = append(dst, '1')
+
+	hex := lowerHex
+	if fmt == 'X' {
+		hex = upperHex
+	}
+
+	// Shift digits so leading 1 (if any) is at bit 1<<252.
+	frac = frac.Lsh(252 - shift256)
+
+	// Round if requested.
+	if prec >= 0 && prec < 63 {
+		one := ints.Uint256{0, 0, 0, 1}
+		shift := uint(prec * 4)
+		extra := frac.Lsh(shift).And(one.Lsh(252).Sub(one))
+		frac = frac.Rsh(252 - shift)
+		if extra.Or(frac.And(one)).Cmp(one.Lsh(251)) > 0 {
+			frac = frac.Add(one)
+		}
+		frac = frac.Lsh(252 - shift)
+		if frac.Cmp(one.Lsh(253)) >= 0 {
+			// rounded up, e.g., 0x1.ffff... + 0x0.000...1 = 0x2.000...
+			frac = frac.Rsh(1)
+			exp++
+		}
+	}
+
+	// .fraction
+	frac = frac.Lsh(4) // remove leading 1
+	if prec < 0 && !frac.IsZero() {
+		dst = append(dst, '.')
+		for !frac.IsZero() {
+			dst = append(dst, hex[frac.Rsh(252).Uint64()&0xf])
+			frac = frac.Lsh(4)
+		}
+	} else if prec > 0 {
+		dst = append(dst, '.')
+		for range prec {
+			dst = append(dst, hex[frac.Rsh(252).Uint64()&0xf])
+			frac = frac.Lsh(4)
+		}
+	}
+
+	// p±
+	dst = append(dst, fmt-('x'-'p')) // 'p' or 'P'
+	if exp >= 0 {
+		dst = append(dst, '+')
+	} else {
+		dst = append(dst, '-')
+		exp = -exp
+	}
+	if exp < 10 {
+		dst = append(dst, '0')
+	}
+	dst = strconv.AppendInt(dst, int64(exp), 10)
 	return dst
 }
 
