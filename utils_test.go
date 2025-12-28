@@ -14,3 +14,7 @@ func exact16(f float64) Float16 {
 	}
 	return ret
 }
+
+func exact128(f float64) Float128 {
+	return Float64(f).Float128()
+}
