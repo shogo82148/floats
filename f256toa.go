@@ -45,18 +45,11 @@ func (a Float256) Append(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float256) appendBin(dst []byte) []byte {
-	if a.Signbit() {
+	sign, exp, frac := a.split()
+	exp -= shift256
+	if sign != 0 {
 		dst = append(dst, '-')
 	}
-	b := ints.Uint256(a)
-	exp := int((b[0]>>(shift256-192))&mask256) - bias256
-	frac := b.And(fracMask256)
-	if exp == -bias256 {
-		exp++
-	} else {
-		frac[0] = frac[0] | (1 << (shift256 - 192))
-	}
-	exp -= shift256
 
 	dst = frac.Append(dst, 10)
 	dst = append(dst, 'p')
@@ -149,13 +142,7 @@ func (a Float256) appendHex(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float256) append(dst []byte, fmt byte, prec int) []byte {
-	b := ints.Uint256(a)
-	exp := int((b[0]>>(shift256-192))&mask256) - bias256
-	sign := b[0] & signMask256[0]
-	frac := b.And(fracMask256)
-	if exp > -bias256 {
-		frac[0] = frac[0] | (1 << (shift256 - 192))
-	}
+	sign, exp, frac := a.split()
 	d := new(decimal)
 	d.AssignUint256(frac)
 	d.Shift(exp - shift256)

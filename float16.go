@@ -432,6 +432,21 @@ func (a Float16) normalize() (sign uint16, exp int, frac uint16) {
 	return
 }
 
+func (a Float16) split() (sign uint16, exp int, frac uint16) {
+	sign = uint16(a & signMask16)
+	exp = int((a>>shift16)&mask16) - bias16
+	frac = uint16(a & fracMask16)
+
+	if exp == -bias16 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac |= 1 << shift16
+	}
+	return
+}
+
 // comparable converts a to a comparable form.
 func (a Float16) comparable() int16 {
 	i := int16(a)

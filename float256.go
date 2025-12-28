@@ -494,6 +494,22 @@ func (a Float256) normalize() (sign uint64, exp int, frac ints.Uint256) {
 	return
 }
 
+// split returns the sign, exponent, and fraction of a.
+func (a Float256) split() (sign uint64, exp int, frac ints.Uint256) {
+	b := ints.Uint256(a)
+	sign = b[0] & signMask256[0]
+	exp = int((b[0]>>(shift256-192))&mask256) - bias256
+	frac = b.And(fracMask256)
+	if exp == -bias256 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac[0] = frac[0] | (1 << (shift256 - 192))
+	}
+	return
+}
+
 // comparable returns a comparable value for a.
 func (a Float256) comparable() ints.Int256 {
 	i := ints.Int256(a)

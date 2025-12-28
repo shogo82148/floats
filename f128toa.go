@@ -45,18 +45,11 @@ func (a Float128) Append(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float128) appendBin(dst []byte) []byte {
-	if a.Signbit() {
+	sign, exp, frac := a.split()
+	exp -= shift128
+	if sign != 0 {
 		dst = append(dst, '-')
 	}
-	b := ints.Uint128(a)
-	exp := int((b[0]>>(shift128-64))&mask128) - bias128
-	frac := b.And(fracMask128)
-	if exp == -bias128 {
-		exp++
-	} else {
-		frac[0] = frac[0] | (1 << (shift128 - 64))
-	}
-	exp -= shift128
 
 	dst = frac.Append(dst, 10)
 	dst = append(dst, 'p')
@@ -150,15 +143,7 @@ func (a Float128) appendHex(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float128) append(dst []byte, fmt byte, prec int) []byte {
-	b := ints.Uint128(a)
-	exp := int((b[0]>>(shift128-64))&mask128) - bias128
-	sign := b[0] & signMask128[0]
-	frac := b.And(fracMask128)
-	if exp == -bias128 {
-		exp++
-	} else {
-		frac[0] = frac[0] | (1 << (shift128 - 64))
-	}
+	sign, exp, frac := a.split()
 	d := new(decimal)
 	d.AssignUint128(frac)
 	d.Shift(exp - shift128)

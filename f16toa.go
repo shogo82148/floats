@@ -44,17 +44,12 @@ func (a Float16) Append(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float16) appendBin(dst []byte) []byte {
-	if a&signMask16 != 0 {
+	sign, exp, frac := a.split()
+	exp -= shift16
+
+	if sign != 0 {
 		dst = append(dst, '-')
 	}
-	exp := int(a>>shift16&mask16) - bias16
-	frac := a & fracMask16
-	if exp == -bias16 {
-		exp++
-	} else {
-		frac |= 1 << shift16
-	}
-	exp -= shift16
 
 	switch {
 	case frac >= 1000:
@@ -178,14 +173,7 @@ func (a Float16) appendHex(dst []byte, fmt byte, prec int) []byte {
 }
 
 func (a Float16) append(dst []byte, fmt byte, prec int) []byte {
-	sign := uint16(a & signMask16)
-	exp := int((a>>shift16)&mask16) - bias16
-	frac := uint16(a & fracMask16)
-	if exp == -bias16 {
-		exp++
-	} else {
-		frac |= 1 << shift16
-	}
+	sign, exp, frac := a.split()
 
 	d := new(decimal)
 	d.AssignUint64(uint64(frac))

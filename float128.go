@@ -457,6 +457,22 @@ func (a Float128) normalize() (sign uint64, exp int, frac ints.Uint128) {
 	return
 }
 
+// split returns the sign, exponent, and fraction of a.
+func (a Float128) split() (sign uint64, exp int, frac ints.Uint128) {
+	b := ints.Uint128(a)
+	sign = b[0] & signMask128[0]
+	exp = int((b[0]>>(shift128-64))&mask128) - bias128
+	frac = b.And(fracMask128)
+	if exp == -bias128 {
+		// a is subnormal
+		exp++
+	} else {
+		// a is normal
+		frac[0] = frac[0] | (1 << (shift128 - 64))
+	}
+	return
+}
+
 func (a Float128) comparable() ints.Int128 {
 	i := ints.Int128(a)
 	i = i.Xor(ints.Int128{
