@@ -89,7 +89,7 @@ func (a Float16) appendBin(dst []byte) []byte {
 }
 
 func (a Float16) appendHex(dst []byte, fmt byte, prec int) []byte {
-	sign, exp, frac := a.split()
+	sign, exp, frac := a.normalize()
 	if sign != 0 {
 		dst = append(dst, '-')
 	}

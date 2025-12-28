@@ -73,7 +73,7 @@ func (a Float128) appendBin(dst []byte) []byte {
 
 // %x: -0x1.yyyyyyyyp±ddd or -0x0p+0. (y is hex digit, d is decimal digit)
 func (a Float128) appendHex(dst []byte, fmt byte, prec int) []byte {
-	sign, exp, frac := a.split()
+	sign, exp, frac := a.normalize()
 
 	// sign, 0x, leading digit
 	if sign != 0 {
