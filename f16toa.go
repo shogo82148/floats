@@ -105,22 +105,27 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 		return append(buf, "+00"...)
 	}
 
+	hex := lowerHex
+	if fmt == 'X' {
+		hex = upperHex
+	}
+
 	switch {
 	case prec < 0:
 		if frac&0x3ff == 0 {
 			buf = append(buf, '1')
 		} else if frac&0x3f == 0 {
 			buf = append(buf, '1', '.')
-			buf = append(buf, nibble(fmt, byte(frac>>6)))
+			buf = append(buf, hex[(frac>>6)&0xF])
 		} else if frac&0x3 == 0 {
 			buf = append(buf, '1', '.')
-			buf = append(buf, nibble(fmt, byte(frac>>6)))
-			buf = append(buf, nibble(fmt, byte(frac>>2)))
+			buf = append(buf, hex[(frac>>6)&0xF])
+			buf = append(buf, hex[(frac>>2)&0xF])
 		} else {
 			buf = append(buf, '1', '.')
-			buf = append(buf, nibble(fmt, byte(frac>>6)))
-			buf = append(buf, nibble(fmt, byte(frac>>2)))
-			buf = append(buf, nibble(fmt, byte(frac<<2)))
+			buf = append(buf, hex[(frac>>6)&0xF])
+			buf = append(buf, hex[(frac>>2)&0xF])
+			buf = append(buf, hex[(frac<<2)&0xF])
 		}
 	case prec == 0:
 		// round to nearest even
@@ -138,7 +143,7 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 		}
 
 		buf = append(buf, '1', '.')
-		buf = append(buf, nibble(fmt, byte(frac>>6)))
+		buf = append(buf, hex[(frac>>6)&0xF])
 	case prec == 2:
 		// round to nearest even
 		frac += 1 + (frac>>2)&1
@@ -148,13 +153,13 @@ func (a Float16) appendHex(buf []byte, fmt byte, prec int) []byte {
 		}
 
 		buf = append(buf, '1', '.')
-		buf = append(buf, nibble(fmt, byte(frac>>6)))
-		buf = append(buf, nibble(fmt, byte(frac>>2)))
+		buf = append(buf, hex[(frac>>6)&0xF])
+		buf = append(buf, hex[(frac>>2)&0xF])
 	default:
 		buf = append(buf, '1', '.')
-		buf = append(buf, nibble(fmt, byte(frac>>6)))
-		buf = append(buf, nibble(fmt, byte(frac>>2)))
-		buf = append(buf, nibble(fmt, byte(frac<<2)))
+		buf = append(buf, hex[(frac>>6)&0xF])
+		buf = append(buf, hex[(frac>>2)&0xF])
+		buf = append(buf, hex[(frac<<2)&0xF])
 		for i := 3; i < prec; i++ {
 			buf = append(buf, '0')
 		}
