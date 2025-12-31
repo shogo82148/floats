@@ -32,6 +32,11 @@ func (a Float64) Bits() uint64 {
 	return math.Float64bits(float64(a))
 }
 
+// BuiltIn returns the built-in float64 value of a.
+func (a Float64) BuiltIn() float64 {
+	return float64(a)
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float64) IsNaN() bool {
 	return a != a

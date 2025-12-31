@@ -35,6 +35,11 @@ func (a Float32) Bits() uint32 {
 	return math.Float32bits(float32(a))
 }
 
+// BuiltIn returns the built-in float32 value of a.
+func (a Float32) BuiltIn() float32 {
+	return float32(a)
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float32) IsNaN() bool {
 	return a != a
