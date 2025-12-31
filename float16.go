@@ -24,6 +24,11 @@ func NewFloat16(f float64) Float16 {
 	return Float64(f).Float16()
 }
 
+// NewFloat16FromBits converts the IEEE 754 binary representation b to Float16.
+func NewFloat16FromBits(b uint16) Float16 {
+	return Float16(b)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float16) Bits() uint16 {
 	return uint16(a)

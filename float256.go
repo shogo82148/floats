@@ -42,6 +42,11 @@ func NewFloat256(f float64) Float256 {
 	return Float64(f).Float256()
 }
 
+// NewFloat256FromBits converts the IEEE 754 binary representation b to Float256.
+func NewFloat256FromBits(b ints.Uint256) Float256 {
+	return Float256(b)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float256) Bits() ints.Uint256 {
 	return ints.Uint256(a)

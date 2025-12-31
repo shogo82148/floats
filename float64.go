@@ -22,6 +22,11 @@ func NewFloat64(f float64) Float64 {
 	return Float64(f)
 }
 
+// NewFloat64FromBits converts the IEEE 754 binary representation b to Float64.
+func NewFloat64FromBits(b uint64) Float64 {
+	return Float64(math.Float64frombits(b))
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float64) Bits() uint64 {
 	return math.Float64bits(float64(a))
