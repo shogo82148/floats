@@ -37,6 +37,11 @@ var (
 // Float256 is a 256-bit floating-point number.
 type Float256 ints.Uint256
 
+// NewFloat256 converts f to Float256.
+func NewFloat256(f float64) Float256 {
+	return Float64(f).Float256()
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float256) IsNaN() bool {
 	return a[0]&(mask256<<(shift256-192)) == (mask256<<(shift256-192)) &&

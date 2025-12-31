@@ -19,6 +19,11 @@ const (
 // Float16 is a 16-bit floating-point number.
 type Float16 uint16
 
+// NewFloat16 converts f to Float16.
+func NewFloat16(f float64) Float16 {
+	return Float64(f).Float16()
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float16) IsNaN() bool {
 	return a&(mask16<<shift16) == (mask16<<shift16) && a&fracMask16 != 0

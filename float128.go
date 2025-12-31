@@ -23,6 +23,11 @@ var (
 // Float128 is a 128-bit floating-point number.
 type Float128 ints.Uint128
 
+// NewFloat128 converts f to Float128.
+func NewFloat128(f float64) Float128 {
+	return Float64(f).Float128()
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float128) IsNaN() bool {
 	return a[0]&(mask128<<(shift128-64)) == (mask128<<(shift128-64)) &&
