@@ -22,6 +22,11 @@ func NewFloat64(f float64) Float64 {
 	return Float64(f)
 }
 
+// Bits returns the IEEE 754 binary representation of a.
+func (a Float64) Bits() uint64 {
+	return math.Float64bits(float64(a))
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float64) IsNaN() bool {
 	return a != a

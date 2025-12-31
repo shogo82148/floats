@@ -42,6 +42,11 @@ func NewFloat256(f float64) Float256 {
 	return Float64(f).Float256()
 }
 
+// Bits returns the IEEE 754 binary representation of a.
+func (a Float256) Bits() ints.Uint256 {
+	return ints.Uint256(a)
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float256) IsNaN() bool {
 	return a[0]&(mask256<<(shift256-192)) == (mask256<<(shift256-192)) &&
