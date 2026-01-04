@@ -1,0 +1,34 @@
+package floats
+
+import (
+	"math"
+	"testing"
+)
+
+func TestParseFloat64(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Float64
+	}{
+		{"0", NewFloat64(0)},
+		{"-0", NewFloat64(-0)},
+		{"1.5", NewFloat64(1.5)},
+		{"-2.75", NewFloat64(-2.75)},
+		{"0x1.8p+1", NewFloat64(3.0)},
+		{"3.4028234663852886e+38", NewFloat64(3.4028234663852886e+38)},   // Max float32
+		{"1.7976931348623157e+308", NewFloat64(1.7976931348623157e+308)}, // Max float64
+		{"Inf", NewFloat64(math.Inf(1))},
+		{"-Inf", NewFloat64(math.Inf(-1))},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseFloat64(tt.input)
+		if err != nil {
+			t.Errorf("ParseFloat64(%q) returned error: %v", tt.input, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("ParseFloat64(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
