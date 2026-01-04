@@ -20,6 +20,26 @@ const (
 // Float32 is a 32-bit floating-point number.
 type Float32 float32
 
+// NewFloat32 converts f to Float32.
+func NewFloat32(f float64) Float32 {
+	return Float32(f)
+}
+
+// NewFloat32FromBits converts the IEEE 754 binary representation b to Float32.
+func NewFloat32FromBits(b uint32) Float32 {
+	return Float32(math.Float32frombits(b))
+}
+
+// Bits returns the IEEE 754 binary representation of a.
+func (a Float32) Bits() uint32 {
+	return math.Float32bits(float32(a))
+}
+
+// BuiltIn returns the built-in float32 value of a.
+func (a Float32) BuiltIn() float32 {
+	return float32(a)
+}
+
 // IsNaN reports whether a is an IEEE 754 “not-a-number” value.
 func (a Float32) IsNaN() bool {
 	return a != a
