@@ -11,7 +11,7 @@ func TestParseFloat32(t *testing.T) {
 		want  Float32
 	}{
 		{"0", NewFloat32(0)},
-		{"-0", NewFloat32(-0)},
+		{"-0", NewFloat32(math.Copysign(0, -1))},
 		{"1.5", NewFloat32(1.5)},
 		{"-2.75", NewFloat32(-2.75)},
 		{"0x1.8p+1", NewFloat32(3.0)},
@@ -26,7 +26,7 @@ func TestParseFloat32(t *testing.T) {
 			t.Errorf("ParseFloat32(%q) returned error: %v", tt.input, err)
 			continue
 		}
-		if got != tt.want {
+		if got.Bits() != tt.want.Bits() {
 			t.Errorf("ParseFloat32(%q) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
