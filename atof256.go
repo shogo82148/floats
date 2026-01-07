@@ -172,8 +172,8 @@ loop:
 	return
 }
 
-// atofHex converts the hex floating-point string s
-// to a rounded float16 value and returns it as a float16.
+// atof256Hex converts the hex floating-point string s
+// to a rounded float256 value and returns it as a float256.
 // The string s has already been parsed into a mantissa, exponent, and sign (neg==true for negative).
 // If trunc is true, trailing non-zero bits have been omitted from the mantissa.
 func atof256Hex(s string, mantissa ints.Uint256, exp int, neg, trunc bool) (Float256, error) {
