@@ -30,6 +30,107 @@ func lower(c byte) byte {
 	return c | ('x' - 'X')
 }
 
+// decimal power of ten to binary power of two.
+var powtab = []int{1, 3, 6, 9, 13, 16, 19, 23, 26}
+
+func (b *decimal) set(s string) (ok bool) {
+	i := 0
+	b.neg = false
+	b.trunc = false
+
+	// optional sign
+	if i >= len(s) {
+		return
+	}
+	switch s[i] {
+	case '+':
+		i++
+	case '-':
+		i++
+		b.neg = true
+	}
+
+	// digits
+	sawdot := false
+	sawdigits := false
+	for ; i < len(s); i++ {
+		switch {
+		case s[i] == '_':
+			// readFloat already checked underscores
+			continue
+		case s[i] == '.':
+			if sawdot {
+				return
+			}
+			sawdot = true
+			b.dp = b.nd
+			continue
+
+		case '0' <= s[i] && s[i] <= '9':
+			sawdigits = true
+			if s[i] == '0' && b.nd == 0 { // ignore leading zeros
+				b.dp--
+				continue
+			}
+			if b.nd < len(b.d) {
+				b.d[b.nd] = s[i]
+				b.nd++
+			} else if s[i] != '0' {
+				b.trunc = true
+			}
+			continue
+		}
+		break
+	}
+	if !sawdigits {
+		return
+	}
+	if !sawdot {
+		b.dp = b.nd
+	}
+
+	// optional exponent moves decimal point.
+	// if we read a very large, very long number,
+	// just be sure to move the decimal point by
+	// a lot (say, 100000).  it doesn't matter if it's
+	// not the exact number.
+	if i < len(s) && lower(s[i]) == 'e' {
+		i++
+		if i >= len(s) {
+			return
+		}
+		esign := 1
+		switch s[i] {
+		case '+':
+			i++
+		case '-':
+			i++
+			esign = -1
+		}
+		if i >= len(s) || s[i] < '0' || s[i] > '9' {
+			return
+		}
+		e := 0
+		for ; i < len(s) && ('0' <= s[i] && s[i] <= '9' || s[i] == '_'); i++ {
+			if s[i] == '_' {
+				// readFloat already checked underscores
+				continue
+			}
+			if e < 10000 {
+				e = e*10 + int(s[i]) - '0'
+			}
+		}
+		b.dp += e * esign
+	}
+
+	if i != len(s) {
+		return
+	}
+
+	ok = true
+	return
+}
+
 // readFloat reads a decimal or hexadecimal mantissa and exponent from a float
 // string representation in s; the number may be followed by other characters.
 // readFloat reports the number of bytes consumed (i), and whether the number
