@@ -288,7 +288,7 @@ func (d *decimal) float256() (f Float256, overflow bool) {
 	// Our range is [0.5,1) but floating point range is [1,2).
 	exp--
 
-	// Minimum representable exponent is -bias16+1.
+	// Minimum representable exponent is -bias256+1.
 	// If the exponent is smaller, move it up and
 	// adjust d accordingly.
 	if exp < -bias256+1 {
