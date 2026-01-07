@@ -24,6 +24,38 @@ func TestParseFloat128(t *testing.T) {
 		{"1.189731495357231765085759326628007e+4932", Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, nil}, // max finite value
 		{"6e-4966", Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, nil},                                   // min positive denormalized
 
+		// Hexadecimal floating-point.
+		{"0x1p+0", exact128(1.0), nil},
+		{"0x1p1", exact128(2.0), nil},
+		{"0x1.8p+1", exact128(3.0), nil},
+		{"0x1p-1", exact128(0.5), nil},
+		{"-0x2p3", exact128(-16), nil},
+		{"0x0.fp4", exact128(15), nil},
+		{"0x1e2", exact128(0), strconv.ErrSyntax}, // missing 'p' exponent
+		{"1p2", exact128(0), strconv.ErrSyntax},   // missing '0x' prefix
+
+		// Rounding
+		{
+			"0x1.00000000000000000000000000008p+00",
+			exact128(1.0), nil, // round down
+		},
+		{
+			"0x1.00000000000000000000000000008000001p+00",
+			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round up
+		},
+		{
+			"0x1.00000000000000000000000000017ffffffp+00",
+			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round down
+		},
+		{
+			"0x1.00000000000000000000000000018p+00",
+			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0002}, nil, // round up
+		},
+		{
+			"0x1.ffffffffffffffffffffffffffff8p+00",
+			exact128(2.0), nil, // round up
+		},
+
 		// NaNs
 		{"nan", exact128(math.NaN()), nil},
 		{"NaN", exact128(math.NaN()), nil},

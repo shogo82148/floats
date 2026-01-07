@@ -58,6 +58,50 @@ func TestParseFloat256(t *testing.T) {
 			nil,
 		},
 
+		// Hexadecimal floating-point.
+		{"0x1p+0", exact256(1.0), nil},
+		{"0x1p1", exact256(2.0), nil},
+		{"0x1.8p+1", exact256(3.0), nil},
+		{"0x1p-1", exact256(0.5), nil},
+		{"-0x2p3", exact256(-16), nil},
+		{"0x0.fp4", exact256(15), nil},
+		{"0x1e2", exact256(0), strconv.ErrSyntax}, // missing 'p' exponent
+		{"1p2", exact256(0), strconv.ErrSyntax},   // missing '0x' prefix
+
+		// Rounding
+		{
+			"0x1.000000000000000000000000000000000000000000000000000000000008p+00",
+			exact256(1.0), nil, // round down
+		},
+		{
+			"0x1.00000000000000000000000000000000000000000000000000000000000800001p+00",
+			Float256{
+				0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			},
+			nil, // round up
+		},
+		{
+			"0x1.000000000000000000000000000000000000000000000000000000000017fffffp+00",
+			Float256{
+				0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			},
+			nil, // round down
+		},
+		{
+			"0x1.000000000000000000000000000000000000000000000000000000000018p+00",
+			Float256{
+				0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0002,
+			},
+			nil, // round up
+		},
+		{
+			"0x1.fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8p+00",
+			exact256(2.0), nil, // round up
+		},
+
 		// NaNs
 		{"nan", exact256(math.NaN()), nil},
 		{"NaN", exact256(math.NaN()), nil},

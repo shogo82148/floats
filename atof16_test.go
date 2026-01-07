@@ -45,6 +45,13 @@ func TestParseFloat16(t *testing.T) {
 		{"0x1e2", exact16(0), strconv.ErrSyntax}, // missing 'p' exponent
 		{"1p2", exact16(0), strconv.ErrSyntax},   // missing '0x' prefix
 
+		// Rounding
+		{"0x1.002p+00", exact16(0x1.000p00), nil},      // round down
+		{"0x1.00200001p+00", exact16(0x1.004p00), nil}, // round up
+		{"0x1.005fffffp+00", exact16(0x1.004p00), nil}, // round down
+		{"0x1.006p+00", exact16(0x1.008p00), nil},      // round up
+		{"0x1.ffep00", exact16(2), nil},                // round up
+
 		// NaNs
 		{"nan", exact16(math.NaN()), nil},
 		{"NaN", exact16(math.NaN()), nil},
