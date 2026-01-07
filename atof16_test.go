@@ -20,8 +20,15 @@ var parseFloat16Tests = []struct {
 	{"100", exact16(100), nil},
 	{"1000", exact16(1000), nil},
 	{"10000", exact16(10000), nil},
-	{"65504", exact16(65504), nil}, // max finite value
+	{"65504", exact16(65504), nil},       // max finite value
+	{"0x1.ffcp+15", exact16(65504), nil}, // max finite value (hex)
 	{"8190", exact16(8192), nil},
+
+	// next float16 - too large
+	{"+65520", exact16(math.Inf(1)), strconv.ErrRange},
+	{"-65520", exact16(math.Inf(-1)), strconv.ErrRange},
+	{"+0x1.ffep+15", exact16(math.Inf(1)), strconv.ErrRange},
+	{"-0x1.ffep+15", exact16(math.Inf(-1)), strconv.ErrRange},
 
 	// denormalized
 	{"6e-8", exact16(0x1p-24), nil}, // min positive denormalized

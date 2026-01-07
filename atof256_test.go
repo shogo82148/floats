@@ -65,6 +65,19 @@ var parseFloat256Tests = []struct {
 		nil,
 	},
 
+	// next float256 - too large
+	{
+		// largest normal number
+		"+1.611325717485760473619572118452005010644023874549669517476371250496071831e+78913",
+		exact256(math.Inf(1)),
+		strconv.ErrRange,
+	},
+	{
+		"-1.611325717485760473619572118452005010644023874549669517476371250496071831e+78913",
+		exact256(math.Inf(-1)),
+		strconv.ErrRange,
+	},
+
 	// Hexadecimal floating-point.
 	{"0x1p+0", exact256(1.0), nil},
 	{"0x1p1", exact256(2.0), nil},

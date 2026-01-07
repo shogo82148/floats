@@ -21,8 +21,15 @@ var parseFloat128Tests = []struct {
 	{"1000", exact128(1000), nil},
 	{"10000", exact128(10000), nil},
 	{"1.189731495357231765085759326628007e+4932", Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, nil}, // max finite value
+	{"0x1.ffffffffffffffffffffffffffffp+16383", Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, nil},   // max finite value (hex)
 	{"6e-4966", Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, nil},                                   // min positive denormalized
 	{"1.1102230246251565404236316680908203e-16", exact128(0x1p-53), nil},
+
+	// next float128 - too large
+	{"+1.1897314953572317650857593266280071e+4932", exact128(math.Inf(1)), strconv.ErrRange},
+	{"-1.1897314953572317650857593266280071e+4932", exact128(math.Inf(-1)), strconv.ErrRange},
+	{"+0x1.ffffffffffffffffffffffffffff8p+16383", exact128(math.Inf(1)), strconv.ErrRange},
+	{"-0x1.ffffffffffffffffffffffffffff8p+16383", exact128(math.Inf(-1)), strconv.ErrRange},
 
 	// Hexadecimal floating-point.
 	{"0x1p+0", exact128(1.0), nil},
