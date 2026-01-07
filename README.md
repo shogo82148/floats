@@ -1,1 +1,37 @@
 # floats
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/shogo82148/floats.svg)](https://pkg.go.dev/github.com/shogo82148/floats)
+[![test](https://github.com/shogo82148/floats/actions/workflows/test.yaml/badge.svg)](https://github.com/shogo82148/floats/actions/workflows/test.yaml)
+
+The floats package provides types for handling multi-precision floating-point numbers.
+
+## SUPPORTED TYPES
+
+Supported types are:
+
+- [Float16](https://pkg.go.dev/github.com/shogo82148/floats#Float16): [Half-precision floating-point format](https://en.wikipedia.org/wiki/Half-precision_floating-point_format)
+- [Float32](https://pkg.go.dev/github.com/shogo82148/floats#Float32): [Single-precision floating-point format](https://en.wikipedia.org/wiki/Single-precision_floating-point_format)
+- [Float64](https://pkg.go.dev/github.com/shogo82148/floats#Float64): [Double-precision floating-point format](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
+- [Float128](https://pkg.go.dev/github.com/shogo82148/floats#Float128): [Quadruple-precision floating-point format](https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format)
+- [Float256](https://pkg.go.dev/github.com/shogo82148/floats#Float256): [Octuple-precision floating-point format](https://en.wikipedia.org/wiki/Octuple-precision_floating-point_format)
+
+## SYNOPSIS
+
+```go
+package main
+
+import (
+  "fmt"
+
+  "github.com/shogo82148/floats"
+)
+
+func main() {
+  a := floats.NewFloat16(1.0)
+  b := floats.NewFloat16(2.0)
+  fmt.Printf("%g + %g = %g\n", a, b, a.Add(b))
+  fmt.Printf("%g - %g = %g\n", a, b, a.Sub(b))
+  fmt.Printf("%g * %g = %g\n", a, b, a.Mul(b))
+  fmt.Printf("%g / %g = %g\n", a, b, a.Quo(b))
+}
+```
