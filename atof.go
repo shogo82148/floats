@@ -116,7 +116,7 @@ func (b *decimal) set(s string) (ok bool) {
 				// readFloat already checked underscores
 				continue
 			}
-			if e < 10000 {
+			if e < 1000000 {
 				e = e*10 + int(s[i]) - '0'
 			}
 		}
