@@ -163,6 +163,15 @@ func (d *decimal) float16() (f Float16, overflow bool) {
 	d.Shift(1 + shift16)
 	mant = d.RoundedUint16()
 
+	// Rounding might have added a bit; shift down.
+	if mant == 2<<shift16 {
+		mant >>= 1
+		exp++
+		if exp >= mask16-bias16 {
+			goto overflow
+		}
+	}
+
 	// Denormalized?
 	if mant&(1<<shift16) == 0 {
 		exp = -bias16

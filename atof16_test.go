@@ -6,131 +6,139 @@ import (
 	"testing"
 )
 
+var parseFloat16Tests = []struct {
+	input string
+	want  Float16
+	err   error
+}{
+	{"0", exact16(0), nil},
+	{"-0", exact16(math.Copysign(0, -1)), nil},
+	{"1", exact16(1.0), nil},
+	{"1.5", exact16(1.5), nil},
+	{"-2.75", exact16(-2.75), nil},
+	{"10", exact16(10), nil},
+	{"100", exact16(100), nil},
+	{"1000", exact16(1000), nil},
+	{"10000", exact16(10000), nil},
+	{"65504", exact16(65504), nil},       // max finite value
+	{"0x1.ffcp+15", exact16(65504), nil}, // max finite value (hex)
+	{"8190", exact16(8192), nil},
+
+	// next float16 - too large
+	{"+65520", exact16(math.Inf(1)), strconv.ErrRange},
+	{"-65520", exact16(math.Inf(-1)), strconv.ErrRange},
+	{"+0x1.ffep+15", exact16(math.Inf(1)), strconv.ErrRange},
+	{"-0x1.ffep+15", exact16(math.Inf(-1)), strconv.ErrRange},
+
+	// denormalized
+	{"6e-8", exact16(0x1p-24), nil}, // min positive denormalized
+	{"1e-7", exact16(0x2p-24), nil},
+	{"2e-7", exact16(0x3p-24), nil},
+	{"2.4e-7", exact16(0x4p-24), nil},
+	{"3e-7", exact16(0x5p-24), nil},
+	{"3.6e-7", exact16(0x6p-24), nil},
+	{"4e-7", exact16(0x7p-24), nil},
+	{"5e-7", exact16(0x8p-24), nil},
+	{"5.4e-7", exact16(0x9p-24), nil},
+	{"6e-7", exact16(0xap-24), nil},
+
+	// Hexadecimal floating-point.
+	{"0x1p+0", exact16(1.0), nil},
+	{"0x1p1", exact16(2.0), nil},
+	{"0x1.8p+1", exact16(3.0), nil},
+	{"0x1p-1", exact16(0.5), nil},
+	{"-0x2p3", exact16(-16), nil},
+	{"0x0.fp4", exact16(15), nil},
+	{"0x1e2", exact16(0), strconv.ErrSyntax}, // missing 'p' exponent
+	{"1p2", exact16(0), strconv.ErrSyntax},   // missing '0x' prefix
+
+	// Rounding
+	{"0x1.002p+00", exact16(0x1.000p00), nil},      // round down
+	{"0x1.00200001p+00", exact16(0x1.004p00), nil}, // round up
+	{"0x1.005fffffp+00", exact16(0x1.004p00), nil}, // round down
+	{"0x1.006p+00", exact16(0x1.008p00), nil},      // round up
+	{"0x1.ffep00", exact16(2), nil},                // round up
+
+	// NaNs
+	{"nan", exact16(math.NaN()), nil},
+	{"NaN", exact16(math.NaN()), nil},
+	{"NAN", exact16(math.NaN()), nil},
+
+	// Infs
+	{"Inf", exact16(math.Inf(1)), nil},
+	{"-Inf", exact16(math.Inf(-1)), nil},
+	{"+INF", exact16(math.Inf(1)), nil},
+	{"-Infinity", exact16(math.Inf(-1)), nil},
+	{"+INFINITY", exact16(math.Inf(1)), nil},
+	{"Infinity", exact16(math.Inf(1)), nil},
+
+	// try to overflow exponent
+	{"1e-4294967296", exact16(0), nil},
+	{"1e+4294967296", exact16(math.Inf(1)), strconv.ErrRange},
+	{"1e-18446744073709551616", exact16(0), nil},
+	{"1e+18446744073709551616", exact16(math.Inf(1)), strconv.ErrRange},
+	{"0x1p-4294967296", exact16(0), nil},
+	{"0x1p+4294967296", exact16(math.Inf(1)), strconv.ErrRange},
+	{"0x1p-18446744073709551616", exact16(0), nil},
+	{"0x1p+18446744073709551616", exact16(math.Inf(1)), strconv.ErrRange},
+
+	// Parse errors
+	{"1e", exact16(0), strconv.ErrSyntax},
+	{"1e-", exact16(0), strconv.ErrSyntax},
+	{".e-1", exact16(0), strconv.ErrSyntax},
+	{"1\x00.2", exact16(0), strconv.ErrSyntax},
+	{"0x", exact16(0), strconv.ErrSyntax},
+	{"0x.", exact16(0), strconv.ErrSyntax},
+	{"0x1", exact16(0), strconv.ErrSyntax},
+	{"0x.1", exact16(0), strconv.ErrSyntax},
+	{"0x1p", exact16(0), strconv.ErrSyntax},
+	{"0x.1p", exact16(0), strconv.ErrSyntax},
+	{"0x1p+", exact16(0), strconv.ErrSyntax},
+	{"0x.1p+", exact16(0), strconv.ErrSyntax},
+	{"0x1p-", exact16(0), strconv.ErrSyntax},
+	{"0x.1p-", exact16(0), strconv.ErrSyntax},
+	{"0x1p+2", exact16(4), nil},
+	{"0x.1p+2", exact16(0.25), nil},
+	{"0x1p-2", exact16(0.25), nil},
+	{"0x.1p-2", exact16(0.015625), nil},
+
+	// Underscores.
+	{"1_00.00_0_0e+0_2", exact16(1.0e+4), nil},
+	{"-_123.5e+12", exact16(0), strconv.ErrSyntax},
+	{"+_123.5e+12", exact16(0), strconv.ErrSyntax},
+	{"_123.5e+12", exact16(0), strconv.ErrSyntax},
+	{"1__23.5e+12", exact16(0), strconv.ErrSyntax},
+	{"123_.5e+12", exact16(0), strconv.ErrSyntax},
+	{"123._5e+12", exact16(0), strconv.ErrSyntax},
+	{"123.5_e+12", exact16(0), strconv.ErrSyntax},
+	{"123.5__0e+12", exact16(0), strconv.ErrSyntax},
+	{"123.5e_+12", exact16(0), strconv.ErrSyntax},
+	{"123.5e+_12", exact16(0), strconv.ErrSyntax},
+	{"123.5e_-12", exact16(0), strconv.ErrSyntax},
+	{"123.5e-_12", exact16(0), strconv.ErrSyntax},
+	{"123.5e+1__2", exact16(0), strconv.ErrSyntax},
+	{"123.5e+12_", exact16(0), strconv.ErrSyntax},
+
+	{"0x_0_1.2_3_4p+1_2", exact16(4660), nil},
+	{"-_0x12.345p+12", exact16(0), strconv.ErrSyntax},
+	{"+_0x12.345p+12", exact16(0), strconv.ErrSyntax},
+	{"_0x12.345p+12", exact16(0), strconv.ErrSyntax},
+	{"0x__12.345p+12", exact16(0), strconv.ErrSyntax},
+	{"0x1__2.345p+12", exact16(0), strconv.ErrSyntax},
+	{"0x12_.345p+12", exact16(0), strconv.ErrSyntax},
+	{"0x12._345p+12", exact16(0), strconv.ErrSyntax},
+	{"0x12.3__45p+12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345_p+12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p_+12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p+_12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p_-12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p-_12", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p+1__2", exact16(0), strconv.ErrSyntax},
+	{"0x12.345p+12_", exact16(0), strconv.ErrSyntax},
+}
+
 func TestParseFloat16(t *testing.T) {
-	tests := []struct {
-		input string
-		want  Float16
-		err   error
-	}{
-		{"0", exact16(0), nil},
-		{"-0", exact16(math.Copysign(0, -1)), nil},
-		{"1", exact16(1.0), nil},
-		{"1.5", exact16(1.5), nil},
-		{"-2.75", exact16(-2.75), nil},
-		{"10", exact16(10), nil},
-		{"100", exact16(100), nil},
-		{"1000", exact16(1000), nil},
-		{"10000", exact16(10000), nil},
-		{"65504", exact16(65504), nil}, // max finite value
-
-		// denormalized
-		{"6e-8", exact16(0x1p-24), nil}, // min positive denormalized
-		{"1e-7", exact16(0x2p-24), nil},
-		{"2e-7", exact16(0x3p-24), nil},
-		{"2.4e-7", exact16(0x4p-24), nil},
-		{"3e-7", exact16(0x5p-24), nil},
-		{"3.6e-7", exact16(0x6p-24), nil},
-		{"4e-7", exact16(0x7p-24), nil},
-		{"5e-7", exact16(0x8p-24), nil},
-		{"5.4e-7", exact16(0x9p-24), nil},
-		{"6e-7", exact16(0xap-24), nil},
-
-		// Hexadecimal floating-point.
-		{"0x1p+0", exact16(1.0), nil},
-		{"0x1p1", exact16(2.0), nil},
-		{"0x1.8p+1", exact16(3.0), nil},
-		{"0x1p-1", exact16(0.5), nil},
-		{"-0x2p3", exact16(-16), nil},
-		{"0x0.fp4", exact16(15), nil},
-		{"0x1e2", exact16(0), strconv.ErrSyntax}, // missing 'p' exponent
-		{"1p2", exact16(0), strconv.ErrSyntax},   // missing '0x' prefix
-
-		// Rounding
-		{"0x1.002p+00", exact16(0x1.000p00), nil},      // round down
-		{"0x1.00200001p+00", exact16(0x1.004p00), nil}, // round up
-		{"0x1.005fffffp+00", exact16(0x1.004p00), nil}, // round down
-		{"0x1.006p+00", exact16(0x1.008p00), nil},      // round up
-		{"0x1.ffep00", exact16(2), nil},                // round up
-
-		// NaNs
-		{"nan", exact16(math.NaN()), nil},
-		{"NaN", exact16(math.NaN()), nil},
-		{"NAN", exact16(math.NaN()), nil},
-
-		// Infs
-		{"Inf", exact16(math.Inf(1)), nil},
-		{"-Inf", exact16(math.Inf(-1)), nil},
-		{"+INF", exact16(math.Inf(1)), nil},
-		{"-Infinity", exact16(math.Inf(-1)), nil},
-		{"+INFINITY", exact16(math.Inf(1)), nil},
-		{"Infinity", exact16(math.Inf(1)), nil},
-
-		// try to overflow exponent
-		{"1e-4294967296", exact16(0), nil},
-		{"1e+4294967296", exact16(math.Inf(1)), strconv.ErrRange},
-		{"1e-18446744073709551616", exact16(0), nil},
-		{"1e+18446744073709551616", exact16(math.Inf(1)), strconv.ErrRange},
-		{"0x1p-4294967296", exact16(0), nil},
-		{"0x1p+4294967296", exact16(math.Inf(1)), strconv.ErrRange},
-		{"0x1p-18446744073709551616", exact16(0), nil},
-		{"0x1p+18446744073709551616", exact16(math.Inf(1)), strconv.ErrRange},
-
-		// Parse errors
-		{"1e", exact16(0), strconv.ErrSyntax},
-		{"1e-", exact16(0), strconv.ErrSyntax},
-		{".e-1", exact16(0), strconv.ErrSyntax},
-		{"1\x00.2", exact16(0), strconv.ErrSyntax},
-		{"0x", exact16(0), strconv.ErrSyntax},
-		{"0x.", exact16(0), strconv.ErrSyntax},
-		{"0x1", exact16(0), strconv.ErrSyntax},
-		{"0x.1", exact16(0), strconv.ErrSyntax},
-		{"0x1p", exact16(0), strconv.ErrSyntax},
-		{"0x.1p", exact16(0), strconv.ErrSyntax},
-		{"0x1p+", exact16(0), strconv.ErrSyntax},
-		{"0x.1p+", exact16(0), strconv.ErrSyntax},
-		{"0x1p-", exact16(0), strconv.ErrSyntax},
-		{"0x.1p-", exact16(0), strconv.ErrSyntax},
-		{"0x1p+2", exact16(4), nil},
-		{"0x.1p+2", exact16(0.25), nil},
-		{"0x1p-2", exact16(0.25), nil},
-		{"0x.1p-2", exact16(0.015625), nil},
-
-		// Underscores.
-		{"1_00.00_0_0e+0_2", exact16(1.0e+4), nil},
-		{"-_123.5e+12", exact16(0), strconv.ErrSyntax},
-		{"+_123.5e+12", exact16(0), strconv.ErrSyntax},
-		{"_123.5e+12", exact16(0), strconv.ErrSyntax},
-		{"1__23.5e+12", exact16(0), strconv.ErrSyntax},
-		{"123_.5e+12", exact16(0), strconv.ErrSyntax},
-		{"123._5e+12", exact16(0), strconv.ErrSyntax},
-		{"123.5_e+12", exact16(0), strconv.ErrSyntax},
-		{"123.5__0e+12", exact16(0), strconv.ErrSyntax},
-		{"123.5e_+12", exact16(0), strconv.ErrSyntax},
-		{"123.5e+_12", exact16(0), strconv.ErrSyntax},
-		{"123.5e_-12", exact16(0), strconv.ErrSyntax},
-		{"123.5e-_12", exact16(0), strconv.ErrSyntax},
-		{"123.5e+1__2", exact16(0), strconv.ErrSyntax},
-		{"123.5e+12_", exact16(0), strconv.ErrSyntax},
-
-		{"0x_0_1.2_3_4p+1_2", exact16(4660), nil},
-		{"-_0x12.345p+12", exact16(0), strconv.ErrSyntax},
-		{"+_0x12.345p+12", exact16(0), strconv.ErrSyntax},
-		{"_0x12.345p+12", exact16(0), strconv.ErrSyntax},
-		{"0x__12.345p+12", exact16(0), strconv.ErrSyntax},
-		{"0x1__2.345p+12", exact16(0), strconv.ErrSyntax},
-		{"0x12_.345p+12", exact16(0), strconv.ErrSyntax},
-		{"0x12._345p+12", exact16(0), strconv.ErrSyntax},
-		{"0x12.3__45p+12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345_p+12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p_+12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p+_12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p_-12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p-_12", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p+1__2", exact16(0), strconv.ErrSyntax},
-		{"0x12.345p+12_", exact16(0), strconv.ErrSyntax},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range parseFloat16Tests {
 		got, err := ParseFloat16(tt.input)
 		if err != nil {
 			numErr, ok := err.(*strconv.NumError)
@@ -150,6 +158,26 @@ func TestParseFloat16(t *testing.T) {
 			t.Errorf("ParseFloat16(%q) = (%v, %v) want (%v, %v)", tt.input, got, err, tt.want, tt.err)
 		}
 	}
+}
+
+func FuzzParseFloat16(f *testing.F) {
+	for _, tt := range parseFloat16Tests {
+		f.Add(tt.input)
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		f0, err := ParseFloat16(input)
+		if err != nil {
+			return
+		}
+		s := f0.String()
+		f1, err := ParseFloat16(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !eq16(f0, f1) {
+			t.Fatalf("ParseFloat16(%q) = %v; after String() = %q and ParseFloat16 = %v", input, f0, s, f1)
+		}
+	})
 }
 
 func BenchmarkParseFloat16_Decimal(b *testing.B) {

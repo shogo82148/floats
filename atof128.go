@@ -306,6 +306,15 @@ func (d *decimal) float128() (f Float128, overflow bool) {
 	d.Shift(1 + shift128)
 	mant = d.RoundedUint128()
 
+	// Rounding might have added a bit; shift down.
+	if mant.Cmp(ints.Uint128{2 << (shift128 - 64), 0}) == 0 {
+		mant = mant.Rsh(1)
+		exp++
+		if exp >= mask128-bias128 {
+			goto overflow
+		}
+	}
+
 	// Denormalized?
 	if mant[0]&(1<<(shift128-64)) == 0 {
 		exp = -bias128

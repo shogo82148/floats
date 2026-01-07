@@ -306,6 +306,15 @@ func (d *decimal) float256() (f Float256, overflow bool) {
 	d.Shift(1 + shift256)
 	mant = d.RoundedUint256()
 
+	// Rounding might have added a bit; shift down.
+	if mant.Cmp(ints.Uint256{2 << (shift256 - 192), 0, 0, 0}) == 0 {
+		mant = mant.Rsh(1)
+		exp++
+		if exp >= mask256-bias256 {
+			goto overflow
+		}
+	}
+
 	// Denormalized?
 	if mant[0]&(1<<(shift256-192)) == 0 {
 		exp = -bias256
