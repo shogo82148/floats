@@ -55,7 +55,7 @@ func readFloat256(s string) (mantissa ints.Uint256, exp int, neg, trunc, hex boo
 	expChar := byte('e')
 	if i+2 < len(s) && s[i] == '0' && lower(s[i+1]) == 'x' {
 		base = ints.Uint256{0, 0, 0, 16} // 16
-		maxMantDigits = 64               // 16^16 fits in uint256
+		maxMantDigits = 64               // 16^64 fits in uint256
 		i += 2
 		expChar = 'p'
 		hex = true
