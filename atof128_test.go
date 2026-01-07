@@ -6,101 +6,102 @@ import (
 	"testing"
 )
 
+var parseFloat128Tests = []struct {
+	input string
+	want  Float128
+	err   error
+}{
+	{"0", exact128(0), nil},
+	{"-0", exact128(math.Copysign(0, -1)), nil},
+	{"1", exact128(1.0), nil},
+	{"1.5", exact128(1.5), nil},
+	{"-2.75", exact128(-2.75), nil},
+	{"10", exact128(10), nil},
+	{"100", exact128(100), nil},
+	{"1000", exact128(1000), nil},
+	{"10000", exact128(10000), nil},
+	{"1.189731495357231765085759326628007e+4932", Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, nil}, // max finite value
+	{"6e-4966", Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, nil},                                   // min positive denormalized
+	{"1.1102230246251565404236316680908203e-16", exact128(0x1p-53), nil},
+
+	// Hexadecimal floating-point.
+	{"0x1p+0", exact128(1.0), nil},
+	{"0x1p1", exact128(2.0), nil},
+	{"0x1.8p+1", exact128(3.0), nil},
+	{"0x1p-1", exact128(0.5), nil},
+	{"-0x2p3", exact128(-16), nil},
+	{"0x0.fp4", exact128(15), nil},
+	{"0x1e2", exact128(0), strconv.ErrSyntax}, // missing 'p' exponent
+	{"1p2", exact128(0), strconv.ErrSyntax},   // missing '0x' prefix
+
+	// Rounding
+	{
+		"0x1.00000000000000000000000000008p+00",
+		exact128(1.0), nil, // round down
+	},
+	{
+		"0x1.00000000000000000000000000008000001p+00",
+		Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round up
+	},
+	{
+		"0x1.00000000000000000000000000017ffffffp+00",
+		Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round down
+	},
+	{
+		"0x1.00000000000000000000000000018p+00",
+		Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0002}, nil, // round up
+	},
+	{
+		"0x1.ffffffffffffffffffffffffffff8p+00",
+		exact128(2.0), nil, // round up
+	},
+
+	// NaNs
+	{"nan", exact128(math.NaN()), nil},
+	{"NaN", exact128(math.NaN()), nil},
+	{"NAN", exact128(math.NaN()), nil},
+
+	// Infs
+	{"Inf", exact128(math.Inf(1)), nil},
+	{"-Inf", exact128(math.Inf(-1)), nil},
+	{"+INF", exact128(math.Inf(1)), nil},
+	{"-Infinity", exact128(math.Inf(-1)), nil},
+	{"+INFINITY", exact128(math.Inf(1)), nil},
+	{"Infinity", exact128(math.Inf(1)), nil},
+
+	// try to overflow exponent
+	{"1e-4294967296", exact128(0), nil},
+	{"1e+4294967296", exact128(math.Inf(1)), strconv.ErrRange},
+	{"1e-18446744073709551616", exact128(0), nil},
+	{"1e+18446744073709551616", exact128(math.Inf(1)), strconv.ErrRange},
+	{"0x1p-4294967296", exact128(0), nil},
+	{"0x1p+4294967296", exact128(math.Inf(1)), strconv.ErrRange},
+	{"0x1p-18446744073709551616", exact128(0), nil},
+	{"0x1p+18446744073709551616", exact128(math.Inf(1)), strconv.ErrRange},
+
+	// Parse errors
+	{"1e", exact128(0), strconv.ErrSyntax},
+	{"1e-", exact128(0), strconv.ErrSyntax},
+	{".e-1", exact128(0), strconv.ErrSyntax},
+	{"1\x00.2", exact128(0), strconv.ErrSyntax},
+	{"0x", exact128(0), strconv.ErrSyntax},
+	{"0x.", exact128(0), strconv.ErrSyntax},
+	{"0x1", exact128(0), strconv.ErrSyntax},
+	{"0x.1", exact128(0), strconv.ErrSyntax},
+	{"0x1p", exact128(0), strconv.ErrSyntax},
+	{"0x.1p", exact128(0), strconv.ErrSyntax},
+	{"0x1p+", exact128(0), strconv.ErrSyntax},
+	{"0x.1p+", exact128(0), strconv.ErrSyntax},
+	{"0x1p-", exact128(0), strconv.ErrSyntax},
+	{"0x.1p-", exact128(0), strconv.ErrSyntax},
+	{"0x1p+2", exact128(4), nil},
+	{"0x.1p+2", exact128(0.25), nil},
+	{"0x1p-2", exact128(0.25), nil},
+	{"0x.1p-2", exact128(0.015625), nil},
+}
+
 func TestParseFloat128(t *testing.T) {
-	tests := []struct {
-		input string
-		want  Float128
-		err   error
-	}{
-		{"0", exact128(0), nil},
-		{"-0", exact128(math.Copysign(0, -1)), nil},
-		{"1", exact128(1.0), nil},
-		{"1.5", exact128(1.5), nil},
-		{"-2.75", exact128(-2.75), nil},
-		{"10", exact128(10), nil},
-		{"100", exact128(100), nil},
-		{"1000", exact128(1000), nil},
-		{"10000", exact128(10000), nil},
-		{"1.189731495357231765085759326628007e+4932", Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, nil}, // max finite value
-		{"6e-4966", Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, nil},                                   // min positive denormalized
-
-		// Hexadecimal floating-point.
-		{"0x1p+0", exact128(1.0), nil},
-		{"0x1p1", exact128(2.0), nil},
-		{"0x1.8p+1", exact128(3.0), nil},
-		{"0x1p-1", exact128(0.5), nil},
-		{"-0x2p3", exact128(-16), nil},
-		{"0x0.fp4", exact128(15), nil},
-		{"0x1e2", exact128(0), strconv.ErrSyntax}, // missing 'p' exponent
-		{"1p2", exact128(0), strconv.ErrSyntax},   // missing '0x' prefix
-
-		// Rounding
-		{
-			"0x1.00000000000000000000000000008p+00",
-			exact128(1.0), nil, // round down
-		},
-		{
-			"0x1.00000000000000000000000000008000001p+00",
-			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round up
-		},
-		{
-			"0x1.00000000000000000000000000017ffffffp+00",
-			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}, nil, // round down
-		},
-		{
-			"0x1.00000000000000000000000000018p+00",
-			Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0002}, nil, // round up
-		},
-		{
-			"0x1.ffffffffffffffffffffffffffff8p+00",
-			exact128(2.0), nil, // round up
-		},
-
-		// NaNs
-		{"nan", exact128(math.NaN()), nil},
-		{"NaN", exact128(math.NaN()), nil},
-		{"NAN", exact128(math.NaN()), nil},
-
-		// Infs
-		{"Inf", exact128(math.Inf(1)), nil},
-		{"-Inf", exact128(math.Inf(-1)), nil},
-		{"+INF", exact128(math.Inf(1)), nil},
-		{"-Infinity", exact128(math.Inf(-1)), nil},
-		{"+INFINITY", exact128(math.Inf(1)), nil},
-		{"Infinity", exact128(math.Inf(1)), nil},
-
-		// try to overflow exponent
-		{"1e-4294967296", exact128(0), nil},
-		{"1e+4294967296", exact128(math.Inf(1)), strconv.ErrRange},
-		{"1e-18446744073709551616", exact128(0), nil},
-		{"1e+18446744073709551616", exact128(math.Inf(1)), strconv.ErrRange},
-		{"0x1p-4294967296", exact128(0), nil},
-		{"0x1p+4294967296", exact128(math.Inf(1)), strconv.ErrRange},
-		{"0x1p-18446744073709551616", exact128(0), nil},
-		{"0x1p+18446744073709551616", exact128(math.Inf(1)), strconv.ErrRange},
-
-		// Parse errors
-		{"1e", exact128(0), strconv.ErrSyntax},
-		{"1e-", exact128(0), strconv.ErrSyntax},
-		{".e-1", exact128(0), strconv.ErrSyntax},
-		{"1\x00.2", exact128(0), strconv.ErrSyntax},
-		{"0x", exact128(0), strconv.ErrSyntax},
-		{"0x.", exact128(0), strconv.ErrSyntax},
-		{"0x1", exact128(0), strconv.ErrSyntax},
-		{"0x.1", exact128(0), strconv.ErrSyntax},
-		{"0x1p", exact128(0), strconv.ErrSyntax},
-		{"0x.1p", exact128(0), strconv.ErrSyntax},
-		{"0x1p+", exact128(0), strconv.ErrSyntax},
-		{"0x.1p+", exact128(0), strconv.ErrSyntax},
-		{"0x1p-", exact128(0), strconv.ErrSyntax},
-		{"0x.1p-", exact128(0), strconv.ErrSyntax},
-		{"0x1p+2", exact128(4), nil},
-		{"0x.1p+2", exact128(0.25), nil},
-		{"0x1p-2", exact128(0.25), nil},
-		{"0x.1p-2", exact128(0.015625), nil},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range parseFloat128Tests {
 		got, err := ParseFloat128(tt.input)
 		if err != nil {
 			numErr, ok := err.(*strconv.NumError)
@@ -120,6 +121,26 @@ func TestParseFloat128(t *testing.T) {
 			t.Errorf("ParseFloat128(%q) = (%v, %v) want (%v, %v)", tt.input, got, err, tt.want, tt.err)
 		}
 	}
+}
+
+func FuzzParseFloat128(f *testing.F) {
+	for _, tt := range parseFloat128Tests {
+		f.Add(tt.input)
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		f0, err := ParseFloat128(input)
+		if err != nil {
+			return
+		}
+		s := f0.String()
+		f1, err := ParseFloat128(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !eq128(f0, f1) {
+			t.Fatalf("ParseFloat128(%q) = %v; after String() = %q and ParseFloat128 = %v", input, f0, s, f1)
+		}
+	})
 }
 
 func BenchmarkParseFloat128_Decimal(b *testing.B) {
