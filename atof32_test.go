@@ -31,3 +31,30 @@ func TestParseFloat32(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParseFloat32_Decimal(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat32("33909")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseFloat32_Float(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat32("339.778")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseFloat32_FloatExp(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat32("-5.09e-3")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

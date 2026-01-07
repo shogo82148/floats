@@ -110,3 +110,30 @@ func TestParseFloat16(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParseFloat16_Decimal(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat16("33909")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseFloat16_Float(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat16("339.778")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseFloat16_FloatExp(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat16("-5.09e-3")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
