@@ -83,6 +83,7 @@ func TestFloat256_Text(t *testing.T) {
 
 		/******* alternate formats *******/
 		{
+			// largest normal number
 			Float256{
 				0x7fff_efff_ffff_ffff, 0xffff_ffff_ffff_ffff,
 				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
@@ -90,6 +91,23 @@ func TestFloat256_Text(t *testing.T) {
 			"1.61132571748576047361957211845200501064402387454966951747637125049607183e+78913",
 		},
 		{
+			// smallest positive normal number
+			Float256{
+				0x0000_1000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			}, 'g', -1,
+			"2.48242795146434978829932822291387172367768770607964686927095329791378756e-78913",
+		},
+		{
+			// largest subnormal number
+			Float256{
+				0x0000_0fff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			}, 'g', -1,
+			"2.48242795146434978829932822291387172367768770607964686927095329791378754e-78913",
+		},
+		{
+			// smallest positive subnormal number
 			Float256{
 				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
 				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,

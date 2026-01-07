@@ -22,10 +22,38 @@ func TestParseFloat256(t *testing.T) {
 		{"1000", exact256(1000), nil},
 		{"10000", exact256(10000), nil},
 		{
+			// largest normal number
 			"1.61132571748576047361957211845200501064402387454966951747637125049607183e+78913",
 			Float256{
 				0x7fff_efff_ffff_ffff, 0xffff_ffff_ffff_ffff,
 				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+			nil,
+		},
+		{
+			// smallest positive normal number
+			"2.48242795146434978829932822291387172367768770607964686927095329791378756e-78913",
+			Float256{
+				0x0000_1000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			},
+			nil,
+		},
+		{
+			// largest subnormal number
+			"2.48242795146434978829932822291387172367768770607964686927095329791378754e-78913",
+			Float256{
+				0x0000_0fff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+			nil,
+		},
+		{
+			// smallest positive subnormal number
+			"2e-78984",
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
 			},
 			nil,
 		},
@@ -99,6 +127,15 @@ func TestParseFloat256(t *testing.T) {
 func BenchmarkParseFloat256_Decimal(b *testing.B) {
 	for b.Loop() {
 		_, err := ParseFloat256("33909")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseFloat256_BigDecimal(b *testing.B) {
+	for b.Loop() {
+		_, err := ParseFloat256("220855883097298041197912187592864814478435487109452369765200775161577472") // = 1 << 237
 		if err != nil {
 			b.Fatal(err)
 		}
