@@ -81,6 +81,39 @@ func TestFloat256_Text(t *testing.T) {
 		{exact256(0.0), 'b', -1, "0p-262378"},
 		{exact256(1.0), 'b', -1, "110427941548649020598956093796432407239217743554726184882600387580788736p-236"},
 
+		/******* alternate formats *******/
+		{
+			// largest normal number
+			Float256{
+				0x7fff_efff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			}, 'g', -1,
+			"1.61132571748576047361957211845200501064402387454966951747637125049607183e+78913",
+		},
+		{
+			// smallest positive normal number
+			Float256{
+				0x0000_1000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			}, 'g', -1,
+			"2.48242795146434978829932822291387172367768770607964686927095329791378756e-78913",
+		},
+		{
+			// largest subnormal number
+			Float256{
+				0x0000_0fff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			}, 'g', -1,
+			"2.48242795146434978829932822291387172367768770607964686927095329791378754e-78913",
+		},
+		{
+			// smallest positive subnormal number
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			}, 'g', -1, "2e-78984",
+		},
+
 		/******* hexadecimal formats *******/
 		{exact256(0), 'x', -1, "0x0p+00"},
 		{exact256(math.Inf(1)), 'x', -1, "+Inf"},
