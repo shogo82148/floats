@@ -193,7 +193,7 @@ func atof256Hex(s string, mantissa ints.Uint256, exp int, neg, trunc bool) (Floa
 		exp--
 	}
 	if trunc {
-		mantissa[1] |= 1
+		mantissa[3] |= 1
 	}
 	for !mantissa.Rsh(1 + shift256 + 2).IsZero() {
 		mantissa = mantissa.Rsh(1).Or(mantissa.And(one))
@@ -209,9 +209,9 @@ func atof256Hex(s string, mantissa ints.Uint256, exp int, neg, trunc bool) (Floa
 	}
 
 	// Round using two bottom bits.
-	round := mantissa[1] & 3
+	round := mantissa[3] & 3
 	mantissa = mantissa.Rsh(2)
-	round |= mantissa[1] & 1 // round to even (round up if mantissa is odd)
+	round |= mantissa[3] & 1 // round to even (round up if mantissa is odd)
 	exp += 2
 	if round == 3 {
 		mantissa = mantissa.Add(one)
