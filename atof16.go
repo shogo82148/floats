@@ -26,8 +26,8 @@ func atof16(s string) (Float16, int, error) {
 // The string s has already been parsed into a mantissa, exponent, and sign (neg==true for negative).
 // If trunc is true, trailing non-zero bits have been omitted from the mantissa.
 func atof16Hex(s string, mantissa uint64, exp int, neg, trunc bool) (Float16, error) {
-	maxExp := mask16 + bias16 - 2
-	minExp := bias16 + 1
+	const maxExp = mask16 - bias16 - 2
+	const minExp = -bias16 + 1
 	exp += shift16 // mantissa now implicitly divided by 2^shift16.
 
 	// Shift mantissa and exponent to bring representation into float range.
@@ -70,7 +70,7 @@ func atof16Hex(s string, mantissa uint64, exp int, neg, trunc bool) (Float16, er
 	}
 
 	if mantissa>>shift16 == 0 { // Denormal or zero.
-		exp = bias16
+		exp = -bias16
 	}
 	var err error
 	if exp > maxExp { // infinity and range error
@@ -80,7 +80,7 @@ func atof16Hex(s string, mantissa uint64, exp int, neg, trunc bool) (Float16, er
 	}
 
 	bits := mantissa & fracMask16
-	bits |= uint64((exp-bias16)&mask16) << shift16
+	bits |= uint64((exp+bias16)&mask16) << shift16
 	if neg {
 		bits |= signMask16
 	}
