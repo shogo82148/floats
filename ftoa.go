@@ -151,8 +151,10 @@ func fmtE(dst []byte, neg bool, d *decimal, prec int, fmt byte) []byte {
 		dst = append(dst, '0', byte(exp)+'0')
 	case exp < 100:
 		dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
+	case exp < 1000:
+		dst = append(dst, byte(exp/100)+'0', byte(exp/10%10)+'0', byte(exp%10)+'0')
 	default:
-		dst = append(dst, byte(exp/100)+'0', byte(exp/10)%10+'0', byte(exp%10)+'0')
+		dst = append(dst, byte(exp/1000)+'0', byte(exp/100%10)+'0', byte(exp/10%10)+'0', byte(exp%10)+'0')
 	}
 
 	return dst
