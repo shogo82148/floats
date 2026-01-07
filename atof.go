@@ -365,7 +365,7 @@ func special(s string) (f float64, n int, ok bool) {
 // The prefix argument must be all lower-case.
 func commonPrefixLenIgnoreCase(s, prefix string) int {
 	n := min(len(prefix), len(s))
-	for i := 0; i < n; i++ {
+	for i := range n {
 		c := s[i]
 		if 'A' <= c && c <= 'Z' {
 			c += 'a' - 'A'
