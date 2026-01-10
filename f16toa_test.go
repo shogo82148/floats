@@ -306,3 +306,100 @@ func TestFloat16_Text(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want string
+	}{
+		{exact16(0), "0"},
+		{exact16(-0), "0"},
+		{exact16(1), "1"},
+		{exact16(-1), "-1"},
+		{exact16(0.5), "0.5"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalJSON()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+
+	// JSON does not support NaN and Inf values.
+	var err error
+	_, err = exact16(math.NaN()).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact16(math.Inf(1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact16(math.Inf(-1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}
+
+func TestFloat16_MarshalText(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want string
+	}{
+		{exact16(0), "0"},
+		{exact16(-0), "0"},
+		{exact16(1), "1"},
+		{exact16(-1), "-1"},
+		{exact16(0.5), "0.5"},
+
+		// special values
+		{exact16(math.Inf(1)), "+Inf"},
+		{exact16(math.Inf(-1)), "-Inf"},
+		{exact16(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalText()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
+
+func TestFloat16_AppendText(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want string
+	}{
+		{exact16(0), "0"},
+		{exact16(-0), "0"},
+		{exact16(1), "1"},
+		{exact16(-1), "-1"},
+		{exact16(0.5), "0.5"},
+
+		// special values
+		{exact16(math.Inf(1)), "+Inf"},
+		{exact16(math.Inf(-1)), "-Inf"},
+		{exact16(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.AppendText(nil)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}

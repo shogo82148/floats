@@ -1,6 +1,10 @@
 package floats
 
-import "strconv"
+import (
+	"encoding"
+	"encoding/json"
+	"strconv"
+)
 
 const fnParseFloat16 = "ParseFloat16"
 
@@ -219,4 +223,28 @@ func ParseFloat16(s string) (Float16, error) {
 		return NewFloat16(0), syntaxError(fnParseFloat16, s)
 	}
 	return f, err
+}
+
+var _ json.Unmarshaler = (*Float16)(nil)
+
+// UnmarshalJSON implements [json.Unmarshaler].
+func (a *Float16) UnmarshalJSON(data []byte) error {
+	ret, err := ParseFloat16(string(data))
+	if err != nil {
+		return err
+	}
+	*a = ret
+	return nil
+}
+
+var _ encoding.TextUnmarshaler = (*Float16)(nil)
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (a *Float16) UnmarshalText(data []byte) error {
+	ret, err := ParseFloat16(string(data))
+	if err != nil {
+		return err
+	}
+	*a = ret
+	return nil
 }

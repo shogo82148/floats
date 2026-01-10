@@ -78,3 +78,100 @@ func TestFloat64_Text(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want string
+	}{
+		{exact64(0), "0"},
+		{exact64(-0), "0"},
+		{exact64(1), "1"},
+		{exact64(-1), "-1"},
+		{exact64(0.5), "0.5"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalJSON()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+
+	// JSON does not support NaN and Inf values.
+	var err error
+	_, err = exact64(math.NaN()).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact64(math.Inf(1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact64(math.Inf(-1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}
+
+func TestFloat64_MarshalText(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want string
+	}{
+		{exact64(0), "0"},
+		{exact64(-0), "0"},
+		{exact64(1), "1"},
+		{exact64(-1), "-1"},
+		{exact64(0.5), "0.5"},
+
+		// special values
+		{exact64(math.Inf(1)), "+Inf"},
+		{exact64(math.Inf(-1)), "-Inf"},
+		{exact64(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalText()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
+
+func TestFloat64_AppendText(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want string
+	}{
+		{exact64(0), "0"},
+		{exact64(-0), "0"},
+		{exact64(1), "1"},
+		{exact64(-1), "-1"},
+		{exact64(0.5), "0.5"},
+
+		// special values
+		{exact64(math.Inf(1)), "+Inf"},
+		{exact64(math.Inf(-1)), "-Inf"},
+		{exact64(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.AppendText(nil)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}

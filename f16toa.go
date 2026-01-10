@@ -3,6 +3,8 @@
 package floats
 
 import (
+	"encoding"
+	"encoding/json"
 	"fmt"
 )
 
@@ -331,4 +333,29 @@ func roundShortest16(d *decimal, frac uint16, exp int) {
 			return
 		}
 	}
+}
+
+var _ json.Marshaler = Float16(0)
+
+// MarshalJSON implements [json.Marshaler].
+func (a Float16) MarshalJSON() ([]byte, error) {
+	// JSON does not support NaN and Inf values.
+	if a.IsNaN() || a.IsInf(0) {
+		return nil, fmt.Errorf("floats: cannot marshal %v to JSON", a)
+	}
+	return a.Append(nil, 'g', -1), nil
+}
+
+var _ encoding.TextMarshaler = Float16(0)
+
+// MarshalText implements [encoding.TextMarshaler].
+func (a Float16) MarshalText() ([]byte, error) {
+	return a.Append(nil, 'g', -1), nil
+}
+
+var _ encoding.TextAppender = Float16(0)
+
+// AppendText implements [encoding.TextAppender].
+func (a Float16) AppendText(dst []byte) ([]byte, error) {
+	return a.Append(dst, 'g', -1), nil
 }

@@ -143,3 +143,100 @@ func TestFloat256_Text(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0), "0"},
+		{exact256(-0), "0"},
+		{exact256(1), "1"},
+		{exact256(-1), "-1"},
+		{exact256(0.5), "0.5"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalJSON()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+
+	// JSON does not support NaN and Inf values.
+	var err error
+	_, err = exact256(math.NaN()).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact256(math.Inf(1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = exact256(math.Inf(-1)).MarshalJSON()
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}
+
+func TestFloat256_MarshalText(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0), "0"},
+		{exact256(-0), "0"},
+		{exact256(1), "1"},
+		{exact256(-1), "-1"},
+		{exact256(0.5), "0.5"},
+
+		// special values
+		{exact256(math.Inf(1)), "+Inf"},
+		{exact256(math.Inf(-1)), "-Inf"},
+		{exact256(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.MarshalText()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
+
+func TestFloat256_AppendText(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0), "0"},
+		{exact256(-0), "0"},
+		{exact256(1), "1"},
+		{exact256(-1), "-1"},
+		{exact256(0.5), "0.5"},
+
+		// special values
+		{exact256(math.Inf(1)), "+Inf"},
+		{exact256(math.Inf(-1)), "-Inf"},
+		{exact256(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		got, err := tt.x.AppendText(nil)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			continue
+		}
+		if string(got) != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
