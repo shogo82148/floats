@@ -23,3 +23,14 @@ func (a Float256) Floor() Float256 {
 	d, _ := a.Modf()
 	return d
 }
+
+// Ceil returns the least integer value greater than or equal to a.
+//
+// Special cases are:
+//
+//	±0.Ceil() = ±0
+//	±Inf.Ceil() = ±Inf
+//	NaN.Ceil() = NaN
+func (a Float256) Ceil() Float256 {
+	return a.Neg().Floor().Neg()
+}
