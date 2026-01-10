@@ -25,7 +25,7 @@ func TestFloat16_Floor(t *testing.T) {
 
 	for _, tt := range tests {
 		got := tt.x.Floor()
-		if got != tt.want {
+		if !eq16(got, tt.want) {
 			t.Errorf("Float16.Floor(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
