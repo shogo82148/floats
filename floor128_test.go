@@ -52,7 +52,7 @@ func TestFloat128_Ceil(t *testing.T) {
 	for _, tt := range tests {
 		got := tt.x.Ceil()
 		if !eq128(got, tt.want) {
-			t.Errorf("Float128.Floor(%v) = %v; want %v", tt.x, got, tt.want)
+			t.Errorf("Float128.Ceil(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
 }
