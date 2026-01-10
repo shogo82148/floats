@@ -176,3 +176,69 @@ func BenchmarkParseFloat128_FloatExp(b *testing.B) {
 		}
 	}
 }
+
+func TestFloat128_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Float128
+	}{
+		{"0", exact128(0)},
+		{"1.5", exact128(1.5)},
+		{"-2.75", exact128(-2.75)},
+	}
+
+	for _, tt := range tests {
+		var f Float128
+		err := f.UnmarshalJSON([]byte(tt.input))
+		if err != nil {
+			t.Errorf("Float128.UnmarshalJSON(%q) unexpected error: %v", tt.input, err)
+			continue
+		}
+		if !eq128(f, tt.want) {
+			t.Errorf("Float128.UnmarshalJSON(%q) = %v; want %v", tt.input, f, tt.want)
+		}
+	}
+
+	// invalid input does not modify the receiver
+	f := exact128(1.5)
+	err := f.UnmarshalJSON([]byte("invalid"))
+	if err == nil {
+		t.Errorf("Float128.UnmarshalJSON(%q) expected error, got nil", "invalid")
+	}
+	if !eq128(f, exact128(1.5)) {
+		t.Errorf("Float128.UnmarshalJSON(%q) modified receiver on error: got %v, want %v", "invalid", f, exact128(1.5))
+	}
+}
+
+func TestFloat128_UnmarshalText(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Float128
+	}{
+		{"0", exact128(0)},
+		{"1.5", exact128(1.5)},
+		{"-2.75", exact128(-2.75)},
+	}
+
+	for _, tt := range tests {
+		var f Float128
+		err := f.UnmarshalText([]byte(tt.input))
+		if err != nil {
+			t.Errorf("Float128.UnmarshalText(%q) unexpected error: %v", tt.input, err)
+			continue
+		}
+		if !eq128(f, tt.want) {
+			t.Errorf("Float128.UnmarshalText(%q) = %v; want %v", tt.input, f, tt.want)
+		}
+	}
+
+	// invalid input does not modify the receiver
+	f := exact128(1.5)
+	err := f.UnmarshalText([]byte("invalid"))
+	if err == nil {
+		t.Errorf("Float128.UnmarshalText(%q) expected error, got nil", "invalid")
+	}
+	if !eq128(f, exact128(1.5)) {
+		t.Errorf("Float128.UnmarshalText(%q) modified receiver on error: got %v, want %v", "invalid", f, exact128(1.5))
+	}
+}

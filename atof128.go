@@ -1,6 +1,8 @@
 package floats
 
 import (
+	"encoding"
+	"encoding/json"
 	"strconv"
 
 	"github.com/shogo82148/ints"
@@ -363,4 +365,28 @@ func ParseFloat128(s string) (Float128, error) {
 		return NewFloat128(0), syntaxError(fnParseFloat128, s)
 	}
 	return f, err
+}
+
+var _ json.Unmarshaler = (*Float128)(nil)
+
+// UnmarshalJSON implements [json.Unmarshaler].
+func (a *Float128) UnmarshalJSON(data []byte) error {
+	ret, err := ParseFloat128(string(data))
+	if err != nil {
+		return err
+	}
+	*a = ret
+	return nil
+}
+
+var _ encoding.TextUnmarshaler = (*Float128)(nil)
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (a *Float128) UnmarshalText(data []byte) error {
+	ret, err := ParseFloat128(string(data))
+	if err != nil {
+		return err
+	}
+	*a = ret
+	return nil
 }
