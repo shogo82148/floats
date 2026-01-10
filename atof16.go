@@ -225,7 +225,7 @@ func ParseFloat16(s string) (Float16, error) {
 	return f, err
 }
 
-var _ json.Unmarshaler = (*Float32)(nil)
+var _ json.Unmarshaler = (*Float16)(nil)
 
 // UnmarshalJSON implements [json.Unmarshaler].
 func (a *Float16) UnmarshalJSON(data []byte) error {

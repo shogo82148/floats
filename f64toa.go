@@ -41,7 +41,7 @@ func (a Float64) MarshalJSON() ([]byte, error) {
 	return a.Append(nil, 'g', -1), nil
 }
 
-var _ encoding.TextMarshaler = Float32(0)
+var _ encoding.TextMarshaler = Float64(0)
 
 // MarshalText implements [encoding.TextMarshaler].
 func (a Float64) MarshalText() ([]byte, error) {
