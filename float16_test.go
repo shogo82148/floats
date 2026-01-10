@@ -587,3 +587,77 @@ func BenchmarkFMA16(b *testing.B) {
 		runtime.KeepAlive(FMA16(f, f, f))
 	}
 }
+
+func TestFloat16_Modf(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
+	tests := []struct {
+		in       Float16
+		wantInt  Float16
+		wantFrac Float16
+	}{
+		{exact16(3.75), exact16(3.0), exact16(0.75)},
+
+		// a < 0
+		{exact16(-2.5), exact16(-2.0), exact16(-0.5)},
+		{exact16(-0.5), exact16(math.Copysign(0, -1)), exact16(-0.5)},
+
+		// a == 0
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+		{exact16(0), exact16(0), exact16(0)},
+
+		// 0 < a < 1
+		{exact16(0.5), exact16(0), exact16(0.5)},
+
+		// special cases
+		{exact16(math.Inf(1)), exact16(math.Inf(1)), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(math.NaN()), exact16(math.NaN())},
+	}
+	for _, test := range tests {
+		optimized = false
+		intPart1, fracPart1 := test.in.Modf()
+		optimized = true
+		intPart2, fracPart2 := test.in.Modf()
+
+		if !eq16(intPart1, test.wantInt) || !eq16(fracPart1, test.wantFrac) {
+			t.Errorf("Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart1, fracPart1, test.wantInt, test.wantFrac)
+		}
+		if !eq16(intPart2, test.wantInt) || !eq16(fracPart2, test.wantFrac) {
+			t.Errorf("optimized Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart2, fracPart2, test.wantInt, test.wantFrac)
+		}
+	}
+}
+
+func TestFloat16_Modf_All(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
+	for i := range 0x10000 {
+		f := Float16(i)
+		optimized = false
+		intPart1, fracPart1 := f.Modf()
+		optimized = true
+		intPart2, fracPart2 := f.Modf()
+		if !eq16(intPart1, intPart2) || !eq16(fracPart1, fracPart2) {
+			t.Errorf("Float16(%x).Modf() mismatch between optimized and non-optimized: (%x, %x) vs (%x, %x)", f, intPart1, fracPart1, intPart2, fracPart2)
+		}
+	}
+}
+
+func BenchmarkFloat16_Modf(b *testing.B) {
+	optimized = false
+	b.Cleanup(func() { optimized = true })
+	f := exact16(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}
+
+func BenchmarkFloat16_Modf_Optimized(b *testing.B) {
+	f := exact16(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}

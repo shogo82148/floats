@@ -276,3 +276,40 @@ func FMA32(x, y, z Float32) Float32 {
 	}
 	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
 }
+
+// Modf returns integer and fractional floating-point numbers
+// that sum to f. Both values have the same sign as f.
+//
+// Special cases are:
+//
+//	Modf(±Inf) = ±Inf, NaN
+//	Modf(NaN) = NaN, NaN
+func (a Float32) Modf() (int Float32, frac Float32) {
+	if optimized {
+		fint, ffrac := math.Modf(a.Float64().BuiltIn())
+		return NewFloat32(fint), NewFloat32(ffrac)
+	}
+
+	if a.Lt(Float32(1)) { // a < 1
+		switch {
+		case a.Lt(Float32(0)): // a < 0
+			int, frac = a.Neg().Modf()
+			return int.Neg(), frac.Neg()
+		case a.IsZero(): // a == 0
+			return a, a
+		default: // 0 < a < 1
+			return Float32(0), a
+		}
+	}
+
+	x := a.Bits()
+	e := uint((x>>shift32)&mask32) - bias32
+
+	// Keep the top 9+e bits, the integer part; clear the rest.
+	if e < shift32 {
+		x &^= 1<<(shift32-e) - 1
+	}
+	int = NewFloat32FromBits(x)
+	frac = a.Sub(int)
+	return
+}

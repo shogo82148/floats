@@ -644,3 +644,44 @@ func BenchmarkFMA64(b *testing.B) {
 		runtime.KeepAlive(FMA64(f, f, f))
 	}
 }
+
+func TestFloat64_Modf(t *testing.T) {
+	tests := []struct {
+		in       Float64
+		wantInt  Float64
+		wantFrac Float64
+	}{
+		{exact64(3.75), exact64(3.0), exact64(0.75)},
+
+		// a < 0
+		{exact64(-2.5), exact64(-2.0), exact64(-0.5)},
+		{exact64(-0.5), exact64(math.Copysign(0, -1)), exact64(-0.5)},
+
+		// a == 0
+		{exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1))},
+		{exact64(0), exact64(0), exact64(0)},
+
+		// 0 < a < 1
+		{exact64(0.5), exact64(0), exact64(0.5)},
+
+		// special cases
+		{exact64(math.Inf(1)), exact64(math.Inf(1)), exact64(math.NaN())},
+		{exact64(math.Inf(-1)), exact64(math.Inf(-1)), exact64(math.NaN())},
+		{exact64(math.NaN()), exact64(math.NaN()), exact64(math.NaN())},
+	}
+	for _, test := range tests {
+		gotInt, gotFrac := test.in.Modf()
+		if !eq64(gotInt, test.wantInt) || !eq64(gotFrac, test.wantFrac) {
+			t.Errorf("Float64(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
+		}
+	}
+}
+
+func BenchmarkFloat64_Modf(b *testing.B) {
+	f := exact64(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}

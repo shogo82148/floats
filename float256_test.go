@@ -2648,3 +2648,44 @@ func BenchmarkFMA256(b *testing.B) {
 		runtime.KeepAlive(FMA256(f, f, f))
 	}
 }
+
+func TestFloat256_Modf(t *testing.T) {
+	tests := []struct {
+		in       Float256
+		wantInt  Float256
+		wantFrac Float256
+	}{
+		{exact256(3.75), exact256(3.0), exact256(0.75)},
+
+		// a < 0
+		{exact256(-2.5), exact256(-2.0), exact256(-0.5)},
+		{exact256(-0.5), exact256(math.Copysign(0, -1)), exact256(-0.5)},
+
+		// a == 0
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+		{exact256(0), exact256(0), exact256(0)},
+
+		// 0 < a < 1
+		{exact256(0.5), exact256(0), exact256(0.5)},
+
+		// special cases
+		{exact256(math.Inf(1)), exact256(math.Inf(1)), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(math.Inf(-1)), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(math.NaN()), exact256(math.NaN())},
+	}
+	for _, test := range tests {
+		gotInt, gotFrac := test.in.Modf()
+		if !eq256(gotInt, test.wantInt) || !eq256(gotFrac, test.wantFrac) {
+			t.Errorf("Float256(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
+		}
+	}
+}
+
+func BenchmarkFloat256_Modf(b *testing.B) {
+	f := exact256(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}

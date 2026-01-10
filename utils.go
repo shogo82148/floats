@@ -4,6 +4,8 @@ import (
 	"github.com/shogo82148/ints"
 )
 
+var optimized = true
+
 var lowerHex = "0123456789abcdef"
 var upperHex = "0123456789ABCDEF"
 

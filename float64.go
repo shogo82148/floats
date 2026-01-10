@@ -172,3 +172,15 @@ func (a Float64) Ge(b Float64) bool {
 func FMA64(x, y, z Float64) Float64 {
 	return Float64(math.FMA(float64(x), float64(y), float64(z)))
 }
+
+// Modf returns integer and fractional floating-point numbers
+// that sum to f. Both values have the same sign as f.
+//
+// Special cases are:
+//
+//	Modf(±Inf) = ±Inf, NaN
+//	Modf(NaN) = NaN, NaN
+func (a Float64) Modf() (int Float64, frac Float64) {
+	fint, ffrac := math.Modf(a.BuiltIn())
+	return NewFloat64(fint), NewFloat64(ffrac)
+}
