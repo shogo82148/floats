@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 // Dim returns the maximum of a-b or 0.
 //
 // Special cases are:
@@ -20,4 +22,33 @@ func (a Float16) Dim(b Float16) Float16 {
 	}
 	// v is positive or NaN
 	return v
+}
+
+// Max returns the larger of a or b.
+//
+// Special cases are:
+//
+//	x.Max(+Inf) = +Inf.Max(x) = +Inf
+//	x.Max(NaN) = NaN.Max(x) = NaN
+//	+0.Max(±0) = ±0.Max(+0) = +0
+//	-0.Max(-0) = -0
+//
+// Note that this differs from the built-in function max when called
+// with NaN and +Inf.
+func (a Float16) Max(b Float16) Float16 {
+	return NewFloat16(math.Max(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+}
+
+// Min returns the smaller of a or b.
+//
+// Special cases are:
+//
+//	x.Min(-Inf) = -Inf.Min(x) = -Inf
+//	x.Min(NaN) = NaN.Min(x) = NaN
+//	-0.Min(±0) = ±0.Min(-0) = -0
+//
+// Note that this differs from the built-in function min when called
+// with NaN and -Inf.
+func (a Float16) Min(b Float16) Float16 {
+	return NewFloat16(math.Min(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
 }

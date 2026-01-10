@@ -29,3 +29,57 @@ func TestFloat16_Dim(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Max(t *testing.T) {
+	tests := []struct {
+		a    Float16
+		b    Float16
+		want Float16
+	}{
+		{exact16(5.0), exact16(3.0), exact16(5.0)},
+		{exact16(3.0), exact16(5.0), exact16(5.0)},
+		{exact16(3.0), exact16(3.0), exact16(3.0)},
+
+		// Special cases
+		{exact16(1), exact16(math.Inf(1)), exact16(math.Inf(1))},
+		{exact16(math.Inf(1)), exact16(1), exact16(math.Inf(1))},
+		{exact16(math.NaN()), exact16(1), exact16(math.NaN())},
+		{exact16(1), exact16(math.NaN()), exact16(math.NaN())},
+		{exact16(0), exact16(math.Copysign(0, -1)), exact16(0)},
+		{exact16(math.Copysign(0, -1)), exact16(0), exact16(0)},
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Max(tt.b)
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16.Max(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func TestFloat16_Min(t *testing.T) {
+	tests := []struct {
+		a    Float16
+		b    Float16
+		want Float16
+	}{
+		{exact16(5.0), exact16(3.0), exact16(3.0)},
+		{exact16(3.0), exact16(5.0), exact16(3.0)},
+		{exact16(3.0), exact16(3.0), exact16(3.0)},
+
+		// Special cases
+		{exact16(1), exact16(math.Inf(-1)), exact16(math.Inf(-1))},
+		{exact16(math.Inf(-1)), exact16(1), exact16(math.Inf(-1))},
+		{exact16(math.NaN()), exact16(1), exact16(math.NaN())},
+		{exact16(1), exact16(math.NaN()), exact16(math.NaN())},
+		{exact16(0), exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+		{exact16(math.Copysign(0, -1)), exact16(0), exact16(math.Copysign(0, -1))},
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Min(tt.b)
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16.Min(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
