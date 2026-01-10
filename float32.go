@@ -283,6 +283,17 @@ func FMA32(x, y, z Float32) Float32 {
 	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
 }
 
+// Nextafter returns the next representable float16 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float32) Nextafter(b Float32) (r Float32) {
+	return Float32(math.Nextafter32(a.BuiltIn(), b.BuiltIn()))
+}
+
 // Modf returns integer and fractional floating-point numbers
 // that sum to f. Both values have the same sign as f.
 //

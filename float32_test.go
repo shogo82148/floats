@@ -667,6 +667,30 @@ func BenchmarkFMA32(b *testing.B) {
 	}
 }
 
+func TestFloat32_Nextafter(t *testing.T) {
+	tests := []struct {
+		x, y, want Float32
+	}{
+		{exact32(0), exact32(1), exact32(0x1p-149)},
+		{exact32(0), exact32(-1), exact32(-0x1p-149)},
+		{exact32(1), exact32(2), exact32(0x1.000002p+00)},
+		{exact32(1), exact32(0), exact32(0x1.fffffep-01)},
+		{exact32(-1), exact32(-2), exact32(-0x1.000002p+00)},
+		{exact32(-1), exact32(0), exact32(-0x1.fffffep-01)},
+
+		// special cases
+		{exact32(1), exact32(1), exact32(1)},
+		{exact32(math.NaN()), exact32(1), exact32(math.NaN())},
+		{exact32(1), exact32(math.NaN()), exact32(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.x.Nextafter(test.y)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Nextafter(%x) = %x, want %x", test.x, test.y, got, test.want)
+		}
+	}
+}
+
 func TestFloat32_Modf(t *testing.T) {
 	t.Cleanup(func() { optimized = true })
 	tests := []struct {
