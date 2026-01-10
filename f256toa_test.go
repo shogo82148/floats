@@ -169,15 +169,15 @@ func TestFloat256_MarshalJSON(t *testing.T) {
 
 	// JSON does not support NaN and Inf values.
 	var err error
-	_, err = exact128(math.NaN()).MarshalJSON()
+	_, err = exact256(math.NaN()).MarshalJSON()
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
-	_, err = exact128(math.Inf(1)).MarshalJSON()
+	_, err = exact256(math.Inf(1)).MarshalJSON()
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
-	_, err = exact128(math.Inf(-1)).MarshalJSON()
+	_, err = exact256(math.Inf(-1)).MarshalJSON()
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
