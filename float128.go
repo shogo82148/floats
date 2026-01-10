@@ -617,7 +617,7 @@ func (a Float128) Modf() (int Float128, frac Float128) {
 	x := a.Bits()
 	e := uint(x.Rsh(shift128).Uint32().And(mask128)) - bias128
 
-	// Keep the top 6+e bits, the integer part; clear the rest.
+	// Keep the top 16+e bits, the integer part; clear the rest.
 	if e < shift128 {
 		one := ints.Uint128{0, 1}
 		x = x.AndNot(one.Lsh(shift128 - e).Sub(one))

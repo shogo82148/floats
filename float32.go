@@ -305,7 +305,7 @@ func (a Float32) Modf() (int Float32, frac Float32) {
 	x := a.Bits()
 	e := uint((x>>shift32)&mask32) - bias32
 
-	// Keep the top 6+e bits, the integer part; clear the rest.
+	// Keep the top 9+e bits, the integer part; clear the rest.
 	if e < shift32 {
 		x &^= 1<<(shift32-e) - 1
 	}

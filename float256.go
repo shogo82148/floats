@@ -661,7 +661,7 @@ func (a Float256) Modf() (int Float256, frac Float256) {
 	x := a.Bits()
 	e := uint((a[0]>>(shift256-192))&mask256) - bias256
 
-	// Keep the top 6+e bits, the integer part; clear the rest.
+	// Keep the top 20+e bits, the integer part; clear the rest.
 	if e < shift256 {
 		one := ints.Uint256{0, 0, 0, 1}
 		x = x.AndNot(one.Lsh(shift256 - e).Sub(one))
