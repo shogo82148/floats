@@ -649,7 +649,7 @@ func FMA256(x, y, z Float256) Float256 {
 	}
 }
 
-// Nextafter returns the next representable float16 value after a towards b.
+// Nextafter returns the next representable float256 value after a towards b.
 //
 // Special cases are:
 //
