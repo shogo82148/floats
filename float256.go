@@ -23,6 +23,10 @@ var (
 		0x7fff_f800_0000_0000, 0x0000_0000_0000_0000,
 		0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
 	}
+	uvone256 = ints.Uint256{
+		0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
+		0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	}
 	// mask for sign bit
 	signMask256 = ints.Uint256{
 		0x8000_0000_0000_0000, 0x0000_0000_0000_0000,
@@ -632,4 +636,37 @@ func FMA256(x, y, z Float256) Float256 {
 		frac[2],
 		frac[3],
 	}
+}
+
+// Modf returns integer and fractional floating-point numbers
+// that sum to f. Both values have the same sign as f.
+//
+// Special cases are:
+//
+//	Modf(±Inf) = ±Inf, NaN
+//	Modf(NaN) = NaN, NaN
+func (a Float256) Modf() (int Float256, frac Float256) {
+	if a.Lt(Float256(uvone256)) { // a < 1
+		switch {
+		case a.Lt(Float256{}): // a < 0
+			int, frac = a.Neg().Modf()
+			return int.Neg(), frac.Neg()
+		case a.IsZero(): // a == 0
+			return a, a
+		default: // 0 < a < 1
+			return Float256{}, a
+		}
+	}
+
+	x := a.Bits()
+	e := uint((a[0]>>(shift256-192))&mask256) - bias256
+
+	// Keep the top 6+e bits, the integer part; clear the rest.
+	if e < shift256 {
+		one := ints.Uint256{0, 0, 0, 1}
+		x = x.AndNot(one.Lsh(shift256 - e).Sub(one))
+	}
+	int = Float256(x)
+	frac = a.Sub(int)
+	return
 }
