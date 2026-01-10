@@ -23,3 +23,14 @@ func (a Float16) Floor() Float16 {
 func (a Float16) Ceil() Float16 {
 	return NewFloat16(math.Ceil(a.Float64().BuiltIn()))
 }
+
+// Trunc returns the integer value of a.
+//
+// Special cases are:
+//
+//	±0.Trunc() = ±0
+//	±Inf.Trunc() = ±Inf
+//	NaN.Trunc() = NaN
+func (a Float16) Trunc() Float16 {
+	return NewFloat16(math.Trunc(a.Float64().BuiltIn()))
+}

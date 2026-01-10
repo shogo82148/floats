@@ -56,3 +56,29 @@ func TestFloat32_Ceil(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Trunc(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want Float32
+	}{
+		{exact32(3.0), exact32(3)},
+		{exact32(3.5), exact32(3)},
+		{exact32(-3.0), exact32(-3)},
+		{exact32(-3.5), exact32(-3)},
+
+		// Special cases
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(math.Inf(-1))},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Trunc()
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Trunc(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

@@ -34,3 +34,18 @@ func (a Float128) Floor() Float128 {
 func (a Float128) Ceil() Float128 {
 	return a.Neg().Floor().Neg()
 }
+
+// Trunc returns the integer value of a.
+//
+// Special cases are:
+//
+//	±0.Trunc() = ±0
+//	±Inf.Trunc() = ±Inf
+//	NaN.Trunc() = NaN
+func (a Float128) Trunc() Float128 {
+	if a.IsZero() || a.IsNaN() || a.IsInf(0) {
+		return a
+	}
+	d, _ := a.Modf()
+	return d
+}
