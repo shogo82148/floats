@@ -82,3 +82,64 @@ func TestFloat256_Trunc(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_Round(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want Float256
+	}{
+		{exact256(0.25), exact256(0)},
+		{exact256(0.5), exact256(1)},
+		{exact256(3.0), exact256(3)},
+		{exact256(3.5), exact256(4)},
+		{exact256(4.5), exact256(5)},
+		{exact256(-3.0), exact256(-3)},
+		{exact256(-3.5), exact256(-4)},
+		{exact256(-4.5), exact256(-5)},
+
+		// Special cases
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.Inf(-1))},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Round()
+		if !eq256(got, tt.want) {
+			t.Errorf("Float256.Round(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func TestFloat256_RoundToEven(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want Float256
+	}{
+		{exact256(0.25), exact256(0)},
+		{exact256(0.5), exact256(0)},
+		{exact256(0.75), exact256(1)},
+		{exact256(3.0), exact256(3)},
+		{exact256(3.5), exact256(4)},
+		{exact256(4.5), exact256(4)},
+		{exact256(-3.0), exact256(-3)},
+		{exact256(-3.5), exact256(-4)},
+		{exact256(-4.5), exact256(-4)},
+
+		// Special cases
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.Inf(-1))},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.RoundToEven()
+		if !eq256(got, tt.want) {
+			t.Errorf("Float256.RoundToEven(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
