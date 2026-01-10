@@ -1,6 +1,7 @@
 package floats
 
 import (
+	"math"
 	"runtime"
 	"testing"
 )
@@ -181,6 +182,26 @@ func BenchmarkFloat128_Neg(b *testing.B) {
 	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Neg())
+	}
+}
+
+func TestFloat128_Abs(t *testing.T) {
+	tests := []struct {
+		a, want Float128
+	}{
+		{exact128(1.0), exact128(1.0)},
+		{exact128(-1.0), exact128(1.0)},
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(0)},
+		{exact128(math.Inf(1)), exact128(math.Inf(1))},
+		{exact128(math.Inf(-1)), exact128(math.Inf(1))},
+		{exact128(math.NaN()), exact128(math.NaN())},
+	}
+	for _, tt := range tests {
+		got := tt.a.Abs()
+		if !eq128(got, tt.want) {
+			t.Errorf("Float128.Abs() = %x, want %x", got, tt.want)
+		}
 	}
 }
 

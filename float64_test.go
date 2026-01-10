@@ -161,6 +161,26 @@ func TestFloat64_Neg(t *testing.T) {
 	}
 }
 
+func TestFloat64_Abs(t *testing.T) {
+	tests := []struct {
+		a, want Float64
+	}{
+		{exact64(1.0), exact64(1.0)},
+		{exact64(-1.0), exact64(1.0)},
+		{exact64(0), exact64(0)},
+		{exact64(math.Copysign(0, -1)), exact64(0)},
+		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), exact64(math.Inf(1))},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+	for _, tt := range tests {
+		got := tt.a.Abs()
+		if !eq64(got, tt.want) {
+			t.Errorf("Float64.Abs() = %x, want %x", got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat64_Neg(b *testing.B) {
 	f := Float64(1.0)
 	for b.Loop() {

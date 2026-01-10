@@ -164,6 +164,26 @@ func TestFloat32_Neg(t *testing.T) {
 	}
 }
 
+func TestFloat32_Abs(t *testing.T) {
+	tests := []struct {
+		a, want Float32
+	}{
+		{exact32(1.0), exact32(1.0)},
+		{exact32(-1.0), exact32(1.0)},
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(0)},
+		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(math.Inf(1))},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+	for _, tt := range tests {
+		got := tt.a.Abs()
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Abs() = %x, want %x", got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat32_Neg(b *testing.B) {
 	f := Float32(1.0)
 	for b.Loop() {
