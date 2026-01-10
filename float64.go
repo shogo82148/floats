@@ -32,6 +32,11 @@ func NewFloat64NaN() Float64 {
 	return Float64(math.NaN())
 }
 
+// NewFloat64Inf positive infinity if sign >= 0, negative infinity if sign < 0.
+func NewFloat64Inf(sign int) Float64 {
+	return Float64(math.Inf(sign))
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float64) Bits() uint64 {
 	return math.Float64bits(float64(a))

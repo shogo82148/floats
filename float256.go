@@ -56,6 +56,14 @@ func NewFloat256NaN() Float256 {
 	return Float256(uvnan256)
 }
 
+// NewFloat256Inf positive infinity if sign >= 0, negative infinity if sign < 0.
+func NewFloat256Inf(sign int) Float256 {
+	if sign >= 0 {
+		return Float256(uvinf256)
+	}
+	return Float256(uvneginf256)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float256) Bits() ints.Uint256 {
 	return ints.Uint256(a)

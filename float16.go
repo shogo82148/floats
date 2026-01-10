@@ -35,6 +35,14 @@ func NewFloat16NaN() Float16 {
 	return uvnan16
 }
 
+// NewFloat16Inf positive infinity if sign >= 0, negative infinity if sign < 0.
+func NewFloat16Inf(sign int) Float16 {
+	if sign >= 0 {
+		return uvinf16
+	}
+	return uvneginf16
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float16) Bits() uint16 {
 	return uint16(a)
