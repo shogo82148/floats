@@ -646,7 +646,6 @@ func BenchmarkFMA64(b *testing.B) {
 }
 
 func TestFloat64_Modf(t *testing.T) {
-	t.Cleanup(func() { optimized = true })
 	tests := []struct {
 		in       Float64
 		wantInt  Float64
@@ -671,16 +670,9 @@ func TestFloat64_Modf(t *testing.T) {
 		{exact64(math.NaN()), exact64(math.NaN()), exact64(math.NaN())},
 	}
 	for _, test := range tests {
-		optimized = false
-		intPart1, fracPart1 := test.in.Modf()
-		optimized = true
-		intPart2, fracPart2 := test.in.Modf()
-
-		if !eq64(intPart1, test.wantInt) || !eq64(fracPart1, test.wantFrac) {
-			t.Errorf("Float64(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart1, fracPart1, test.wantInt, test.wantFrac)
-		}
-		if !eq64(intPart2, test.wantInt) || !eq64(fracPart2, test.wantFrac) {
-			t.Errorf("optimized Float64(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart2, fracPart2, test.wantInt, test.wantFrac)
+		gotInt, gotFrac := test.in.Modf()
+		if !eq64(gotInt, test.wantInt) || !eq64(gotFrac, test.wantFrac) {
+			t.Errorf("Float64(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
 		}
 	}
 }

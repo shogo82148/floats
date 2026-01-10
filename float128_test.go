@@ -1127,3 +1127,44 @@ func BenchmarkFMA128(b *testing.B) {
 		runtime.KeepAlive(FMA128(f, f, f))
 	}
 }
+
+func TestFloat128_Modf(t *testing.T) {
+	tests := []struct {
+		in       Float128
+		wantInt  Float128
+		wantFrac Float128
+	}{
+		{exact128(3.75), exact128(3.0), exact128(0.75)},
+
+		// a < 0
+		{exact128(-2.5), exact128(-2.0), exact128(-0.5)},
+		{exact128(-0.5), exact128(math.Copysign(0, -1)), exact128(-0.5)},
+
+		// a == 0
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+		{exact128(0), exact128(0), exact128(0)},
+
+		// 0 < a < 1
+		{exact128(0.5), exact128(0), exact128(0.5)},
+
+		// special cases
+		{exact128(math.Inf(1)), exact128(math.Inf(1)), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(math.Inf(-1)), exact128(math.NaN())},
+		{exact128(math.NaN()), exact128(math.NaN()), exact128(math.NaN())},
+	}
+	for _, test := range tests {
+		gotInt, gotFrac := test.in.Modf()
+		if !eq128(gotInt, test.wantInt) || !eq128(gotFrac, test.wantFrac) {
+			t.Errorf("Float128(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
+		}
+	}
+}
+
+func BenchmarkFloat128_Modf(b *testing.B) {
+	f := exact128(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}

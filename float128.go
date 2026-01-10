@@ -14,7 +14,7 @@ var (
 	uvinf128    = ints.Uint128{0x7fff_0000_0000_0000, 0x0000_0000_0000_0000} // Infinity value for Float128
 	uvneginf128 = ints.Uint128{0xffff_0000_0000_0000, 0x0000_0000_0000_0000} // Negative Infinity value for Float128
 	uvnan128    = ints.Uint128{0x7fff_8000_0000_0000, 0x0000_0000_0000_0000} // NaN value for Float128
-	// uvone128    = ints.Uint128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // One value for Float128
+	uvone128    = ints.Uint128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // One value for Float128
 
 	signMask128 = ints.Uint128{0x8000_0000_0000_0000, 0x0000_0000_0000_0000} // mask for sign bit
 	fracMask128 = ints.Uint128{0x0000_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}
@@ -592,4 +592,37 @@ func FMA128(x, y, z Float128) Float128 {
 		signP | uint64(expP)<<(shift128-64) | frac[0]&fracMask128[0],
 		frac[1] & fracMask128[1],
 	}
+}
+
+// Modf returns integer and fractional floating-point numbers
+// that sum to f. Both values have the same sign as f.
+//
+// Special cases are:
+//
+//	Modf(±Inf) = ±Inf, NaN
+//	Modf(NaN) = NaN, NaN
+func (a Float128) Modf() (int Float128, frac Float128) {
+	if a.Lt(Float128(uvone128)) { // a < 1
+		switch {
+		case a.Lt(Float128{}): // a < 0
+			int, frac = a.Neg().Modf()
+			return int.Neg(), frac.Neg()
+		case a.IsZero(): // a == 0
+			return a, a
+		default: // 0 < a < 1
+			return Float128{}, a
+		}
+	}
+
+	x := a.Bits()
+	e := uint(x.Rsh(shift128).Uint32().And(mask128)) - bias128
+
+	// Keep the top 6+e bits, the integer part; clear the rest.
+	if e < shift128 {
+		one := ints.Uint128{0, 1}
+		x = x.AndNot(one.Lsh(shift128 - e).Sub(one))
+	}
+	int = Float128(x)
+	frac = a.Sub(int)
+	return
 }
