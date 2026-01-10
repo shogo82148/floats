@@ -1157,6 +1157,8 @@ func TestFloat128_Nextafter(t *testing.T) {
 
 		// special cases
 		{exact128(1), exact128(1), exact128(1)},
+		{exact128(0), exact128(0), exact128(0)},
+		{exact128(0), exact128(math.Copysign(0, -1)), exact128(0)},
 		{exact128(math.NaN()), exact128(1), exact128(math.NaN())},
 		{exact128(1), exact128(math.NaN()), exact128(math.NaN())},
 	}

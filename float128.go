@@ -616,7 +616,7 @@ func (a Float128) Nextafter(b Float128) (r Float128) {
 	switch {
 	case a.IsNaN() || b.IsNaN(): // special case
 		r = NewFloat128NaN()
-	case a == b: // special case
+	case a.Eq(b): // special case
 		r = a
 	case a.IsZero():
 		r = Float128{0, 1}.Copysign(b)
