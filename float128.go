@@ -605,7 +605,7 @@ func FMA128(x, y, z Float128) Float128 {
 	}
 }
 
-// Nextafter returns the next representable float16 value after a towards b.
+// Nextafter returns the next representable float128 value after a towards b.
 //
 // Special cases are:
 //
