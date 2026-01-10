@@ -283,7 +283,7 @@ func FMA32(x, y, z Float32) Float32 {
 	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
 }
 
-// Nextafter returns the next representable float16 value after a towards b.
+// Nextafter returns the next representable float32 value after a towards b.
 //
 // Special cases are:
 //
