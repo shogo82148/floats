@@ -27,6 +27,11 @@ func NewFloat64FromBits(b uint64) Float64 {
 	return Float64(math.Float64frombits(b))
 }
 
+// NewFloat64NaN returns a NaN Float64 value.
+func NewFloat64NaN() Float64 {
+	return Float64(math.NaN())
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float64) Bits() uint64 {
 	return math.Float64bits(float64(a))

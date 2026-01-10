@@ -30,6 +30,11 @@ func NewFloat32FromBits(b uint32) Float32 {
 	return Float32(math.Float32frombits(b))
 }
 
+// NewFloat32NaN returns a NaN Float32 value.
+func NewFloat32NaN() Float32 {
+	return Float32(math.Float32frombits(uvnan32))
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float32) Bits() uint32 {
 	return math.Float32bits(float32(a))

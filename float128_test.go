@@ -1144,6 +1144,30 @@ func BenchmarkFMA128(b *testing.B) {
 	}
 }
 
+func TestFloat128_Nextafter(t *testing.T) {
+	tests := []struct {
+		x, y, want Float128
+	}{
+		{exact128(0), exact128(1), Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}},
+		{exact128(0), exact128(-1), Float128{0x8000_0000_0000_0000, 0x0000_0000_0000_0001}},
+		{exact128(1), exact128(2), Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0001}},
+		{exact128(1), exact128(0), Float128{0x3ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+		{exact128(-1), exact128(-2), Float128{0xbfff_0000_0000_0000, 0x0000_0000_0000_0001}},
+		{exact128(-1), exact128(0), Float128{0xbffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+
+		// special cases
+		{exact128(1), exact128(1), exact128(1)},
+		{exact128(math.NaN()), exact128(1), exact128(math.NaN())},
+		{exact128(1), exact128(math.NaN()), exact128(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.x.Nextafter(test.y)
+		if !eq128(got, test.want) {
+			t.Errorf("Float128(%x).Nextafter(%x) = %x, want %x", test.x, test.y, got, test.want)
+		}
+	}
+}
+
 func TestFloat128_Modf(t *testing.T) {
 	tests := []struct {
 		in       Float128
