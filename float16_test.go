@@ -96,6 +96,22 @@ func BenchmarkFloat16_Signbit(b *testing.B) {
 	}
 }
 
+func TestFloat16_Copysign(t *testing.T) {
+	tests := []struct {
+		a, sign, want Float16
+	}{
+		{exact16(10), exact16(-1), exact16(-10)},
+		{exact16(10), exact16(1), exact16(10)},
+		{exact16(0), exact16(-1), exact16(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Copysign(tt.sign)
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16(%x).Copysign(%x) = %x, want %x", tt.a, tt.sign, got, tt.want)
+		}
+	}
+}
+
 func TestFloat16_Int64(t *testing.T) {
 	tests := []struct {
 		in  Float16

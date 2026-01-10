@@ -76,6 +76,12 @@ func (a Float256) Signbit() bool {
 	return a[0]&signMask256[0] != 0
 }
 
+// Copysign returns a value with the magnitude of a
+// and the sign of sign.
+func (a Float256) Copysign(sign Float256) Float256 {
+	return Float256{(a[0] &^ signMask256[0]) | (sign[0] & signMask256[0]), a[1], a[2], a[3]}
+}
+
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float256) Int64() int64 {
