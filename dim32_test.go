@@ -29,3 +29,57 @@ func TestFloat32_Dim(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Max(t *testing.T) {
+	tests := []struct {
+		a    Float32
+		b    Float32
+		want Float32
+	}{
+		{exact32(5.0), exact32(3.0), exact32(5.0)},
+		{exact32(3.0), exact32(5.0), exact32(5.0)},
+		{exact32(3.0), exact32(3.0), exact32(3.0)},
+
+		// Special cases
+		{exact32(1), exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(1)), exact32(1), exact32(math.Inf(1))},
+		{exact32(math.NaN()), exact32(1), exact32(math.NaN())},
+		{exact32(1), exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(0), exact32(math.Copysign(0, -1)), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Max(tt.b)
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Max(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func TestFloat32_Min(t *testing.T) {
+	tests := []struct {
+		a    Float32
+		b    Float32
+		want Float32
+	}{
+		{exact32(5.0), exact32(3.0), exact32(3.0)},
+		{exact32(3.0), exact32(5.0), exact32(3.0)},
+		{exact32(3.0), exact32(3.0), exact32(3.0)},
+
+		// Special cases
+		{exact32(1), exact32(math.Inf(-1)), exact32(math.Inf(-1))},
+		{exact32(math.Inf(-1)), exact32(1), exact32(math.Inf(-1))},
+		{exact32(math.NaN()), exact32(1), exact32(math.NaN())},
+		{exact32(1), exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(0), exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(math.Copysign(0, -1)), exact32(0), exact32(math.Copysign(0, -1))},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Min(tt.b)
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Min(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
