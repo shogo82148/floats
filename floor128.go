@@ -1,12 +1,12 @@
 package floats
 
-// Floor returns the greatest integer value less than or equal to x.
+// Floor returns the greatest integer value less than or equal to a.
 //
 // Special cases are:
 //
-//	Floor(±0) = ±0
-//	Floor(±Inf) = ±Inf
-//	Floor(NaN) = NaN
+//	±0.Floor() = ±0
+//	±Inf.Floor() = ±Inf
+//	NaN.Floor() = NaN
 func (a Float128) Floor() Float128 {
 	// Handle special cases
 	if a.IsZero() || a.IsNaN() || a.IsInf(0) {
@@ -22,4 +22,15 @@ func (a Float128) Floor() Float128 {
 	}
 	d, _ := a.Modf()
 	return d
+}
+
+// Ceil returns the least integer value greater than or equal to a.
+//
+// Special cases are:
+//
+//	±0.Ceil() = ±0
+//	±Inf.Ceil() = ±Inf
+//	NaN.Ceil() = NaN
+func (a Float128) Ceil() Float128 {
+	return a.Neg().Floor().Neg()
 }
