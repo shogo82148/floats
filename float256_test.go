@@ -2696,6 +2696,9 @@ func TestFloat256_Nextafter(t *testing.T) {
 
 		// special cases
 		{exact256(1), exact256(1), exact256(1)},
+		{exact256(0), exact256(0), exact256(0)},
+		{exact256(0), exact256(math.Copysign(0, -1)), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(0), exact256(math.Copysign(0, -1))},
 		{exact256(math.NaN()), exact256(1), exact256(math.NaN())},
 		{exact256(1), exact256(math.NaN()), exact256(math.NaN())},
 	}

@@ -660,7 +660,7 @@ func (a Float256) Nextafter(b Float256) (r Float256) {
 	switch {
 	case a.IsNaN() || b.IsNaN(): // special case
 		r = NewFloat256NaN()
-	case a == b: // special case
+	case a.Eq(b): // special case
 		r = a
 	case a.IsZero():
 		r = Float256{0, 0, 0, 1}.Copysign(b)
