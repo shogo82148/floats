@@ -589,6 +589,7 @@ func BenchmarkFMA16(b *testing.B) {
 }
 
 func TestFloat16_Modf(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
 	tests := []struct {
 		in       Float16
 		wantInt  Float16
@@ -613,9 +614,16 @@ func TestFloat16_Modf(t *testing.T) {
 		{exact16(math.NaN()), exact16(math.NaN()), exact16(math.NaN())},
 	}
 	for _, test := range tests {
-		gotInt, gotFrac := test.in.Modf()
-		if !eq16(gotInt, test.wantInt) || !eq16(gotFrac, test.wantFrac) {
-			t.Errorf("Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
+		optimized = false
+		intPart1, fracPart1 := test.in.Modf()
+		optimized = true
+		intPart2, fracPart2 := test.in.Modf()
+
+		if !eq16(intPart1, test.wantInt) || !eq16(fracPart1, test.wantFrac) {
+			t.Errorf("Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart1, fracPart1, test.wantInt, test.wantFrac)
+		}
+		if !eq16(intPart2, test.wantInt) || !eq16(fracPart2, test.wantFrac) {
+			t.Errorf("optimized Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart2, fracPart2, test.wantInt, test.wantFrac)
 		}
 	}
 }

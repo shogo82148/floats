@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
 	"runtime"
 	"testing"
 )
@@ -647,5 +648,79 @@ func BenchmarkFMA32(b *testing.B) {
 	f := Float32(1.0)
 	for b.Loop() {
 		runtime.KeepAlive(FMA32(f, f, f))
+	}
+}
+
+func TestFloat32_Modf(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
+	tests := []struct {
+		in       Float32
+		wantInt  Float32
+		wantFrac Float32
+	}{
+		{exact32(3.75), exact32(3.0), exact32(0.75)},
+
+		// a < 0
+		{exact32(-2.5), exact32(-2.0), exact32(-0.5)},
+		{exact32(-0.5), exact32(math.Copysign(0, -1)), exact32(-0.5)},
+
+		// a == 0
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(0), exact32(0), exact32(0)},
+
+		// 0 < a < 1
+		{exact32(0.5), exact32(0), exact32(0.5)},
+
+		// special cases
+		{exact32(math.Inf(1)), exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.Inf(-1)), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN()), exact32(math.NaN())},
+	}
+	for _, test := range tests {
+		optimized = false
+		intPart1, fracPart1 := test.in.Modf()
+		optimized = true
+		intPart2, fracPart2 := test.in.Modf()
+
+		if !eq32(intPart1, test.wantInt) || !eq32(fracPart1, test.wantFrac) {
+			t.Errorf("Float32(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart1, fracPart1, test.wantInt, test.wantFrac)
+		}
+		if !eq32(intPart2, test.wantInt) || !eq32(fracPart2, test.wantFrac) {
+			t.Errorf("optimized Float32(%x).Modf() = (%x, %x), want (%x, %x)", test.in, intPart2, fracPart2, test.wantInt, test.wantFrac)
+		}
+	}
+}
+
+func TestFloat32_Modf_Random(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
+	for range 0x10000 {
+		f := NewFloat32FromBits(rand.Uint32())
+		optimized = false
+		intPart1, fracPart1 := f.Modf()
+		optimized = true
+		intPart2, fracPart2 := f.Modf()
+		if !eq32(intPart1, intPart2) || !eq32(fracPart1, fracPart2) {
+			t.Errorf("Float32(%x).Modf() mismatch between optimized and non-optimized: (%x, %x) vs (%x, %x)", f, intPart1, fracPart1, intPart2, fracPart2)
+		}
+	}
+}
+
+func BenchmarkFloat32_Modf(b *testing.B) {
+	optimized = false
+	b.Cleanup(func() { optimized = true })
+	f := exact32(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}
+
+func BenchmarkFloat32_Modf_Optimized(b *testing.B) {
+	f := exact32(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
 	}
 }
