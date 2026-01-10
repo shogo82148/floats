@@ -91,6 +91,22 @@ func TestFloat64_Signbit(t *testing.T) {
 	}
 }
 
+func TestFloat64_Copysign(t *testing.T) {
+	tests := []struct {
+		a, sign, want Float64
+	}{
+		{exact64(10), exact64(-1), exact64(-10)},
+		{exact64(10), exact64(1), exact64(10)},
+		{exact64(0), exact64(-1), exact64(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Copysign(tt.sign)
+		if !eq64(got, tt.want) {
+			t.Errorf("Float64(%x).Copysign(%x) = %x, want %x", tt.a, tt.sign, got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat64_Signbit(b *testing.B) {
 	f := Float64(1.0)
 	for b.Loop() {

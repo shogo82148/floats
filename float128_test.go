@@ -98,6 +98,22 @@ func BenchmarkFloat128_Signbit(b *testing.B) {
 	}
 }
 
+func TestFloat128_Copysign(t *testing.T) {
+	tests := []struct {
+		a, sign, want Float128
+	}{
+		{exact128(10), exact128(-1), exact128(-10)},
+		{exact128(10), exact128(1), exact128(10)},
+		{exact128(0), exact128(-1), exact128(math.Copysign(0, -1))},
+	}
+	for _, tt := range tests {
+		got := tt.a.Copysign(tt.sign)
+		if !eq128(got, tt.want) {
+			t.Errorf("Float128(%x).Copysign(%x) = %x, want %x", tt.a, tt.sign, got, tt.want)
+		}
+	}
+}
+
 func TestFloat128_Int64(t *testing.T) {
 	tests := []struct {
 		in  Float128

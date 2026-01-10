@@ -55,6 +55,12 @@ func (a Float64) Signbit() bool {
 	return math.Signbit(float64(a))
 }
 
+// Copysign returns a value with the magnitude of a
+// and the sign of sign.
+func (a Float64) Copysign(sign Float64) Float64 {
+	return NewFloat64FromBits((a.Bits() &^ signMask64) | (sign.Bits() & signMask64))
+}
+
 // Int64 returns the integer value of a, rounding towards zero.
 // If a cannot be represented in an int64, the result is undefined.
 func (a Float64) Int64() int64 {
