@@ -35,7 +35,7 @@ func (a Float128) Ceil() Float128 {
 	return a.Neg().Floor().Neg()
 }
 
-// Trunc returns the integer value of x.
+// Trunc returns the integer value of a.
 //
 // Special cases are:
 //

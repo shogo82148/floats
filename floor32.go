@@ -24,7 +24,7 @@ func (a Float32) Ceil() Float32 {
 	return NewFloat32(math.Ceil(a.Float64().BuiltIn()))
 }
 
-// Trunc returns the integer value of x.
+// Trunc returns the integer value of a.
 //
 // Special cases are:
 //
