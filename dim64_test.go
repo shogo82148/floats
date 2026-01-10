@@ -52,7 +52,7 @@ func TestFloat64_Max(t *testing.T) {
 	for _, tt := range tests {
 		got := tt.a.Max(tt.b)
 		if !eq64(got, tt.want) {
-			t.Errorf("Float16.Max(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
+			t.Errorf("Float64.Max(%v, %v) = %v; want %v", tt.a, tt.b, got, tt.want)
 		}
 	}
 }
