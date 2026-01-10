@@ -51,6 +51,11 @@ func NewFloat256FromBits(b ints.Uint256) Float256 {
 	return Float256(b)
 }
 
+// NewFloat256NaN returns a NaN Float256 value.
+func NewFloat256NaN() Float256 {
+	return Float256(uvnan256)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float256) Bits() ints.Uint256 {
 	return ints.Uint256(a)
@@ -642,6 +647,29 @@ func FMA256(x, y, z Float256) Float256 {
 		frac[2],
 		frac[3],
 	}
+}
+
+// Nextafter returns the next representable float16 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float256) Nextafter(b Float256) (r Float256) {
+	switch {
+	case a.IsNaN() || b.IsNaN(): // special case
+		r = NewFloat256NaN()
+	case a == b: // special case
+		r = a
+	case a.IsZero():
+		r = Float256{0, 0, 0, 1}.Copysign(b)
+	case b.Gt(a) == a.Gt(Float256{}):
+		r = Float256(a.Bits().Add(ints.Uint256{0, 0, 0, 1}))
+	default:
+		r = Float256(a.Bits().Sub(ints.Uint256{0, 0, 0, 1}))
+	}
+	return
 }
 
 // Modf returns integer and fractional floating-point numbers
