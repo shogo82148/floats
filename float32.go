@@ -74,6 +74,16 @@ func (a Float32) Neg() Float32 {
 	return -a
 }
 
+// Abs returns the absolute value of a.
+//
+// Special cases:
+//
+//	Abs(±Inf) = +Inf
+//	Abs(NaN) = NaN
+func (a Float32) Abs() Float32 {
+	return NewFloat32FromBits(a.Bits() &^ signMask32)
+}
+
 // Mul returns the product of a and b.
 func (a Float32) Mul(b Float32) Float32 {
 	return a * b

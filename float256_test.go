@@ -1,6 +1,7 @@
 package floats
 
 import (
+	"math"
 	"runtime"
 	"testing"
 )
@@ -364,6 +365,26 @@ func TestFloat256_Neg(t *testing.T) {
 		got := tt.a.Neg()
 		if !eq256(got, tt.want) {
 			t.Errorf("Float256(%x).Neg() = %x, want %x", tt.a, got, tt.want)
+		}
+	}
+}
+
+func TestFloat256_Abs(t *testing.T) {
+	tests := []struct {
+		a, want Float256
+	}{
+		{exact256(1.0), exact256(1.0)},
+		{exact256(-1.0), exact256(1.0)},
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(0)},
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.Inf(1))},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+	for _, tt := range tests {
+		got := tt.a.Abs()
+		if !eq256(got, tt.want) {
+			t.Errorf("Float256.Abs() = %x, want %x", got, tt.want)
 		}
 	}
 }

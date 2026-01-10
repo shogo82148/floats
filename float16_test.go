@@ -1,6 +1,7 @@
 package floats
 
 import (
+	"math"
 	"runtime"
 	"testing"
 )
@@ -159,6 +160,26 @@ func BenchmarkFloat16_Neg(b *testing.B) {
 	f := Float16(0x3c00) // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Neg())
+	}
+}
+
+func TestFloat16_Abs(t *testing.T) {
+	tests := []struct {
+		a, want Float16
+	}{
+		{exact16(1.0), exact16(1.0)},
+		{exact16(-1.0), exact16(1.0)},
+		{exact16(0), exact16(0)},
+		{exact16(math.Copysign(0, -1)), exact16(0)},
+		{exact16(math.Inf(1)), exact16(math.Inf(1))},
+		{exact16(math.Inf(-1)), exact16(math.Inf(1))},
+		{exact16(math.NaN()), exact16(math.NaN())},
+	}
+	for _, tt := range tests {
+		got := tt.a.Abs()
+		if !eq16(got, tt.want) {
+			t.Errorf("Float16(%x).Abs() = %x, want %x", tt.a, got, tt.want)
+		}
 	}
 }
 

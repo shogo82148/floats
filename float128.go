@@ -80,6 +80,16 @@ func (a Float128) Neg() Float128 {
 	return Float128{a[0] ^ signMask128[0], a[1]}
 }
 
+// Abs returns the absolute value of a.
+//
+// Special cases:
+//
+//	Abs(±Inf) = +Inf
+//	Abs(NaN) = NaN
+func (a Float128) Abs() Float128 {
+	return Float128{a[0] &^ signMask128[0], a[1]}
+}
+
 // Mul returns the product of a and b.
 func (a Float128) Mul(b Float128) Float128 {
 	if a.IsNaN() || b.IsNaN() {
