@@ -661,6 +661,30 @@ func BenchmarkFMA64(b *testing.B) {
 	}
 }
 
+func TestFloat64_Nextafter(t *testing.T) {
+	tests := []struct {
+		x, y, want Float64
+	}{
+		{exact64(0), exact64(1), exact64(0x1p-1074)},
+		{exact64(0), exact64(-1), exact64(-0x1p-1074)},
+		{exact64(1), exact64(2), exact64(0x1.0000000000001p+00)},
+		{exact64(1), exact64(0), exact64(0x1.fffffffffffffp-01)},
+		{exact64(-1), exact64(-2), exact64(-0x1.0000000000001p+00)},
+		{exact64(-1), exact64(0), exact64(-0x1.fffffffffffffp-01)},
+
+		// special cases
+		{exact64(1), exact64(1), exact64(1)},
+		{exact64(math.NaN()), exact64(1), exact64(math.NaN())},
+		{exact64(1), exact64(math.NaN()), exact64(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.x.Nextafter(test.y)
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Nextafter(%x) = %x, want %x", test.x, test.y, got, test.want)
+		}
+	}
+}
+
 func TestFloat64_Modf(t *testing.T) {
 	tests := []struct {
 		in       Float64

@@ -30,6 +30,11 @@ func NewFloat16FromBits(b uint16) Float16 {
 	return Float16(b)
 }
 
+// NewFloat16NaN returns a NaN Float16 value.
+func NewFloat16NaN() Float16 {
+	return uvnan16
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float16) Bits() uint16 {
 	return uint16(a)
@@ -569,6 +574,29 @@ func FMA16(x, y, z Float16) Float16 {
 		return Float16(signP | uvinf16)
 	}
 	return Float16(signP | uint16(expP<<shift16) | frac&fracMask16)
+}
+
+// Nextafter returns the next representable float16 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float16) Nextafter(b Float16) (r Float16) {
+	switch {
+	case a.IsNaN() || b.IsNaN(): // special case
+		r = NewFloat16NaN()
+	case a == b: // special case
+		r = a
+	case a.IsZero():
+		r = Float16(1).Copysign(b)
+	case b.Gt(a) == a.Gt(0):
+		r = a + 1
+	default:
+		r = a - 1
+	}
+	return
 }
 
 // Modf returns integer and fractional floating-point numbers

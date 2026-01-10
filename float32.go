@@ -30,6 +30,11 @@ func NewFloat32FromBits(b uint32) Float32 {
 	return Float32(math.Float32frombits(b))
 }
 
+// NewFloat32NaN returns a NaN Float32 value.
+func NewFloat32NaN() Float32 {
+	return Float32(math.Float32frombits(uvnan32))
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float32) Bits() uint32 {
 	return math.Float32bits(float32(a))
@@ -281,6 +286,17 @@ func FMA32(x, y, z Float32) Float32 {
 		return Float32(math.Float32frombits(signP | uvinf32))
 	}
 	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
+}
+
+// Nextafter returns the next representable float32 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float32) Nextafter(b Float32) (r Float32) {
+	return Float32(math.Nextafter32(a.BuiltIn(), b.BuiltIn()))
 }
 
 // Modf returns integer and fractional floating-point numbers

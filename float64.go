@@ -27,6 +27,11 @@ func NewFloat64FromBits(b uint64) Float64 {
 	return Float64(math.Float64frombits(b))
 }
 
+// NewFloat64NaN returns a NaN Float64 value.
+func NewFloat64NaN() Float64 {
+	return Float64(math.NaN())
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float64) Bits() uint64 {
 	return math.Float64bits(float64(a))
@@ -177,6 +182,17 @@ func (a Float64) Ge(b Float64) bool {
 // (That is, FMA64 returns the fused multiply-add of x, y, and z.)
 func FMA64(x, y, z Float64) Float64 {
 	return Float64(math.FMA(float64(x), float64(y), float64(z)))
+}
+
+// Nextafter returns the next representable float64 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float64) Nextafter(b Float64) (r Float64) {
+	return Float64(math.Nextafter(a.BuiltIn(), b.BuiltIn()))
 }
 
 // Modf returns integer and fractional floating-point numbers

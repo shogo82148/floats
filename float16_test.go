@@ -604,6 +604,30 @@ func BenchmarkFMA16(b *testing.B) {
 	}
 }
 
+func TestFloat16_Nextafter(t *testing.T) {
+	tests := []struct {
+		x, y, want Float16
+	}{
+		{exact16(0), exact16(1), exact16(0x1p-24)},
+		{exact16(0), exact16(-1), exact16(-0x1p-24)},
+		{exact16(1), exact16(2), exact16(0x1.004p+00)},
+		{exact16(1), exact16(0), exact16(0x1.ffcp-01)},
+		{exact16(-1), exact16(-2), exact16(-0x1.004p+00)},
+		{exact16(-1), exact16(0), exact16(-0x1.ffcp-01)},
+
+		// special cases
+		{exact16(1), exact16(1), exact16(1)},
+		{exact16(math.NaN()), exact16(1), exact16(math.NaN())},
+		{exact16(1), exact16(math.NaN()), exact16(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.x.Nextafter(test.y)
+		if !eq16(got, test.want) {
+			t.Errorf("Float16(%x).Nextafter(%x) = %x, want %x", test.x, test.y, got, test.want)
+		}
+	}
+}
+
 func TestFloat16_Modf(t *testing.T) {
 	t.Cleanup(func() { optimized = true })
 	tests := []struct {

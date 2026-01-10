@@ -2665,6 +2665,51 @@ func BenchmarkFMA256(b *testing.B) {
 	}
 }
 
+func TestFloat256_Nextafter(t *testing.T) {
+	tests := []struct {
+		x, y, want Float256
+	}{
+		{
+			exact256(0), exact256(1),
+			Float256{0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			exact256(0), exact256(-1),
+			Float256{0x8000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			exact256(1), exact256(2),
+			Float256{0x3fff_f000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			exact256(1), exact256(0),
+			Float256{0x3fff_efff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff},
+		},
+		{
+			exact256(-1), exact256(-2),
+			Float256{0xbfff_f000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+		},
+		{
+			exact256(-1), exact256(0),
+			Float256{0xbfff_efff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff},
+		},
+
+		// special cases
+		{exact256(1), exact256(1), exact256(1)},
+		{exact256(0), exact256(0), exact256(0)},
+		{exact256(0), exact256(math.Copysign(0, -1)), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(0), exact256(math.Copysign(0, -1))},
+		{exact256(math.NaN()), exact256(1), exact256(math.NaN())},
+		{exact256(1), exact256(math.NaN()), exact256(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.x.Nextafter(test.y)
+		if !eq256(got, test.want) {
+			t.Errorf("Float256(%x).Nextafter(%x) = %x, want %x", test.x, test.y, got, test.want)
+		}
+	}
+}
+
 func TestFloat256_Modf(t *testing.T) {
 	tests := []struct {
 		in       Float256

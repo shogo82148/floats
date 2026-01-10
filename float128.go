@@ -33,6 +33,11 @@ func NewFloat128FromBits(b ints.Uint128) Float128 {
 	return Float128(b)
 }
 
+// NewFloat128NaN returns a NaN Float128 value.
+func NewFloat128NaN() Float128 {
+	return Float128(uvnan128)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float128) Bits() ints.Uint128 {
 	return ints.Uint128(a)
@@ -598,6 +603,29 @@ func FMA128(x, y, z Float128) Float128 {
 		signP | uint64(expP)<<(shift128-64) | frac[0]&fracMask128[0],
 		frac[1] & fracMask128[1],
 	}
+}
+
+// Nextafter returns the next representable float128 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float128) Nextafter(b Float128) (r Float128) {
+	switch {
+	case a.IsNaN() || b.IsNaN(): // special case
+		r = NewFloat128NaN()
+	case a.Eq(b): // special case
+		r = a
+	case a.IsZero():
+		r = Float128{0, 1}.Copysign(b)
+	case b.Gt(a) == a.Gt(Float128{}):
+		r = Float128(a.Bits().Add(ints.Uint128{0, 1}))
+	default:
+		r = Float128(a.Bits().Sub(ints.Uint128{0, 1}))
+	}
+	return
 }
 
 // Modf returns integer and fractional floating-point numbers
