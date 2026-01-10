@@ -1,0 +1,32 @@
+package floats
+
+import (
+	"math"
+	"testing"
+)
+
+func TestFloat32_Floor(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want Float32
+	}{
+		{exact32(3.0), exact32(3)},
+		{exact32(3.5), exact32(3)},
+		{exact32(-3.0), exact32(-3)},
+		{exact32(-3.5), exact32(-4)},
+
+		// Special cases
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(math.Inf(-1))},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Floor()
+		if !eq32(got, tt.want) {
+			t.Errorf("Float32.Floor(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
