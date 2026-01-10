@@ -619,3 +619,37 @@ func TestFloat16_Modf(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Modf_All(t *testing.T) {
+	t.Cleanup(func() { optimized = true })
+	for i := range 0x10000 {
+		f := Float16(i)
+		optimized = false
+		intPart1, fracPart1 := f.Modf()
+		optimized = true
+		intPart2, fracPart2 := f.Modf()
+		if !eq16(intPart1, intPart2) || !eq16(fracPart1, fracPart2) {
+			t.Errorf("Float16(%x).Modf() mismatch between optimized and non-optimized: (%x, %x) vs (%x, %x)", f, intPart1, fracPart1, intPart2, fracPart2)
+		}
+	}
+}
+
+func BenchmarkFloat16_Modf(b *testing.B) {
+	optimized = false
+	b.Cleanup(func() { optimized = true })
+	f := exact16(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}
+
+func BenchmarkFloat16_Modf_Optimized(b *testing.B) {
+	f := exact16(3.75)
+	for b.Loop() {
+		intPart, fracPart := f.Modf()
+		runtime.KeepAlive(intPart)
+		runtime.KeepAlive(fracPart)
+	}
+}

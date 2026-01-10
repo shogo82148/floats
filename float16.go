@@ -1,6 +1,7 @@
 package floats
 
 import (
+	"math"
 	"math/bits"
 )
 
@@ -572,6 +573,11 @@ func FMA16(x, y, z Float16) Float16 {
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN
 func (a Float16) Modf() (int Float16, frac Float16) {
+	if optimized {
+		fint, ffrac := math.Modf(a.Float64().BuiltIn())
+		return NewFloat16(fint), NewFloat16(ffrac)
+	}
+
 	if a.Lt(Float16(uvone16)) { // a < 1
 		switch {
 		case a.Lt(Float16(0)): // a < 0
