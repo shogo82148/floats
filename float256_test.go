@@ -1321,7 +1321,7 @@ func TestFloat256_Add(t *testing.T) {
 	}
 }
 
-func BenchmarkFloat2556_Add(b *testing.B) {
+func BenchmarkFloat256_Add(b *testing.B) {
 	f := Float256{
 		0x3fff_f000_0000_0000,
 		0x0000_0000_0000_0000,
