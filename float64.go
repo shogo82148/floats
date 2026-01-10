@@ -179,6 +179,17 @@ func FMA64(x, y, z Float64) Float64 {
 	return Float64(math.FMA(float64(x), float64(y), float64(z)))
 }
 
+// Nextafter returns the next representable float64 value after a towards b.
+//
+// Special cases are:
+//
+//	a.Nextafter(a)   = a
+//	NaN.Nextafter(b) = NaN
+//	a.Nextafter(NaN) = NaN
+func (a Float64) Nextafter(b Float64) (r Float64) {
+	return Float64(math.Nextafter(a.BuiltIn(), b.BuiltIn()))
+}
+
 // Modf returns integer and fractional floating-point numbers
 // that sum to f. Both values have the same sign as f.
 //
