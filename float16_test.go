@@ -587,3 +587,35 @@ func BenchmarkFMA16(b *testing.B) {
 		runtime.KeepAlive(FMA16(f, f, f))
 	}
 }
+
+func TestFloat16_Modf(t *testing.T) {
+	tests := []struct {
+		in       Float16
+		wantInt  Float16
+		wantFrac Float16
+	}{
+		{exact16(3.75), exact16(3.0), exact16(0.75)},
+
+		// a < 0
+		{exact16(-2.5), exact16(-2.0), exact16(-0.5)},
+		{exact16(-0.5), exact16(math.Copysign(0, -1)), exact16(-0.5)},
+
+		// a == 0
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+		{exact16(0), exact16(0), exact16(0)},
+
+		// 0 < a < 1
+		{exact16(0.5), exact16(0), exact16(0.5)},
+
+		// special cases
+		{exact16(math.Inf(1)), exact16(math.Inf(1)), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(math.NaN()), exact16(math.NaN())},
+	}
+	for _, test := range tests {
+		gotInt, gotFrac := test.in.Modf()
+		if !eq16(gotInt, test.wantInt) || !eq16(gotFrac, test.wantFrac) {
+			t.Errorf("Float16(%x).Modf() = (%x, %x), want (%x, %x)", test.in, gotInt, gotFrac, test.wantInt, test.wantFrac)
+		}
+	}
+}

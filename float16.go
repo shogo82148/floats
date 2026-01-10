@@ -563,3 +563,34 @@ func FMA16(x, y, z Float16) Float16 {
 	}
 	return Float16(signP | uint16(expP<<shift16) | frac&fracMask16)
 }
+
+// Modf returns integer and fractional floating-point numbers
+// that sum to f. Both values have the same sign as f.
+//
+// Special cases are:
+//
+//	Modf(±Inf) = ±Inf, NaN
+//	Modf(NaN) = NaN, NaN
+func (a Float16) Modf() (int Float16, frac Float16) {
+	if a.Lt(Float16(uvone16)) { // a < 1
+		switch {
+		case a.Lt(Float16(0)): // a < 0
+			int, frac = a.Neg().Modf()
+			return int.Neg(), frac.Neg()
+		case a.IsZero(): // a == 0
+			return a, a
+		default: // 0 < a < 1
+			return Float16(0), a
+		}
+	}
+
+	int = a
+	e := uint(int>>shift16&mask16) - bias16
+
+	// Keep the top 6+e bits, the integer part; clear the rest.
+	if e < shift16 {
+		int &^= 1<<(shift16-e) - 1
+	}
+	frac = a.Sub(int)
+	return
+}
