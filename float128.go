@@ -38,6 +38,14 @@ func NewFloat128NaN() Float128 {
 	return Float128(uvnan128)
 }
 
+// NewFloat128Inf positive infinity if sign >= 0, negative infinity if sign < 0.
+func NewFloat128Inf(sign int) Float128 {
+	if sign >= 0 {
+		return Float128(uvinf128)
+	}
+	return Float128(uvneginf128)
+}
+
 // Bits returns the IEEE 754 binary representation of a.
 func (a Float128) Bits() ints.Uint128 {
 	return ints.Uint128(a)
