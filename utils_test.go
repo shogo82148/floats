@@ -77,3 +77,8 @@ func close64(a Float64, b float64) bool {
 func close128(a Float128, b float64) bool {
 	return tolerance(a.Float64().BuiltIn(), b, 1e-15)
 }
+
+// close256 reports whether a is close to b within tolerance 1e-15.
+func close256(a Float256, b float64) bool {
+	return tolerance(a.Float64().BuiltIn(), b, 1e-15)
+}
