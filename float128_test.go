@@ -1210,3 +1210,28 @@ func BenchmarkFloat128_Modf(b *testing.B) {
 		runtime.KeepAlive(fracPart)
 	}
 }
+
+func TestFloat128_Frexp(t *testing.T) {
+	tests := []struct {
+		in       Float128
+		wantFrac Float128
+		wantExp  int
+	}{
+		{exact128(6.0), exact128(0.75), 3},
+		{exact128(0.5), exact128(0.5), 0},
+		{Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, exact128(0.5), -16493},
+
+		// special cases
+		{exact128(0), exact128(0), 0},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1)), 0},
+		{exact128(math.Inf(1)), exact128(math.Inf(1)), 0},
+		{exact128(math.Inf(-1)), exact128(math.Inf(-1)), 0},
+		{exact128(math.NaN()), exact128(math.NaN()), 0},
+	}
+	for _, test := range tests {
+		gotFrac, gotExp := test.in.Frexp()
+		if !eq128(gotFrac, test.wantFrac) || gotExp != test.wantExp {
+			t.Errorf("Float128(%x).Frexp() = (%x, %d), want (%x, %d)", test.in, gotFrac, gotExp, test.wantFrac, test.wantExp)
+		}
+	}
+}
