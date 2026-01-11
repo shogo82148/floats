@@ -39,3 +39,95 @@ func exact128(f float64) Float128 {
 func exact256(f float64) Float256 {
 	return Float64(f).Float256()
 }
+
+func tolerance(a, b, e float64) bool {
+	if a == b {
+		return true
+	}
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+
+	if b != 0 {
+		e = e * b
+		if e < 0 {
+			e = -e
+		}
+	}
+	return d < e
+}
+
+// close16 reports whether a is close to b within tolerance 1e-3.
+func close16(a Float16, b float64) bool {
+	return tolerance(a.Float64().BuiltIn(), b, 1e-3)
+}
+
+// close32 reports whether a is close to b within tolerance 1e-6.
+func close32(a Float32, b float64) bool {
+	return tolerance(float64(a), b, 1e-6)
+}
+
+// close64 reports whether a is close to b within tolerance 1e-15.
+func close64(a Float64, b float64) bool {
+	return tolerance(float64(a), b, 1e-15)
+}
+
+// close128 reports whether a is close to b within tolerance 1e-30.
+func close128(a Float128, b string) bool {
+	e, err := ParseFloat128("1e-30")
+	if err != nil {
+		panic(err)
+	}
+
+	fb, err := ParseFloat128(b)
+	if err != nil {
+		panic(err)
+	}
+
+	if a.Eq(fb) {
+		return true
+	}
+	d := a.Sub(fb)
+	if d.Signbit() {
+		d = d.Neg()
+	}
+
+	if !fb.IsZero() {
+		e = e.Mul(fb)
+		if e.Signbit() {
+			e = e.Neg()
+		}
+	}
+
+	return d.Lt(e)
+}
+
+// close256 reports whether a is close to b within tolerance 1e-65.
+func close256(a Float256, b string) bool {
+	e, err := ParseFloat256("1e-65")
+	if err != nil {
+		panic(err)
+	}
+
+	fb, err := ParseFloat256(b)
+	if err != nil {
+		panic(err)
+	}
+
+	if a.Eq(fb) {
+		return true
+	}
+	d := a.Sub(fb)
+	if d.Signbit() {
+		d = d.Neg()
+	}
+
+	if !fb.IsZero() {
+		e = e.Mul(fb)
+		if e.Signbit() {
+			e = e.Neg()
+		}
+	}
+	return d.Lt(e)
+}
