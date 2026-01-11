@@ -5,10 +5,10 @@ package floats
 //
 // Special cases are:
 //
-//	Hypot(±Inf, q) = +Inf
-//	Hypot(p, ±Inf) = +Inf
-//	Hypot(NaN, q) = NaN
-//	Hypot(p, NaN) = NaN
+//	Hypot32(±Inf, q) = +Inf
+//	Hypot32(p, ±Inf) = +Inf
+//	Hypot32(NaN, q) = NaN
+//	Hypot32(p, NaN) = NaN
 func Hypot32(p, q Float32) Float32 {
 	p = p.Abs()
 	q = q.Abs()
