@@ -726,3 +726,36 @@ func TestFloat16_Frexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Ldexp(t *testing.T) {
+	tests := []struct {
+		frac Float16
+		exp  int
+		want Float16
+	}{
+		{exact16(0.75), 3, exact16(6.0)},
+		{exact16(0.5), 0, exact16(0.5)},
+		{exact16(0.5), -23, exact16(0x1p-24)},
+
+		// underflow
+		{exact16(0.5), -24, exact16(0)},
+		{exact16(-0.5), -24, exact16(math.Copysign(0, -1))},
+
+		// overflow
+		{exact16(1.0), 16, exact16(math.Inf(1))},
+		{exact16(-1.0), 16, exact16(math.Inf(-1))},
+
+		// special cases
+		{exact16(0), 10, exact16(0)},
+		{exact16(math.Copysign(0, -1)), 10, exact16(math.Copysign(0, -1))},
+		{exact16(math.Inf(1)), 10, exact16(math.Inf(1))},
+		{exact16(math.Inf(-1)), 10, exact16(math.Inf(-1))},
+		{exact16(math.NaN()), 10, exact16(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.frac.Ldexp(test.exp)
+		if !eq16(got, test.want) {
+			t.Errorf("Float16(%x).Ldexp(%d) = %x, want %x", test.frac, test.exp, got, test.want)
+		}
+	}
+}
