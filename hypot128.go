@@ -1,6 +1,6 @@
 package floats
 
-// Hypot returns [Sqrt](p*p + q*q), taking care to avoid
+// Hypot128 returns [Sqrt](p*p + q*q), taking care to avoid
 // unnecessary overflow and underflow.
 //
 // Special cases are:
