@@ -108,20 +108,20 @@ func main() {
 		if err := f128_to_i64(); err != nil {
 			log.Fatal(err)
 		}
-	case "f16_to_u64":
-		if err := f16_to_u64(); err != nil {
+	case "f16_to_ui64":
+		if err := f16_to_ui64(); err != nil {
 			log.Fatal(err)
 		}
-	case "f32_to_u64":
-		if err := f32_to_u64(); err != nil {
+	case "f32_to_ui64":
+		if err := f32_to_ui64(); err != nil {
 			log.Fatal(err)
 		}
-	case "f64_to_u64":
-		if err := f64_to_u64(); err != nil {
+	case "f64_to_ui64":
+		if err := f64_to_ui64(); err != nil {
 			log.Fatal(err)
 		}
-	case "f128_to_u64":
-		if err := f128_to_u64(); err != nil {
+	case "f128_to_ui64":
+		if err := f128_to_ui64(); err != nil {
 			log.Fatal(err)
 		}
 
@@ -819,7 +819,7 @@ func f128_to_i64() error {
 	return nil
 }
 
-func f16_to_u64() error {
+func f16_to_ui64() error {
 	for {
 		var s16, u64, flag string
 		if _, err := fmt.Scanf("%s %s %s", &s16, &u64, &flag); err != nil {
@@ -859,7 +859,7 @@ func f16_to_u64() error {
 	return nil
 }
 
-func f32_to_u64() error {
+func f32_to_ui64() error {
 	for {
 		var s32, u64, flag string
 		if _, err := fmt.Scanf("%s %s %s", &s32, &u64, &flag); err != nil {
@@ -899,7 +899,7 @@ func f32_to_u64() error {
 	return nil
 }
 
-func f64_to_u64() error {
+func f64_to_ui64() error {
 	for {
 		var s64, u64, flag string
 		if _, err := fmt.Scanf("%s %s %s", &s64, &u64, &flag); err != nil {
@@ -939,7 +939,7 @@ func f64_to_u64() error {
 	return nil
 }
 
-func f128_to_u64() error {
+func f128_to_ui64() error {
 	for {
 		var s128, u64, flag string
 		if _, err := fmt.Scanf("%s %s %s", &s128, &u64, &flag); err != nil {
