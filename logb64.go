@@ -13,7 +13,7 @@ func (a Float64) Logb() Float64 {
 	return NewFloat64(math.Logb(a.Float64().BuiltIn()))
 }
 
-// Ilogb returns the binary exponent of x as an integer.
+// Ilogb returns the binary exponent of a as an integer.
 //
 // Special cases are:
 //

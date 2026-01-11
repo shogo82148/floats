@@ -23,7 +23,7 @@ func (a Float32) Logb() Float32 {
 	return NewFloat32(float64(exp))
 }
 
-// Ilogb returns the binary exponent of x as an integer.
+// Ilogb returns the binary exponent of a as an integer.
 //
 // Special cases are:
 //
