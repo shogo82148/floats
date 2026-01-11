@@ -720,9 +720,9 @@ func (a Float256) Modf() (int Float256, frac Float256) {
 //
 // Special cases are:
 //
-//	Frexp(±0) = ±0, 0
-//	Frexp(±Inf) = ±Inf, 0
-//	Frexp(NaN) = NaN, 0
+//	±0.Frexp() = ±0, 0
+//	±Inf.Frexp() = ±Inf, 0
+//	NaN.Frexp() = NaN, 0
 func (a Float256) Frexp() (frac Float256, exp int) {
 	// special cases
 	if a.IsZero() || a.IsNaN() || a.IsInf(0) {

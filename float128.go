@@ -676,9 +676,9 @@ func (a Float128) Modf() (int Float128, frac Float128) {
 //
 // Special cases are:
 //
-//	Frexp(±0) = ±0, 0
-//	Frexp(±Inf) = ±Inf, 0
-//	Frexp(NaN) = NaN, 0
+//	±0.Frexp() = ±0, 0
+//	±Inf.Frexp() = ±Inf, 0
+//	NaN.Frexp() = NaN, 0
 func (a Float128) Frexp() (frac Float128, exp int) {
 	// special cases
 	if a.IsZero() || a.IsNaN() || a.IsInf(0) {

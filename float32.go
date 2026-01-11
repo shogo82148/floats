@@ -351,9 +351,9 @@ func (a Float32) Modf() (int Float32, frac Float32) {
 //
 // Special cases are:
 //
-//	Frexp(±0) = ±0, 0
-//	Frexp(±Inf) = ±Inf, 0
-//	Frexp(NaN) = NaN, 0
+//	±0.Frexp() = ±0, 0
+//	±Inf.Frexp() = ±Inf, 0
+//	NaN.Frexp() = NaN, 0
 func (a Float32) Frexp() (frac Float32, exp int) {
 	f, e := math.Frexp(a.Float64().BuiltIn())
 	return NewFloat32(f), e

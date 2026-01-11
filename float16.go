@@ -650,9 +650,9 @@ func (a Float16) Modf() (int Float16, frac Float16) {
 //
 // Special cases are:
 //
-//	Frexp(±0) = ±0, 0
-//	Frexp(±Inf) = ±Inf, 0
-//	Frexp(NaN) = NaN, 0
+//	±0.Frexp() = ±0, 0
+//	±Inf.Frexp() = ±Inf, 0
+//	NaN.Frexp() = NaN, 0
 func (a Float16) Frexp() (frac Float16, exp int) {
 	f, e := math.Frexp(a.Float64().BuiltIn())
 	return NewFloat16(f), e
