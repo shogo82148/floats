@@ -119,9 +119,10 @@ func TestFloat128_Int64(t *testing.T) {
 		in  Float128
 		out int64
 	}{
-		{Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, 0},
-		{Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}, 1},
-		{Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}, 2},
+		{exact128(0), 0},
+		{exact128(1), 1},
+		{exact128(2), 2},
+		{exact128(1 << 62), 1 << 62},
 	}
 
 	for _, tt := range tests {
@@ -135,6 +136,24 @@ func BenchmarkFloat128_Int64(b *testing.B) {
 	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
 	for b.Loop() {
 		runtime.KeepAlive(f.Int64())
+	}
+}
+
+func TestFloat128_Uint64(t *testing.T) {
+	tests := []struct {
+		in  Float128
+		out uint64
+	}{
+		{exact128(0), 0},
+		{exact128(1), 1},
+		{exact128(2), 2},
+		{exact128(1 << 63), 1 << 63},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Uint64(); got != tt.out {
+			t.Errorf("Float128(%v).Uint64() = %v, want %v", tt.in, got, tt.out)
+		}
 	}
 }
 

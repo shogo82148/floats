@@ -139,6 +139,24 @@ func TestFloat32_Int64(t *testing.T) {
 	}
 }
 
+func TestFloat32_Uint64(t *testing.T) {
+	tests := []struct {
+		in  Float32
+		out uint64
+	}{
+		{exact32(0), 0},
+		{exact32(1), 1},
+		{exact32(1.5), 1},
+		{exact32(2), 2},
+	}
+	for _, test := range tests {
+		got := test.in.Uint64()
+		if got != test.out {
+			t.Errorf("Float32(%v).Uint64() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
 func TestFloat32_IsZero(t *testing.T) {
 	tests := []struct {
 		in   Float32

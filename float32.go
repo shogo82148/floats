@@ -83,6 +83,12 @@ func (a Float32) Int64() int64 {
 	return int64(a)
 }
 
+// Uint64 returns the unsigned integer value of a, rounding towards zero.
+// If a cannot be represented in a uint64, the result is undefined.
+func (a Float32) Uint64() uint64 {
+	return uint64(a)
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float32) IsZero() bool {
 	return a == 0
