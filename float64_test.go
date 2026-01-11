@@ -749,3 +749,37 @@ func TestFloat64_Frexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_Ldexp(t *testing.T) {
+	tests := []struct {
+		frac Float64
+		exp  int
+		want Float64
+	}{
+		{exact64(0.75), 3, exact64(6.0)},
+		{exact64(0.5), 0, exact64(0.5)},
+		{exact64(0.5), -1073, exact64(0x1p-1074)},
+		{exact64(0.5), 1024, exact64(0x1p+1023)},
+
+		// underflow
+		{exact64(0.5), -1074, exact64(0)},
+		{exact64(-0.5), -1074, exact64(math.Copysign(0, -1))},
+
+		// overflow
+		{exact64(1.0), 1024, exact64(math.Inf(1))},
+		{exact64(-1.0), 1024, exact64(math.Inf(-1))},
+
+		// special cases
+		{exact64(0), 10, exact64(0)},
+		{exact64(math.Copysign(0, -1)), 10, exact64(math.Copysign(0, -1))},
+		{exact64(math.Inf(1)), 10, exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), 10, exact64(math.Inf(-1))},
+		{exact64(math.NaN()), 10, exact64(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.frac.Ldexp(test.exp)
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Ldexp(%d) = %x, want %x", test.frac, test.exp, got, test.want)
+		}
+	}
+}
