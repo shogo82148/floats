@@ -1275,3 +1275,30 @@ func TestFloat128_Ldexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat128_Mod(t *testing.T) {
+	tests := []struct {
+		a, b, want Float128
+	}{
+		{exact128(5.5), exact128(2.0), exact128(1.5)},
+		{exact128(-5.5), exact128(2.0), exact128(-1.5)},
+		{exact128(5.5), exact128(-2.0), exact128(1.5)},
+		{exact128(-5.5), exact128(-2.0), exact128(-1.5)},
+
+		// special cases
+		{exact128(math.Inf(1)), exact128(1.0), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(1.0), exact128(math.NaN())},
+		{exact128(math.NaN()), exact128(1.0), exact128(math.NaN())},
+		{exact128(1.0), exact128(0.0), exact128(math.NaN())},
+		{exact128(1.0), exact128(math.Inf(1)), exact128(1.0)},
+		{exact128(1.0), exact128(math.Inf(-1)), exact128(1.0)},
+		{exact128(1.0), exact128(math.NaN()), exact128(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mod(test.b)
+		if !eq128(got, test.want) {
+			t.Errorf("Float128(%x).Mod(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
