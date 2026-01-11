@@ -67,3 +67,8 @@ func close16(a Float16, b float64) bool {
 func close32(a Float32, b float64) bool {
 	return tolerance(float64(a), b, 1e-6)
 }
+
+// close64 reports whether a is close to b within tolerance 1e-15.
+func close64(a Float64, b float64) bool {
+	return tolerance(float64(a), b, 1e-15)
+}
