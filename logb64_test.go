@@ -16,6 +16,10 @@ func TestFloat64_Logb(t *testing.T) {
 		{exact64(0.5), exact64(-1)},
 		{exact64(4), exact64(2)},
 		{exact64(0.25), exact64(-2)},
+		{
+			// smallest positive subnormal number
+			exact64(0x1p-1022), exact64(-1022),
+		},
 
 		// special values
 		{exact64(0), exact64(math.Inf(-1))},
@@ -49,6 +53,10 @@ func TestFloat64_Ilogb(t *testing.T) {
 		{exact64(0.5), -1},
 		{exact64(4), 2},
 		{exact64(0.25), -2},
+		{
+			// smallest positive subnormal number
+			exact64(0x1p-1022), -1022,
+		},
 
 		// special values
 		{exact64(0), math.MinInt32},

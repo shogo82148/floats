@@ -16,6 +16,7 @@ func TestFloat32_Logb(t *testing.T) {
 		{exact32(0.5), exact32(-1)},
 		{exact32(4), exact32(2)},
 		{exact32(0.25), exact32(-2)},
+		{exact32(0x1p-149), exact32(-149)}, // smallest positive subnormal number
 
 		// special values
 		{exact32(0), exact32(math.Inf(-1))},

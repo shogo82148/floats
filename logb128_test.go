@@ -16,6 +16,11 @@ func TestFloat128_Logb(t *testing.T) {
 		{exact128(0.5), exact128(-1)},
 		{exact128(4), exact128(2)},
 		{exact128(0.25), exact128(-2)},
+		{
+			// smallest positive subnormal number
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			exact128(-16494),
+		},
 
 		// special values
 		{exact128(0), exact128(math.Inf(-1))},
@@ -49,6 +54,11 @@ func TestFloat128_Ilogb(t *testing.T) {
 		{exact128(0.5), -1},
 		{exact128(4), 2},
 		{exact128(0.25), -2},
+		{
+			// smallest positive subnormal number
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001},
+			-16494,
+		},
 
 		// special values
 		{exact128(0), math.MinInt32},

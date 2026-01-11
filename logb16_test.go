@@ -16,6 +16,7 @@ func TestFloat16_Logb(t *testing.T) {
 		{exact16(0.5), exact16(-1)},
 		{exact16(4), exact16(2)},
 		{exact16(0.25), exact16(-2)},
+		{exact16(0x1p-24), exact16(-24)}, // smallest positive subnormal number
 
 		// special values
 		{exact16(0), exact16(math.Inf(-1))},
@@ -49,6 +50,7 @@ func TestFloat16_Ilogb(t *testing.T) {
 		{exact16(0.5), -1},
 		{exact16(4), 2},
 		{exact16(0.25), -2},
+		{exact16(0x1p-24), -24}, // smallest positive subnormal number
 
 		// special values
 		{exact16(0), math.MinInt32},

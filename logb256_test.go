@@ -16,6 +16,14 @@ func TestFloat256_Logb(t *testing.T) {
 		{exact256(0.5), exact256(-1)},
 		{exact256(4), exact256(2)},
 		{exact256(0.25), exact256(-2)},
+		{
+			// smallest positive subnormal number
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			},
+			exact256(-262378),
+		},
 
 		// special values
 		{exact256(0), exact256(math.Inf(-1))},
@@ -49,6 +57,14 @@ func TestFloat256_Ilogb(t *testing.T) {
 		{exact256(0.5), -1},
 		{exact256(4), 2},
 		{exact256(0.25), -2},
+		{
+			// smallest positive subnormal number
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			},
+			-262378,
+		},
 
 		// special values
 		{exact256(0), math.MinInt32},
