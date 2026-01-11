@@ -2750,3 +2750,34 @@ func BenchmarkFloat256_Modf(b *testing.B) {
 		runtime.KeepAlive(fracPart)
 	}
 }
+
+func TestFloat256_Frexp(t *testing.T) {
+	tests := []struct {
+		in       Float256
+		wantFrac Float256
+		wantExp  int
+	}{
+		{exact256(6.0), exact256(0.75), 3},
+		{exact256(0.5), exact256(0.5), 0},
+		{
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			},
+			exact256(0.5), -262377,
+		},
+
+		// special cases
+		{exact256(0), exact256(0), 0},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1)), 0},
+		{exact256(math.Inf(1)), exact256(math.Inf(1)), 0},
+		{exact256(math.Inf(-1)), exact256(math.Inf(-1)), 0},
+		{exact256(math.NaN()), exact256(math.NaN()), 0},
+	}
+	for _, test := range tests {
+		gotFrac, gotExp := test.in.Frexp()
+		if !eq256(gotFrac, test.wantFrac) || gotExp != test.wantExp {
+			t.Errorf("Float256(%x).Frexp() = (%x, %d), want (%x, %d)", test.in, gotFrac, gotExp, test.wantFrac, test.wantExp)
+		}
+	}
+}

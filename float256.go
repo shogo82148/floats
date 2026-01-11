@@ -712,3 +712,25 @@ func (a Float256) Modf() (int Float256, frac Float256) {
 	frac = a.Sub(int)
 	return
 }
+
+// Frexp breaks a into a normalized fraction
+// and an integral power of two.
+// It returns frac and exp satisfying f == frac × 2**exp,
+// with the absolute value of frac in the interval [½, 1).
+//
+// Special cases are:
+//
+//	Frexp(±0) = ±0, 0
+//	Frexp(±Inf) = ±Inf, 0
+//	Frexp(NaN) = NaN, 0
+func (a Float256) Frexp() (frac Float256, exp int) {
+	// special cases
+	if a.IsZero() || a.IsNaN() || a.IsInf(0) {
+		return a, 0
+	}
+
+	sign, e, bits := a.normalize()
+	e++
+	bits[0] = sign | (-1+bias256)<<(shift256-192) | (bits[0] & fracMask256[0])
+	return Float256(bits), e
+}
