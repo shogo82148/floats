@@ -1,7 +1,6 @@
 package floats
 
 import (
-	"fmt"
 	"math"
 	"runtime"
 	"testing"
@@ -1345,10 +1344,4 @@ func TestFloat128_Remainder(t *testing.T) {
 			t.Errorf("Float128(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
 		}
 	}
-}
-
-func TestHoge(t *testing.T) {
-	x := Float128{0x0002_0000_0000_0000, 0x0000_0000_0000_0000}
-	fmt.Printf("%x\n", x)
-	fmt.Printf("%x\n", x.Mul(Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}))
 }
