@@ -20,6 +20,7 @@ func TestFloat16_Logb(t *testing.T) {
 		// special values
 		{exact16(0), exact16(math.Inf(-1))},
 		{exact16(math.Inf(1)), exact16(math.Inf(1))},
+		{exact16(math.Inf(-1)), exact16(math.Inf(1))},
 		{exact16(math.NaN()), exact16(math.NaN())},
 	}
 
@@ -52,6 +53,7 @@ func TestFloat16_Ilogb(t *testing.T) {
 		// special values
 		{exact16(0), math.MinInt32},
 		{exact16(math.Inf(1)), math.MaxInt32},
+		{exact16(math.Inf(-1)), math.MaxInt32},
 		{exact16(math.NaN()), math.MaxInt32},
 	}
 

@@ -20,6 +20,7 @@ func TestFloat32_Logb(t *testing.T) {
 		// special values
 		{exact32(0), exact32(math.Inf(-1))},
 		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(math.Inf(1))},
 		{exact32(math.NaN()), exact32(math.NaN())},
 	}
 
@@ -52,6 +53,7 @@ func TestFloat32_Ilogb(t *testing.T) {
 		// special values
 		{exact32(0), math.MinInt32},
 		{exact32(math.Inf(1)), math.MaxInt32},
+		{exact32(math.Inf(-1)), math.MaxInt32},
 		{exact32(math.NaN()), math.MaxInt32},
 	}
 

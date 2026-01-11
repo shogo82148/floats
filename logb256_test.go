@@ -20,6 +20,7 @@ func TestFloat256_Logb(t *testing.T) {
 		// special values
 		{exact256(0), exact256(math.Inf(-1))},
 		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.Inf(1))},
 		{exact256(math.NaN()), exact256(math.NaN())},
 	}
 
@@ -52,6 +53,7 @@ func TestFloat256_Ilogb(t *testing.T) {
 		// special values
 		{exact256(0), math.MinInt32},
 		{exact256(math.Inf(1)), math.MaxInt32},
+		{exact256(math.Inf(-1)), math.MaxInt32},
 		{exact256(math.NaN()), math.MaxInt32},
 	}
 

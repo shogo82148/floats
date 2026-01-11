@@ -20,6 +20,7 @@ func TestFloat128_Logb(t *testing.T) {
 		// special values
 		{exact128(0), exact128(math.Inf(-1))},
 		{exact128(math.Inf(1)), exact128(math.Inf(1))},
+		{exact128(math.Inf(-1)), exact128(math.Inf(1))},
 		{exact128(math.NaN()), exact128(math.NaN())},
 	}
 
@@ -52,6 +53,7 @@ func TestFloat128_Ilogb(t *testing.T) {
 		// special values
 		{exact128(0), math.MinInt32},
 		{exact128(math.Inf(1)), math.MaxInt32},
+		{exact128(math.Inf(-1)), math.MaxInt32},
 		{exact128(math.NaN()), math.MaxInt32},
 	}
 

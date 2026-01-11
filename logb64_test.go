@@ -20,6 +20,7 @@ func TestFloat64_Logb(t *testing.T) {
 		// special values
 		{exact64(0), exact64(math.Inf(-1))},
 		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), exact64(math.Inf(1))},
 		{exact64(math.NaN()), exact64(math.NaN())},
 	}
 
@@ -52,6 +53,7 @@ func TestFloat64_Ilogb(t *testing.T) {
 		// special values
 		{exact64(0), math.MinInt32},
 		{exact64(math.Inf(1)), math.MaxInt32},
+		{exact64(math.Inf(-1)), math.MaxInt32},
 		{exact64(math.NaN()), math.MaxInt32},
 	}
 
