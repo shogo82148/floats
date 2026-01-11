@@ -60,6 +60,7 @@ jobs:
 
           # float to int conversions
           - "f16_to_i64,f32_to_i64,f64_to_i64,f128_to_i64"
+          - "f16_to_ui64,f32_to_ui64,f64_to_ui64,f128_to_ui64"
 
           # Float16 operations
           - "f16_mul,f16_div,f16_add,f16_sub,f16_sqrt,f16_eq,f16_lt,f16_le,f16_mulAdd"

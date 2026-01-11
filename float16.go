@@ -78,6 +78,12 @@ func (a Float16) Int64() int64 {
 	return int64(a.Float64())
 }
 
+// Uint64 returns the unsigned integer value of a, rounding towards zero.
+// If a cannot be represented in a uint64, the result is undefined.
+func (a Float16) Uint64() uint64 {
+	return uint64(a.Float64())
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float16) IsZero() bool {
 	return a&^signMask16 == 0

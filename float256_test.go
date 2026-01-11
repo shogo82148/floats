@@ -231,6 +231,24 @@ func BenchmarkFloat256_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat256_Uint64(t *testing.T) {
+	tests := []struct {
+		in  Float256
+		out uint64
+	}{
+		{exact256(0), 0},
+		{exact256(1), 1},
+		{exact256(2), 2},
+		{exact256(1 << 63), 1 << 63},
+	}
+
+	for _, tt := range tests {
+		if got := tt.in.Uint64(); got != tt.out {
+			t.Errorf("Float256(%v).Uint64() = %v, want %v", tt.in, got, tt.out)
+		}
+	}
+}
+
 func TestFloat256_IsZero(t *testing.T) {
 	tests := []struct {
 		a    Float256

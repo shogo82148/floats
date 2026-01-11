@@ -135,6 +135,24 @@ func BenchmarkFloat16_Int64(b *testing.B) {
 	}
 }
 
+func TestFloat16_Uint64(t *testing.T) {
+	tests := []struct {
+		in  Float16
+		out uint64
+	}{
+		{exact16(0), 0},
+		{exact16(1), 1},
+		{exact16(1.5), 1},
+		{exact16(2), 2},
+	}
+	for _, test := range tests {
+		got := test.in.Uint64()
+		if got != test.out {
+			t.Errorf("Float16(%v).Uint64() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
 func TestFloat16_IsZero(t *testing.T) {
 	tests := []struct {
 		in   Float16

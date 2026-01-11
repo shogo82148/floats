@@ -91,6 +91,7 @@ func main() {
 			log.Fatal(err)
 		}
 
+	// To integer conversions
 	case "f16_to_i64":
 		if err := f16_to_i64(); err != nil {
 			log.Fatal(err)
@@ -105,6 +106,22 @@ func main() {
 		}
 	case "f128_to_i64":
 		if err := f128_to_i64(); err != nil {
+			log.Fatal(err)
+		}
+	case "f16_to_ui64":
+		if err := f16_to_ui64(); err != nil {
+			log.Fatal(err)
+		}
+	case "f32_to_ui64":
+		if err := f32_to_ui64(); err != nil {
+			log.Fatal(err)
+		}
+	case "f64_to_ui64":
+		if err := f64_to_ui64(); err != nil {
+			log.Fatal(err)
+		}
+	case "f128_to_ui64":
+		if err := f128_to_ui64(); err != nil {
 			log.Fatal(err)
 		}
 
@@ -796,6 +813,166 @@ func f128_to_i64() error {
 			log.Printf("f128: %s, i64: %s", s128, i64)
 			log.Printf("got: %x, want: %x", got, i64v)
 			return fmt.Errorf("f128(%x).Int64() = %x, want %x", f128, got, i64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f16_to_ui64() error {
+	for {
+		var s16, u64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s16, &u64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f16, err := parseFloat16(s16)
+		if err != nil {
+			return err
+		}
+
+		u64v, err := strconv.ParseUint(u64, 16, 64)
+		if err != nil {
+			return err
+		}
+
+		got := f16.Uint64()
+		if got != u64v {
+			log.Printf("f16: %s, i64: %s", s16, u64)
+			log.Printf("got: %x, want: %x", got, u64v)
+			return fmt.Errorf("f16(%x).Uint64() = %x, want %x", f16, got, u64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f32_to_ui64() error {
+	for {
+		var s32, u64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s32, &u64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f32, err := parseFloat32(s32)
+		if err != nil {
+			return err
+		}
+
+		u64v, err := strconv.ParseUint(u64, 16, 64)
+		if err != nil {
+			return err
+		}
+
+		got := f32.Uint64()
+		if got != u64v {
+			log.Printf("f32: %s, i64: %s", s32, u64)
+			log.Printf("got: %x, want: %x", got, u64v)
+			return fmt.Errorf("f32(%x).Uint64() = %x, want %x", f32, got, u64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f64_to_ui64() error {
+	for {
+		var s64, u64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s64, &u64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f64, err := parseFloat64(s64)
+		if err != nil {
+			return err
+		}
+
+		u64v, err := strconv.ParseUint(u64, 16, 64)
+		if err != nil {
+			return err
+		}
+
+		got := f64.Uint64()
+		if got != u64v {
+			log.Printf("f64: %s, i64: %s", s64, u64)
+			log.Printf("got: %x, want: %x", got, u64v)
+			return fmt.Errorf("f64(%x).Uint64() = %x, want %x", f64, got, u64v)
+		}
+		count.Add(1)
+	}
+	return nil
+}
+
+func f128_to_ui64() error {
+	for {
+		var s128, u64, flag string
+		if _, err := fmt.Scanf("%s %s %s", &s128, &u64, &flag); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+
+		f, err := parseFlag(flag)
+		if err != nil {
+			return err
+		}
+		if f&invalid != 0 {
+			// The behavior when the conversion is invalid is undefined.
+			continue
+		}
+
+		f128, err := parseFloat128(s128)
+		if err != nil {
+			return err
+		}
+
+		u64v, err := strconv.ParseUint(u64, 16, 64)
+		if err != nil {
+			return err
+		}
+
+		got := f128.Uint64()
+		if got != u64v {
+			log.Printf("f128: %s, i64: %s", s128, u64)
+			log.Printf("got: %x, want: %x", got, u64v)
+			return fmt.Errorf("f128(%x).Uint64() = %x, want %x", f128, got, u64v)
 		}
 		count.Add(1)
 	}

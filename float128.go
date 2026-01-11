@@ -89,6 +89,14 @@ func (a Float128) Int64() int64 {
 	return ret
 }
 
+// Uint64 returns the unsigned integer value of a, rounding towards zero.
+// If a cannot be represented in a uint64, the result is undefined.
+func (a Float128) Uint64() uint64 {
+	_, exp, frac := a.normalize()
+	frac = frac.Rsh(uint(shift128 - exp))
+	return uint64(frac.Uint64())
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float128) IsZero() bool {
 	return (a[0]&^signMask128[0])|a[1] == 0

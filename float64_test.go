@@ -119,16 +119,36 @@ func TestFloat64_Int64(t *testing.T) {
 		in   Float64
 		want int64
 	}{
-		{0, 0},
-		{1, 1},
-		{0.5, 0},
-		{-1, -1},
+		{exact64(0), 0},
+		{exact64(1), 1},
+		{exact64(0.5), 0},
+		{exact64(-1), -1},
+		{exact64(1 << 62), 1 << 62},
 	}
 
 	for _, test := range tests {
 		got := test.in.Int64()
 		if got != test.want {
 			t.Errorf("Float64.Int64(%v) = %v, want %v", test.in, got, test.want)
+		}
+	}
+}
+
+func TestFloat64_Uint64(t *testing.T) {
+	tests := []struct {
+		in  Float64
+		out uint64
+	}{
+		{exact64(0), 0},
+		{exact64(1), 1},
+		{exact64(1.5), 1},
+		{exact64(2), 2},
+		{exact64(1 << 63), 1 << 63},
+	}
+	for _, test := range tests {
+		got := test.in.Uint64()
+		if got != test.out {
+			t.Errorf("Float64(%v).Uint64() = %v, want %v", test.in, got, test.out)
 		}
 	}
 }
