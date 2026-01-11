@@ -1235,3 +1235,43 @@ func TestFloat128_Frexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat128_Ldexp(t *testing.T) {
+	tests := []struct {
+		frac Float128
+		exp  int
+		want Float128
+	}{
+		{exact128(0.75), 3, exact128(6.0)},
+		{exact128(0.5), 0, exact128(0.5)},
+		{
+			exact128(0.5), 16384,
+			Float128{0x7ffe_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p+16383
+		},
+		{
+			exact128(0.5), -16493,
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, // 0x1p-16494
+		},
+
+		// underflow
+		{exact128(0.5), -16494, exact128(0)},
+		{exact128(-0.5), -16494, exact128(math.Copysign(0, -1))},
+
+		// overflow
+		{exact128(1.0), 16384, exact128(math.Inf(1))},
+		{exact128(-1.0), 16384, exact128(math.Inf(-1))},
+
+		// special cases
+		{exact128(0), 10, exact128(0)},
+		{exact128(math.Copysign(0, -1)), 10, exact128(math.Copysign(0, -1))},
+		{exact128(math.Inf(1)), 10, exact128(math.Inf(1))},
+		{exact128(math.Inf(-1)), 10, exact128(math.Inf(-1))},
+		{exact128(math.NaN()), 10, exact128(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.frac.Ldexp(test.exp)
+		if !eq128(got, test.want) {
+			t.Errorf("Float128(%x).Ldexp(%d) = %x, want %x", test.frac, test.exp, got, test.want)
+		}
+	}
+}

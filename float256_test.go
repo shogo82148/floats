@@ -2781,3 +2781,49 @@ func TestFloat256_Frexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_Ldexp(t *testing.T) {
+	tests := []struct {
+		frac Float256
+		exp  int
+		want Float256
+	}{
+		{exact256(0.75), 3, exact256(6.0)},
+		{exact256(0.5), 0, exact256(0.5)},
+		{
+			exact256(0.5), 262144,
+			Float256{
+				0x7fff_e000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			}, // 0x1p+262143
+		},
+		{
+			exact256(0.5), -262377,
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			}, // 0x1p-262378
+		},
+
+		// underflow
+		{exact256(0.5), -262378, exact256(0)},
+		{exact256(-0.5), -262378, exact256(math.Copysign(0, -1))},
+
+		// overflow
+		{exact256(1.0), 262144, exact256(math.Inf(1))},
+		{exact256(-1.0), 262144, exact256(math.Inf(-1))},
+
+		// special cases
+		{exact256(0), 10, exact256(0)},
+		{exact256(math.Copysign(0, -1)), 10, exact256(math.Copysign(0, -1))},
+		{exact256(math.Inf(1)), 10, exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), 10, exact256(math.Inf(-1))},
+		{exact256(math.NaN()), 10, exact256(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.frac.Ldexp(test.exp)
+		if !eq256(got, test.want) {
+			t.Errorf("Float256(%x).Ldexp(%d) = %x, want %x", test.frac, test.exp, got, test.want)
+		}
+	}
+}

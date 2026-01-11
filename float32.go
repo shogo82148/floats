@@ -358,3 +358,16 @@ func (a Float32) Frexp() (frac Float32, exp int) {
 	f, e := math.Frexp(a.Float64().BuiltIn())
 	return NewFloat32(f), e
 }
+
+// Ldexp is the inverse of [Frexp].
+// It returns a × 2**exp.
+//
+// Special cases are:
+//
+//	±0.Ldexp(exp) = ±0
+//	±Inf.Ldexp(exp) = ±Inf
+//	NaN.Ldexp(exp) = NaN
+func (a Float32) Ldexp(exp int) Float32 {
+	f := math.Ldexp(a.Float64().BuiltIn(), exp)
+	return NewFloat32(f)
+}

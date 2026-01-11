@@ -788,3 +788,36 @@ func TestFloat32_Frexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Ldexp(t *testing.T) {
+	tests := []struct {
+		frac Float32
+		exp  int
+		want Float32
+	}{
+		{exact32(0.75), 3, exact32(6.0)},
+		{exact32(0.5), 0, exact32(0.5)},
+		{exact32(0.5), -148, exact32(0x1p-149)},
+
+		// underflow
+		{exact32(0.5), -149, exact32(0)},
+		{exact32(-0.5), -149, exact32(math.Copysign(0, -1))},
+
+		// overflow
+		{exact32(1.0), 128, exact32(math.Inf(1))},
+		{exact32(-1.0), 128, exact32(math.Inf(-1))},
+
+		// special cases
+		{exact32(0), 10, exact32(0)},
+		{exact32(math.Copysign(0, -1)), 10, exact32(math.Copysign(0, -1))},
+		{exact32(math.Inf(1)), 10, exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), 10, exact32(math.Inf(-1))},
+		{exact32(math.NaN()), 10, exact32(math.NaN())},
+	}
+	for _, test := range tests {
+		got := test.frac.Ldexp(test.exp)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Ldexp(%d) = %x, want %x", test.frac, test.exp, got, test.want)
+		}
+	}
+}
