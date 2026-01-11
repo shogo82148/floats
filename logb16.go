@@ -27,9 +27,9 @@ func (a Float16) Logb() Float16 {
 //
 // Special cases are:
 //
-//	Ilogb(±Inf) = MaxInt32
-//	Ilogb(0) = MinInt32
-//	Ilogb(NaN) = MaxInt32
+//	±Inf.Ilogb() = MaxInt32
+//	0.Ilogb() = MinInt32
+//	NaN.Ilogb() = MaxInt32
 func (a Float16) Ilogb() int {
 	// special cases
 	switch {
