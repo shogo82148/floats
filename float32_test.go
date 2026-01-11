@@ -764,3 +764,27 @@ func BenchmarkFloat32_Modf_Optimized(b *testing.B) {
 		runtime.KeepAlive(fracPart)
 	}
 }
+
+func TestFloat32_Frexp(t *testing.T) {
+	tests := []struct {
+		in       Float32
+		wantFrac Float32
+		wantExp  int
+	}{
+		{exact32(6.0), exact32(0.75), 3},
+		{exact32(0.5), exact32(0.5), 0},
+
+		// special cases
+		{exact32(0), exact32(0), 0},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1)), 0},
+		{exact32(math.Inf(1)), exact32(math.Inf(1)), 0},
+		{exact32(math.Inf(-1)), exact32(math.Inf(-1)), 0},
+		{exact32(math.NaN()), exact32(math.NaN()), 0},
+	}
+	for _, test := range tests {
+		gotFrac, gotExp := test.in.Frexp()
+		if !eq32(gotFrac, test.wantFrac) || gotExp != test.wantExp {
+			t.Errorf("Float32(%x).Frexp() = (%x, %d), want (%x, %d)", test.in, gotFrac, gotExp, test.wantFrac, test.wantExp)
+		}
+	}
+}
