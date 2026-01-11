@@ -50,6 +50,7 @@ func TestFloat32_Ilogb(t *testing.T) {
 		{exact32(0.5), -1},
 		{exact32(4), 2},
 		{exact32(0.25), -2},
+		{exact32(0x1p-149), -149}, // smallest positive subnormal number
 
 		// special values
 		{exact32(0), math.MinInt32},
