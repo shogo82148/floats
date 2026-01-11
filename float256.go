@@ -845,7 +845,7 @@ func (a Float256) Remainder(b Float256) Float256 {
 		// To avoid loss of precision, we will bypass the calculation b * 0.5.
 		if a.Add(a).Gt(b) {
 			a = a.Sub(b)
-			if a.Add(a).Gt(b) {
+			if a.Add(a).Ge(b) {
 				a = a.Sub(b)
 			}
 		}
@@ -853,7 +853,7 @@ func (a Float256) Remainder(b Float256) Float256 {
 		bHalf := b.Mul(Float256{0x3fff_e000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000}) // b * 0.5
 		if a.Gt(bHalf) {
 			a = a.Sub(b)
-			if a.Gt(bHalf) {
+			if a.Ge(bHalf) {
 				a = a.Sub(b)
 			}
 		}
