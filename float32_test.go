@@ -866,3 +866,30 @@ func TestFloat32_Mod(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Remainder(t *testing.T) {
+	tests := []struct {
+		a, b, want Float32
+	}{
+		{exact32(5.5), exact32(2.0), exact32(-0.5)},
+		{exact32(-5.5), exact32(2.0), exact32(0.5)},
+		{exact32(5.5), exact32(-2.0), exact32(-0.5)},
+		{exact32(-5.5), exact32(-2.0), exact32(0.5)},
+
+		// special cases
+		{exact32(math.Inf(1)), exact32(1.0), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(1.0), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(1.0), exact32(math.NaN())},
+		{exact32(1.0), exact32(0.0), exact32(math.NaN())},
+		{exact32(1.0), exact32(math.Inf(1)), exact32(1.0)},
+		{exact32(1.0), exact32(math.Inf(-1)), exact32(1.0)},
+		{exact32(1.0), exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Remainder(test.b)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

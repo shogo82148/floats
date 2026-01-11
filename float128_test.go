@@ -1321,3 +1321,46 @@ func TestFloat128_Mod(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat128_Remainder(t *testing.T) {
+	tests := []struct {
+		a, b, want Float128
+	}{
+		{exact128(5.5), exact128(2.0), exact128(-0.5)},
+		{exact128(-5.5), exact128(2.0), exact128(0.5)},
+		{exact128(5.5), exact128(-2.0), exact128(-0.5)},
+		{exact128(-5.5), exact128(-2.0), exact128(0.5)},
+		{exact128(2.0), exact128(2.0), exact128(0.0)},
+		{exact128(-2.0), exact128(2.0), exact128(math.Copysign(0, -1))},
+
+		// in case of 2b overflows
+		{
+			exact128(123),
+			Float128{0x7ffe_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p+16383
+			exact128(123),
+		},
+
+		// in case of b is very small number
+		{
+			exact128(1.0),
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0001}, // 0x1p-16494
+			Float128{0x0000_0000_0000_0000, 0x0000_0000_0000_0000}, // 0.0
+		},
+
+		// special cases
+		{exact128(math.Inf(1)), exact128(1.0), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(1.0), exact128(math.NaN())},
+		{exact128(math.NaN()), exact128(1.0), exact128(math.NaN())},
+		{exact128(1.0), exact128(0.0), exact128(math.NaN())},
+		{exact128(1.0), exact128(math.Inf(1)), exact128(1.0)},
+		{exact128(1.0), exact128(math.Inf(-1)), exact128(1.0)},
+		{exact128(1.0), exact128(math.NaN()), exact128(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Remainder(test.b)
+		if !eq128(got, test.want) {
+			t.Errorf("Float128(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

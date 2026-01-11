@@ -392,3 +392,16 @@ func (a Float32) Ldexp(exp int) Float32 {
 func (a Float32) Mod(b Float32) Float32 {
 	return NewFloat32(math.Mod(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
 }
+
+// Remainder returns the IEEE 754 floating-point remainder of a/b.
+//
+// Special cases are:
+//
+//	±Inf.Remainder(b) = NaN
+//	NaN.Remainder(b) = NaN
+//	a.Remainder(0) = NaN
+//	a.Remainder(±Inf) = a
+//	a.Remainder(NaN) = NaN
+func (a Float32) Remainder(b Float32) Float32 {
+	return NewFloat32(math.Remainder(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+}

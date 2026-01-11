@@ -2872,3 +2872,52 @@ func TestFloat256_Mod(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_Remainder(t *testing.T) {
+	tests := []struct {
+		a, b, want Float256
+	}{
+		{exact256(5.5), exact256(2.0), exact256(-0.5)},
+		{exact256(-5.5), exact256(2.0), exact256(0.5)},
+		{exact256(5.5), exact256(-2.0), exact256(-0.5)},
+		{exact256(-5.5), exact256(-2.0), exact256(0.5)},
+		{exact256(2.0), exact256(2.0), exact256(0.0)},
+		{exact256(-2.0), exact256(2.0), exact256(math.Copysign(0, -1))},
+
+		// in case of 2b overflows
+		{
+			exact256(123),
+			Float256{
+				0x7fff_e000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			}, // 0x1p+262143
+			exact256(123),
+		},
+
+		// in case of b is very small number
+		{
+			exact256(1.0),
+			Float256{
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000, 0x0000_0000_0000_0001,
+			}, // 0x1p-262378
+			exact256(0),
+		},
+
+		// special cases
+		{exact256(math.Inf(1)), exact256(1.0), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(1.0), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(1.0), exact256(math.NaN())},
+		{exact256(1.0), exact256(0.0), exact256(math.NaN())},
+		{exact256(1.0), exact256(math.Inf(1)), exact256(1.0)},
+		{exact256(1.0), exact256(math.Inf(-1)), exact256(1.0)},
+		{exact256(1.0), exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Remainder(test.b)
+		if !eq256(got, test.want) {
+			t.Errorf("Float256(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

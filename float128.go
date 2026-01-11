@@ -768,3 +768,63 @@ func (a Float128) Mod(b Float128) Float128 {
 	}
 	return r
 }
+
+// Remainder returns the IEEE 754 floating-point remainder of a/b.
+//
+// Special cases are:
+//
+//	±Inf.Remainder(b) = NaN
+//	NaN.Remainder(b) = NaN
+//	a.Remainder(0) = NaN
+//	a.Remainder(±Inf) = a
+//	a.Remainder(NaN) = NaN
+func (a Float128) Remainder(b Float128) Float128 {
+	// special cases
+	if b.IsZero() || a.IsInf(0) || a.IsNaN() || b.IsNaN() {
+		return NewFloat128NaN()
+	}
+	if b.IsInf(0) {
+		return a
+	}
+
+	sign := false
+	if a.Lt(Float128{}) {
+		a = a.Neg()
+		sign = true
+	}
+	if b.Lt(Float128{}) {
+		b = b.Neg()
+	}
+	if a.Eq(b) {
+		if sign {
+			return Float128(signMask128)
+		}
+		return Float128{}
+	}
+	if b.Le(Float128{0x7ffd_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}) { // = MAX_FLOAT128 / 2
+		// now a < 2b
+		a = a.Mod(b.Add(b))
+	}
+	if b.Lt(Float128{0x0002_0000_0000_0000, 0x0000_0000_0000_0000}) { // smallest positive normal number * 2
+		// To avoid loss of precision, we will bypass the calculation b * 0.5.
+		if a.Add(a).Gt(b) {
+			a = a.Sub(b)
+			if a.Add(a).Ge(b) {
+				a = a.Sub(b)
+			}
+		}
+	} else {
+		bHalf := b.Mul(Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}) // b * 0.5
+		if a.Gt(bHalf) {
+			a = a.Sub(b)
+			if a.Ge(bHalf) {
+				a = a.Sub(b)
+			}
+		}
+	}
+
+	if sign {
+		a = a.Neg()
+	}
+	return a
+}
