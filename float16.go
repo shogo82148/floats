@@ -643,7 +643,7 @@ func (a Float16) Modf() (int Float16, frac Float16) {
 	return
 }
 
-// Frexp breaks f into a normalized fraction
+// Frexp breaks a into a normalized fraction
 // and an integral power of two.
 // It returns frac and exp satisfying f == frac × 2**exp,
 // with the absolute value of frac in the interval [½, 1).

@@ -344,7 +344,7 @@ func (a Float32) Modf() (int Float32, frac Float32) {
 	return
 }
 
-// Frexp breaks f into a normalized fraction
+// Frexp breaks a into a normalized fraction
 // and an integral power of two.
 // It returns frac and exp satisfying f == frac × 2**exp,
 // with the absolute value of frac in the interval [½, 1).
