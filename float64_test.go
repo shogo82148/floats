@@ -810,3 +810,30 @@ func TestFloat64_Mod(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_Remainder(t *testing.T) {
+	tests := []struct {
+		a, b, want Float64
+	}{
+		{exact64(5.5), exact64(2.0), exact64(-0.5)},
+		{exact64(-5.5), exact64(2.0), exact64(0.5)},
+		{exact64(5.5), exact64(-2.0), exact64(-0.5)},
+		{exact64(-5.5), exact64(-2.0), exact64(0.5)},
+
+		// special cases
+		{exact64(math.Inf(1)), exact64(1.0), exact64(math.NaN())},
+		{exact64(math.Inf(-1)), exact64(1.0), exact64(math.NaN())},
+		{exact64(math.NaN()), exact64(1.0), exact64(math.NaN())},
+		{exact64(1.0), exact64(0.0), exact64(math.NaN())},
+		{exact64(1.0), exact64(math.Inf(1)), exact64(1.0)},
+		{exact64(1.0), exact64(math.Inf(-1)), exact64(1.0)},
+		{exact64(1.0), exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Remainder(test.b)
+		if !eq64(got, test.want) {
+			t.Errorf("Float64(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}
