@@ -82,3 +82,59 @@ func TestFloat64_Trunc(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat64_Round(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want Float64
+	}{
+		{exact64(3.0), exact64(3)},
+		{exact64(3.5), exact64(4)},
+		{exact64(4.5), exact64(5)},
+		{exact64(-3.0), exact64(-3)},
+		{exact64(-3.5), exact64(-4)},
+		{exact64(-4.5), exact64(-5)},
+
+		// Special cases
+		{exact64(0), exact64(0)},
+		{exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1))},
+		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), exact64(math.Inf(-1))},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Round()
+		if !eq64(got, tt.want) {
+			t.Errorf("Float64.Round(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func TestFloat64_RoundToEven(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want Float64
+	}{
+		{exact64(3.0), exact64(3)},
+		{exact64(3.5), exact64(4)},
+		{exact64(4.5), exact64(4)},
+		{exact64(-3.0), exact64(-3)},
+		{exact64(-3.5), exact64(-4)},
+		{exact64(-4.5), exact64(-4)},
+
+		// Special cases
+		{exact64(0), exact64(0)},
+		{exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1))},
+		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), exact64(math.Inf(-1))},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.RoundToEven()
+		if !eq64(got, tt.want) {
+			t.Errorf("Float64.RoundToEven(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

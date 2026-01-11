@@ -34,3 +34,25 @@ func (a Float16) Ceil() Float16 {
 func (a Float16) Trunc() Float16 {
 	return NewFloat16(math.Trunc(a.Float64().BuiltIn()))
 }
+
+// Round returns the nearest integer, rounding half away from zero.
+//
+// Special cases are:
+//
+//	±0.Round() = ±0
+//	±Inf.Round() = ±Inf
+//	NaN.Round() = NaN
+func (a Float16) Round() Float16 {
+	return NewFloat16(math.Round(a.Float64().BuiltIn()))
+}
+
+// RoundToEven returns the nearest integer, rounding ties to even.
+//
+// Special cases are:
+//
+//	±0.RoundToEven() = ±0
+//	±Inf.RoundToEven() = ±Inf
+//	NaN.RoundToEven() = NaN
+func (a Float16) RoundToEven() Float16 {
+	return NewFloat16(math.RoundToEven(a.Float64().BuiltIn()))
+}
