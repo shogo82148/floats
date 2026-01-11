@@ -759,3 +759,30 @@ func TestFloat16_Ldexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Mod(t *testing.T) {
+	tests := []struct {
+		a, b, want Float16
+	}{
+		{exact16(5.5), exact16(2.0), exact16(1.5)},
+		{exact16(-5.5), exact16(2.0), exact16(-1.5)},
+		{exact16(5.5), exact16(-2.0), exact16(1.5)},
+		{exact16(-5.5), exact16(-2.0), exact16(-1.5)},
+
+		// special cases
+		{exact16(math.Inf(1)), exact16(1.0), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(1.0), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(1.0), exact16(math.NaN())},
+		{exact16(1.0), exact16(0.0), exact16(math.NaN())},
+		{exact16(1.0), exact16(math.Inf(1)), exact16(1.0)},
+		{exact16(1.0), exact16(math.Inf(-1)), exact16(1.0)},
+		{exact16(1.0), exact16(math.NaN()), exact16(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mod(test.b)
+		if !eq16(got, test.want) {
+			t.Errorf("Float16(%x).Mod(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

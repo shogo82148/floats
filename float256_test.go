@@ -2827,3 +2827,30 @@ func TestFloat256_Ldexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_Mod(t *testing.T) {
+	tests := []struct {
+		a, b, want Float256
+	}{
+		{exact256(5.5), exact256(2.0), exact256(1.5)},
+		{exact256(-5.5), exact256(2.0), exact256(-1.5)},
+		{exact256(5.5), exact256(-2.0), exact256(1.5)},
+		{exact256(-5.5), exact256(-2.0), exact256(-1.5)},
+
+		// special cases
+		{exact256(math.Inf(1)), exact256(1.0), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(1.0), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(1.0), exact256(math.NaN())},
+		{exact256(1.0), exact256(0.0), exact256(math.NaN())},
+		{exact256(1.0), exact256(math.Inf(1)), exact256(1.0)},
+		{exact256(1.0), exact256(math.Inf(-1)), exact256(1.0)},
+		{exact256(1.0), exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mod(test.b)
+		if !eq256(got, test.want) {
+			t.Errorf("Float256(%x).Mod(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

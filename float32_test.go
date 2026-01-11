@@ -821,3 +821,30 @@ func TestFloat32_Ldexp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Mod(t *testing.T) {
+	tests := []struct {
+		a, b, want Float32
+	}{
+		{exact32(5.5), exact32(2.0), exact32(1.5)},
+		{exact32(-5.5), exact32(2.0), exact32(-1.5)},
+		{exact32(5.5), exact32(-2.0), exact32(1.5)},
+		{exact32(-5.5), exact32(-2.0), exact32(-1.5)},
+
+		// special cases
+		{exact32(math.Inf(1)), exact32(1.0), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(1.0), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(1.0), exact32(math.NaN())},
+		{exact32(1.0), exact32(0.0), exact32(math.NaN())},
+		{exact32(1.0), exact32(math.Inf(1)), exact32(1.0)},
+		{exact32(1.0), exact32(math.Inf(-1)), exact32(1.0)},
+		{exact32(1.0), exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, test := range tests {
+		got := test.a.Mod(test.b)
+		if !eq32(got, test.want) {
+			t.Errorf("Float32(%x).Mod(%x) = %x, want %x", test.a, test.b, got, test.want)
+		}
+	}
+}

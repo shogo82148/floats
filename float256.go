@@ -768,3 +768,39 @@ func (a Float256) Ldexp(exp int) Float256 {
 	bits[0] = sign | uint64(e+bias256)<<(shift256-192) | (bits[0] & fracMask256[0])
 	return Float256(bits)
 }
+
+// Mod returns the floating-point remainder of a/b.
+// The magnitude of the result is less than b and its
+// sign agrees with that of a.
+//
+// Special cases are:
+//
+//	±Inf.Mod(b) = NaN
+//	NaN.Mod(b) = NaN
+//	a.Mod(0) = NaN
+//	a.Mod(±Inf) = a
+//	a.Mod(NaN) = NaN
+func (a Float256) Mod(b Float256) Float256 {
+	// special cases
+	if b.IsZero() || a.IsInf(0) || a.IsNaN() || b.IsNaN() {
+		return NewFloat256NaN()
+	}
+
+	b = b.Abs()
+	bfr, bexp := b.Frexp()
+	r := a
+	if a.Lt(Float256{}) {
+		r = a.Neg()
+	}
+	for r.Ge(b) {
+		rfr, rexp := r.Frexp()
+		if rfr.Lt(bfr) {
+			rexp--
+		}
+		r = r.Sub(b.Ldexp(rexp - bexp))
+	}
+	if a.Lt(Float256{}) {
+		r = r.Neg()
+	}
+	return r
+}
