@@ -670,3 +670,18 @@ func (a Float16) Ldexp(exp int) Float16 {
 	f := math.Ldexp(a.Float64().BuiltIn(), exp)
 	return NewFloat16(f)
 }
+
+// Mod returns the floating-point remainder of a/b.
+// The magnitude of the result is less than b and its
+// sign agrees with that of a.
+//
+// Special cases are:
+//
+//	±Inf.Mod(b) = NaN
+//	NaN.Mod(b) = NaN
+//	a.Mod(0) = NaN
+//	a.Mod(±Inf) = a
+//	a.Mod(NaN) = NaN
+func (a Float16) Mod(b Float16) Float16 {
+	return NewFloat16(math.Mod(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+}
