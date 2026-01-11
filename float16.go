@@ -685,3 +685,16 @@ func (a Float16) Ldexp(exp int) Float16 {
 func (a Float16) Mod(b Float16) Float16 {
 	return NewFloat16(math.Mod(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
 }
+
+// Remainder returns the IEEE 754 floating-point remainder of a/b.
+//
+// Special cases are:
+//
+//	±Inf.Remainder(b) = NaN
+//	NaN.Remainder(b) = NaN
+//	a.Remainder(0) = NaN
+//	a.Remainder(±Inf) = a
+//	a.Remainder(NaN) = NaN
+func (a Float16) Remainder(b Float16) Float16 {
+	return NewFloat16(math.Remainder(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+}
