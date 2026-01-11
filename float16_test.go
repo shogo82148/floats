@@ -791,10 +791,10 @@ func TestFloat16_Remainder(t *testing.T) {
 	tests := []struct {
 		a, b, want Float16
 	}{
-		{exact16(5.5), exact16(2.0), exact16(1.5)},
-		{exact16(-5.5), exact16(2.0), exact16(-1.5)},
-		{exact16(5.5), exact16(-2.0), exact16(1.5)},
-		{exact16(-5.5), exact16(-2.0), exact16(-1.5)},
+		{exact16(5.5), exact16(2.0), exact16(-0.5)},
+		{exact16(-5.5), exact16(2.0), exact16(0.5)},
+		{exact16(5.5), exact16(-2.0), exact16(-0.5)},
+		{exact16(-5.5), exact16(-2.0), exact16(0.5)},
 
 		// special cases
 		{exact16(math.Inf(1)), exact16(1.0), exact16(math.NaN())},
@@ -807,9 +807,9 @@ func TestFloat16_Remainder(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := test.a.Mod(test.b)
+		got := test.a.Remainder(test.b)
 		if !eq16(got, test.want) {
-			t.Errorf("Float16(%x).Mod(%x) = %x, want %x", test.a, test.b, got, test.want)
+			t.Errorf("Float16(%x).Remainder(%x) = %x, want %x", test.a, test.b, got, test.want)
 		}
 	}
 }
