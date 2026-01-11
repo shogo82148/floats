@@ -725,3 +725,27 @@ func BenchmarkFloat64_Modf(b *testing.B) {
 		runtime.KeepAlive(fracPart)
 	}
 }
+
+func TestFloat64_Frexp(t *testing.T) {
+	tests := []struct {
+		in       Float64
+		wantFrac Float64
+		wantExp  int
+	}{
+		{exact64(6.0), exact64(0.75), 3},
+		{exact64(0.5), exact64(0.5), 0},
+
+		// special cases
+		{exact64(0), exact64(0), 0},
+		{exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1)), 0},
+		{exact64(math.Inf(1)), exact64(math.Inf(1)), 0},
+		{exact64(math.Inf(-1)), exact64(math.Inf(-1)), 0},
+		{exact64(math.NaN()), exact64(math.NaN()), 0},
+	}
+	for _, test := range tests {
+		gotFrac, gotExp := test.in.Frexp()
+		if !eq64(gotFrac, test.wantFrac) || gotExp != test.wantExp {
+			t.Errorf("Float64(%x).Frexp() = (%x, %d), want (%x, %d)", test.in, gotFrac, gotExp, test.wantFrac, test.wantExp)
+		}
+	}
+}

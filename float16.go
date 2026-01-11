@@ -642,3 +642,18 @@ func (a Float16) Modf() (int Float16, frac Float16) {
 	frac = a.Sub(int)
 	return
 }
+
+// Frexp breaks a into a normalized fraction
+// and an integral power of two.
+// It returns frac and exp satisfying f == frac × 2**exp,
+// with the absolute value of frac in the interval [½, 1).
+//
+// Special cases are:
+//
+//	±0.Frexp() = ±0, 0
+//	±Inf.Frexp() = ±Inf, 0
+//	NaN.Frexp() = NaN, 0
+func (a Float16) Frexp() (frac Float16, exp int) {
+	f, e := math.Frexp(a.Float64().BuiltIn())
+	return NewFloat16(f), e
+}

@@ -701,3 +701,28 @@ func BenchmarkFloat16_Modf_Optimized(b *testing.B) {
 		runtime.KeepAlive(fracPart)
 	}
 }
+
+func TestFloat16_Frexp(t *testing.T) {
+	tests := []struct {
+		in       Float16
+		wantFrac Float16
+		wantExp  int
+	}{
+		{exact16(6.0), exact16(0.75), 3},
+		{exact16(0.5), exact16(0.5), 0},
+		{exact16(0x1p-24), exact16(0.5), -23},
+
+		// special cases
+		{exact16(0), exact16(0), 0},
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1)), 0},
+		{exact16(math.Inf(1)), exact16(math.Inf(1)), 0},
+		{exact16(math.Inf(-1)), exact16(math.Inf(-1)), 0},
+		{exact16(math.NaN()), exact16(math.NaN()), 0},
+	}
+	for _, test := range tests {
+		gotFrac, gotExp := test.in.Frexp()
+		if !eq16(gotFrac, test.wantFrac) || gotExp != test.wantExp {
+			t.Errorf("Float16(%x).Frexp() = (%x, %d), want (%x, %d)", test.in, gotFrac, gotExp, test.wantFrac, test.wantExp)
+		}
+	}
+}
