@@ -39,3 +39,26 @@ func exact128(f float64) Float128 {
 func exact256(f float64) Float256 {
 	return Float64(f).Float256()
 }
+
+func tolerance(a, b, e float64) bool {
+	if a == b {
+		return true
+	}
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+
+	if b != 0 {
+		e = e * b
+		if e < 0 {
+			e = -e
+		}
+	}
+	return d < e
+}
+
+// close16 reports whether a is close to b within tolerance 1e-3.
+func close16(a Float16, b float64) bool {
+	return tolerance(a.Float64().BuiltIn(), b, 1e-3)
+}
