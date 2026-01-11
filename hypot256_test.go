@@ -9,11 +9,11 @@ func TestHypot256(t *testing.T) {
 	tests := []struct {
 		x    Float256
 		y    Float256
-		want float64
+		want string
 	}{
-		{exact256(3), exact256(4), 5},
-		{exact256(5), exact256(12), 13},
-		{exact256(1), exact256(1), math.Sqrt(2)},
+		{exact256(3), exact256(4), "5"},
+		{exact256(5), exact256(12), "13"},
+		{exact256(1), exact256(1), "1.414213562373095048801688724209698078569671875376948073176679737990733"},
 	}
 
 	for _, tt := range tests {
