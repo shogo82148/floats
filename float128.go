@@ -690,3 +690,37 @@ func (a Float128) Frexp() (frac Float128, exp int) {
 	bits[0] = sign | (-1+bias128)<<(shift128-64) | (bits[0] & fracMask128[0])
 	return Float128(bits), e
 }
+
+// Ldexp is the inverse of [Frexp].
+// It returns a × 2**exp.
+//
+// Special cases are:
+//
+//	±0.Ldexp(exp) = ±0
+//	±Inf.Ldexp(exp) = ±Inf
+//	NaN.Ldexp(exp) = NaN
+func (a Float128) Ldexp(exp int) Float128 {
+	// special cases
+	if a.IsZero() || a.IsNaN() || a.IsInf(0) {
+		return a
+	}
+
+	sign, e, bits := a.normalize()
+	e += exp
+	if e >= mask128-bias128 {
+		// overflow
+		return Float128{sign | uvinf128[0], uvinf128[1]}
+	}
+	if e <= -bias128-shift128 {
+		// underflow
+		return Float128{sign, 0}
+	}
+	if e <= -bias128 {
+		// the result is subnormal
+		shift := -e - bias128 + 1
+		frac := roundToNearestEven128(bits, uint(shift))
+		return Float128{sign | frac[0], frac[1]}
+	}
+	bits[0] = sign | uint64(e+bias128)<<(shift128-64) | (bits[0] & fracMask128[0])
+	return Float128(bits)
+}
