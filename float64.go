@@ -211,3 +211,18 @@ func (a Float64) Modf() (int Float64, frac Float64) {
 	fint, ffrac := math.Modf(a.BuiltIn())
 	return NewFloat64(fint), NewFloat64(ffrac)
 }
+
+// Frexp breaks a into a normalized fraction
+// and an integral power of two.
+// It returns frac and exp satisfying f == frac × 2**exp,
+// with the absolute value of frac in the interval [½, 1).
+//
+// Special cases are:
+//
+//	Frexp(±0) = ±0, 0
+//	Frexp(±Inf) = ±Inf, 0
+//	Frexp(NaN) = NaN, 0
+func (a Float64) Frexp() (frac Float64, exp int) {
+	f, e := math.Frexp(a.BuiltIn())
+	return NewFloat64(f), e
+}
