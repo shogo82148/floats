@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -48,5 +49,12 @@ func TestFloat32_Exp(t *testing.T) {
 		if !eq32(got, tt.want) {
 			t.Errorf("Exp(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func BenchmarkFloat32_Exp(b *testing.B) {
+	x := exact32(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Exp())
 	}
 }

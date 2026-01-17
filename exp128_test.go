@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -40,5 +41,12 @@ func TestFloat128_Exp(t *testing.T) {
 		if !eq128(got, tt.want) {
 			t.Errorf("Exp(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func BenchmarkFloat128_Exp(b *testing.B) {
+	x := exact128(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Exp())
 	}
 }

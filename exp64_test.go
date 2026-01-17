@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -39,5 +40,12 @@ func TestFloat64_Exp(t *testing.T) {
 		if !eq64(got, tt.want) {
 			t.Errorf("Exp(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func BenchmarkFloat64_Exp(b *testing.B) {
+	x := exact64(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Exp())
 	}
 }
