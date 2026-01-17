@@ -48,9 +48,9 @@ func (a Float32) Exp() Float32 {
 	// reduce; computed as r = hi - lo for extra precision.
 	var k int
 	switch {
-	case a > 0:
-		k = int(Log2e*a - 0.5)
 	case a < 0:
+		k = int(Log2e*a - 0.5)
+	case a > 0:
 		k = int(Log2e*a + 0.5)
 	}
 	hi := a - Float32(k)*Ln2Hi
