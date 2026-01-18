@@ -41,3 +41,37 @@ func TestFloat16_Exp(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Exp2(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want float64
+	}{
+		{exact16(0), math.Exp2(0)},
+		{exact16(1), math.Exp2(1)},
+		{exact16(1.5), math.Exp2(1.5)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Exp2()
+		if !close16(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float16
+		want Float16
+	}{
+		// special cases
+		{exact16(math.Inf(1)), exact16(math.Inf(1))},
+		{exact16(math.NaN()), exact16(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Exp2()
+		if !eq16(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
