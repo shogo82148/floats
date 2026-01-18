@@ -58,3 +58,42 @@ func BenchmarkFloat32_Exp(b *testing.B) {
 		runtime.KeepAlive(x.Exp())
 	}
 }
+
+func TestFloat32_Exp2(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(-1), math.Exp2(-1)},
+		{exact32(0), math.Exp2(0)},
+		{exact32(1), math.Exp2(1)},
+		{exact32(1.5), math.Exp2(1.5)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Exp2()
+		if !close32(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		{exact32(128), exact32(math.Inf(1))}, // overflow
+		{exact32(-159), exact32(0)},          // underflow
+
+		// special cases
+		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(0)},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Exp2()
+		if !eq32(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

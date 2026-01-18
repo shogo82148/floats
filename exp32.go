@@ -60,6 +60,53 @@ func (a Float32) Exp() Float32 {
 	return expmulti32(hi, lo, k)
 }
 
+// Exp2 returns 2**x, the base-2 exponential of x.
+//
+// Special cases are the same as [Exp].
+func (a Float32) Exp2() Float32 {
+	const (
+		// ln(2) split into high and low parts
+		Ln2Hi = Float32(6.9313812256e-01)
+		Ln2Lo = Float32(9.0580006145e-06)
+
+		// log2(max float32 + 0.5ulp) = log2(2¹²⁷×(2-2⁻²⁴))
+		Overflow = Float32(127.99999995700433664361252807573833209430034819546)
+
+		// log2(min float32 - 0.5ulp) = log2(2⁻¹⁵⁰)
+		Underflow = Float32(-158)
+	)
+
+	// special cases
+	switch {
+	case a.IsNaN():
+		return NewFloat32NaN()
+	case a.IsInf(1):
+		return NewFloat32Inf(1)
+	case a.IsInf(-1):
+		return 0
+	case a > Overflow:
+		return NewFloat32Inf(1)
+	case a < Underflow:
+		return 0
+	}
+
+	// argument reduction; x = r×lg(e) + k with |r| ≤ ln(2)/2.
+	// computed as r = hi - lo for extra precision.
+	var k int
+	switch {
+	case a < 0:
+		k = int(a - 0.5)
+	case a > 0:
+		k = int(a + 0.5)
+	}
+	t := a - Float32(k)
+	hi := t * Ln2Hi
+	lo := -t * Ln2Lo
+
+	// compute
+	return expmulti32(hi, lo, k)
+}
+
 func expmulti32(hi, lo Float32, k int) Float32 {
 	const (
 		P1 = 1.66666666666666657415e-01

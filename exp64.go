@@ -14,3 +14,10 @@ import "math"
 func (a Float64) Exp() Float64 {
 	return NewFloat64(math.Exp(a.BuiltIn()))
 }
+
+// Exp2 returns 2**x, the base-2 exponential of x.
+//
+// Special cases are the same as [Exp].
+func (a Float64) Exp2() Float64 {
+	return NewFloat64(math.Exp2(a.BuiltIn()))
+}

@@ -50,3 +50,42 @@ func BenchmarkFloat256_Exp(b *testing.B) {
 		runtime.KeepAlive(x.Exp())
 	}
 }
+
+func TestFloat256_Exp2(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(-1), "0.5"},
+		{exact256(0), "1"},
+		{exact256(1), "2"},
+		{exact256(1.5), "2.828427124746190097603377448419396157139343750753896146353359475981464956924214077700775068655283145470027692461824594049849672112"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Exp2()
+		if !close256(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		{exact256(262145), exact256(math.Inf(1))},
+		{exact256(-262380), exact256(0)},
+
+		// special cases
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(0)},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Exp2()
+		if !eq256(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
