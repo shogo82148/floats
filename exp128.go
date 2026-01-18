@@ -67,6 +67,55 @@ func (a Float128) Exp() Float128 {
 	return expmulti128(hi, lo, k)
 }
 
+// Exp2 returns 2**x, the base-2 exponential of x.
+//
+// Special cases are the same as [Exp].
+func (a Float128) Exp2() Float128 {
+	var (
+		// Ln2Hi = ln(2) ~ 0.6931471805599453094172321214581765
+		// Ln2Lo = ln(2) - Ln2Hi ~ 8.928835774481220748938623512047474e-35
+		Ln2Hi = Float128{0x3ffe_62e4_2fef_a39e, 0xf357_93c7_6730_07e5}
+		Ln2Lo = Float128{0x3f8d_dabd_03cd_0c99, 0xca62_d8b6_2834_5d6e}
+
+		// log2(max float128 + 0.5ulp) = log2(2¹⁶³⁸³×(2-2⁻¹¹³)) ~ 16384
+		Overflow = Float128{0x400d_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// log2(min float128 - 0.5ulp) = log2(2⁻¹⁶⁴⁹⁵) = -16495
+		Underflow = Float128{0xc00d_01bc_0000_0000, 0x0000_0000_0000_0000}
+
+		// Half = 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+	)
+
+	// special cases
+	switch {
+	case a.IsNaN():
+		return NewFloat128NaN()
+	case a.IsInf(1):
+		return NewFloat128Inf(1)
+	case a.IsInf(-1):
+		return Float128{} // 0
+	case a.Gt(Overflow):
+		return NewFloat128Inf(1)
+	case a.Lt(Underflow):
+		return Float128{} // 0
+	}
+
+	// reduce; computed as r = hi - lo for extra precision.
+	var k int64
+	if a.Signbit() {
+		k = a.Sub(Half).Int64()
+	} else {
+		k = a.Add(Half).Int64()
+	}
+	t := a.Sub(NewFloat128(float64(k)))
+	hi := t.Mul(Ln2Hi)
+	lo := t.Mul(Ln2Lo).Neg()
+
+	// compute
+	return expmulti128(hi, lo, k)
+}
+
 func expmulti128(hi, lo Float128, k int64) Float128 {
 	var (
 		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0

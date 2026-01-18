@@ -44,9 +44,55 @@ func TestFloat128_Exp(t *testing.T) {
 	}
 }
 
+func TestFloat128_Exp2(t *testing.T) {
+	tests := []struct {
+		x    Float128
+		want string
+	}{
+		{exact128(-1), "0.5"},
+		{exact128(0), "1"},
+		{exact128(1), "2"},
+		{exact128(1.5), "2.828427124746190097603377448419396157139343750753896146353359822541"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Exp2()
+		if !close128(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float128
+		want Float128
+	}{
+		{exact128(16385), exact128(math.Inf(1))},
+		{exact128(-16496), exact128(0)},
+
+		// special cases
+		{exact128(math.Inf(1)), exact128(math.Inf(1))},
+		{exact128(math.Inf(-1)), exact128(0)},
+		{exact128(math.NaN()), exact128(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Exp2()
+		if !eq128(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat128_Exp(b *testing.B) {
 	x := exact128(1.5)
 	for b.Loop() {
 		runtime.KeepAlive(x.Exp())
+	}
+}
+
+func BenchmarkFloat128_Exp2(b *testing.B) {
+	x := exact128(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Exp2())
 	}
 }
