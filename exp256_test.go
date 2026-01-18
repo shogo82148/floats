@@ -73,6 +73,9 @@ func TestFloat256_Exp2(t *testing.T) {
 		x    Float256
 		want Float256
 	}{
+		{exact256(262145), exact256(math.Inf(1))},
+		{exact256(-262380), exact256(0)},
+
 		// special cases
 		{exact256(math.Inf(1)), exact256(math.Inf(1))},
 		{exact256(math.Inf(-1)), exact256(0)},
