@@ -30,6 +30,9 @@ func TestFloat256_Sinh(t *testing.T) {
 		x    Float256
 		want Float256
 	}{
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+
 		// special cases
 		{exact256(math.Inf(1)), exact256(math.Inf(1))},
 		{exact256(math.NaN()), exact256(math.NaN())},

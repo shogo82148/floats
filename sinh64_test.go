@@ -30,6 +30,9 @@ func TestFloat64_Sinh(t *testing.T) {
 		x    Float64
 		want Float64
 	}{
+		{exact64(0), exact64(0)},
+		{exact64(math.Copysign(0, -1)), exact64(math.Copysign(0, -1))},
+
 		// special cases
 		{exact64(math.Inf(1)), exact64(math.Inf(1))},
 		{exact64(math.NaN()), exact64(math.NaN())},
