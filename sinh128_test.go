@@ -28,17 +28,17 @@ func TestFloat128_Sinh(t *testing.T) {
 	}
 
 	strictTests := []struct {
-		x    Float64
-		want Float64
+		x    Float128
+		want Float128
 	}{
 		// special cases
-		{exact64(math.Inf(1)), exact64(math.Inf(1))},
-		{exact64(math.NaN()), exact64(math.NaN())},
+		{exact128(math.Inf(1)), exact128(math.Inf(1))},
+		{exact128(math.NaN()), exact128(math.NaN())},
 	}
 
 	for _, tt := range strictTests {
 		got := tt.x.Sinh()
-		if !eq64(got, tt.want) {
+		if !eq128(got, tt.want) {
 			t.Errorf("Sinh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
