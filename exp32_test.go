@@ -65,6 +65,7 @@ func TestFloat32_Exp2(t *testing.T) {
 		want float64
 	}{
 		{exact32(-1), math.Exp2(-1)},
+		{exact32(0), math.Exp2(0)},
 		{exact32(1), math.Exp2(1)},
 		{exact32(1.5), math.Exp2(1.5)},
 	}
@@ -80,7 +81,6 @@ func TestFloat32_Exp2(t *testing.T) {
 		x    Float32
 		want Float32
 	}{
-		{exact32(0), exact32(1)},
 		{exact32(128), exact32(math.Inf(1))}, // overflow
 		{exact32(-159), exact32(0)},          // underflow
 
