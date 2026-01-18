@@ -1,0 +1,34 @@
+package floats
+
+// Sinh returns the hyperbolic sine of x.
+//
+// Special cases are:
+//
+//	±0.Sinh() = ±0
+//	±Inf.Sinh() = ±Inf
+//	NaN.Sinh() = NaN
+func (a Float128) Sinh() Float128 {
+	var (
+		// One = 1.0
+		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// Half = 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+	)
+
+	sign := false
+	if a.Signbit() {
+		a = a.Neg()
+		sign = true
+	}
+
+	// TODO: optimize for large and small values
+	var temp Float128
+	ex := a.Exp()
+	temp = (ex.Sub(One.Quo(ex))).Mul(Half)
+
+	if sign {
+		temp = temp.Neg()
+	}
+	return temp
+}
