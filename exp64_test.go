@@ -49,3 +49,37 @@ func BenchmarkFloat64_Exp(b *testing.B) {
 		runtime.KeepAlive(x.Exp())
 	}
 }
+
+func TestFloat64_Exp2(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want float64
+	}{
+		{exact64(0), math.Exp2(0)},
+		{exact64(1), math.Exp2(1)},
+		{exact64(1.5), math.Exp2(1.5)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Exp2()
+		if !close64(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float64
+		want Float64
+	}{
+		// special cases
+		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Exp2()
+		if !eq64(got, tt.want) {
+			t.Errorf("Exp2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
