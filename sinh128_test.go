@@ -31,6 +31,9 @@ func TestFloat128_Sinh(t *testing.T) {
 		x    Float128
 		want Float128
 	}{
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+
 		// special cases
 		{exact128(math.Inf(1)), exact128(math.Inf(1))},
 		{exact128(math.NaN()), exact128(math.NaN())},
