@@ -154,3 +154,28 @@ func factorial128(n int) Float128 {
 	}
 	return result
 }
+
+// power256 computes x**n
+func power256(x Float256, n int) Float256 {
+	result := Float256(uvone256)
+	for n != 0 {
+		if n%2 == 1 {
+			result = result.Mul(x)
+		}
+		n /= 2
+		x = x.Mul(x)
+	}
+	return result
+}
+
+// factorial256 computes n!
+func factorial256(n int) Float256 {
+	if n == 0 {
+		return Float256(uvone256)
+	}
+	result := Float256(uvone256)
+	for i := 2; i <= n; i++ {
+		result = result.Mul(NewFloat256(float64(i)))
+	}
+	return result
+}

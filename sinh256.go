@@ -9,6 +9,12 @@ package floats
 //	NaN.Sinh() = NaN
 func (a Float256) Sinh() Float256 {
 	var (
+		// Large = 84
+		Large = Float256{
+			0x4000_5500_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+
 		// One = 1.0
 		One = Float256{
 			0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
@@ -28,10 +34,22 @@ func (a Float256) Sinh() Float256 {
 		sign = true
 	}
 
-	// TODO: optimize for large and small values
 	var temp Float256
-	ex := a.Exp()
-	temp = (ex.Sub(One.Quo(ex))).Mul(Half)
+	switch {
+	case a.Gt(Large):
+		temp = a.Exp().Mul(Half)
+
+	case a.Gt(Half):
+		ex := a.Exp()
+		temp = (ex.Sub(One.Quo(ex))).Mul(Half)
+
+	default:
+		// Taylor series expansion
+		// TODO: optimize using minimax approximation
+		for n := 49; n >= 1; n -= 2 {
+			temp = temp.Add(power256(a, n).Quo(factorial256(n)))
+		}
+	}
 
 	if sign {
 		temp = temp.Neg()
