@@ -129,3 +129,53 @@ func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {
 	mask := one.Lsh(uint(shift - 1)).Sub(one)
 	return x.Add(mask).Add(x.Rsh(uint(shift)).And(one))
 }
+
+// power128 computes x**n
+func power128(x Float128, n int) Float128 {
+	result := Float128(uvone128)
+	for n != 0 {
+		if n%2 == 1 {
+			result = result.Mul(x)
+		}
+		n /= 2
+		x = x.Mul(x)
+	}
+	return result
+}
+
+// factorial128 computes n!
+func factorial128(n int) Float128 {
+	if n == 0 {
+		return Float128(uvone128)
+	}
+	result := Float128(uvone128)
+	for i := 2; i <= n; i++ {
+		result = result.Mul(NewFloat128(float64(i)))
+	}
+	return result
+}
+
+// power256 computes x**n
+func power256(x Float256, n int) Float256 {
+	result := Float256(uvone256)
+	for n != 0 {
+		if n%2 == 1 {
+			result = result.Mul(x)
+		}
+		n /= 2
+		x = x.Mul(x)
+	}
+	return result
+}
+
+// factorial256 computes n!
+func factorial256(n int) Float256 {
+	if n == 0 {
+		return Float256(uvone256)
+	}
+	result := Float256(uvone256)
+	for i := 2; i <= n; i++ {
+		result = result.Mul(NewFloat256(float64(i)))
+	}
+	return result
+}
