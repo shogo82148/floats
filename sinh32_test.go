@@ -12,12 +12,14 @@ func TestFloat32_Sinh(t *testing.T) {
 		want float64
 	}{
 		{exact32(0), math.Sinh(0)},
+		{exact32(0.25), math.Sinh(0.25)},
 		{exact32(0.5), math.Sinh(0.5)},
 		{exact32(1), math.Sinh(1)},
 		{exact32(21), math.Sinh(21)},
 		{exact32(22), math.Sinh(22)},
 
 		{exact32(-0), -math.Sinh(0)},
+		{exact32(-0.25), -math.Sinh(0.25)},
 		{exact32(-0.5), -math.Sinh(0.5)},
 		{exact32(-1), -math.Sinh(1)},
 		{exact32(-21), -math.Sinh(21)},
