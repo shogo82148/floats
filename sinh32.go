@@ -1,6 +1,6 @@
 package floats
 
-// Sinh returns the hyperbolic sine of x.
+// Sinh returns the hyperbolic sine of a.
 //
 // Special cases are:
 //
@@ -47,7 +47,7 @@ func (a Float32) Sinh() Float32 {
 	return temp
 }
 
-// Cosh returns the hyperbolic cosine of x.
+// Cosh returns the hyperbolic cosine of a.
 //
 // Special cases are:
 //
@@ -61,4 +61,37 @@ func (a Float32) Cosh() Float32 {
 	}
 	ex := a.Exp()
 	return (ex + 1/ex) * 0.5
+}
+
+// Tanh returns the hyperbolic tangent of a.
+//
+// Special cases are:
+//
+//	±0.Tanh() = ±0
+//	±Inf.Tanh() = ±1
+//	NaN.Tanh() = NaN
+func (a Float32) Tanh() Float32 {
+	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/tanh.go#L61-L84
+	const MAXLOG = 88.02969187150841
+	z := a.Abs()
+	switch {
+	case z > 0.5*MAXLOG:
+		if a < 0 {
+			return -1
+		}
+		return 1
+	case z >= 0.625:
+		s := z.Add(z).Exp()
+		z = 1 - 2/(s+1)
+		if a < 0 {
+			z = -z
+		}
+	default:
+		if a == 0 {
+			return a
+		}
+		s := a * a
+		z = ((((-5.70498872745e-3*s+2.06390887954e-2)*s-5.37397155531e-2)*s+1.33314422036e-1)*s-3.33332819422e-1)*s*a + a
+	}
+	return z
 }
