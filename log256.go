@@ -63,3 +63,41 @@ func (a Float256) Log() Float256 {
 	}
 	return k.Mul(Ln2Hi).Add(r.Add(r).Add(k.Mul(Ln2Lo)))
 }
+
+// Log10 returns the decimal logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float256) Log10() Float256 {
+	// 1/ln(10) ~ 0.43429448190325182765112891891660508229439700580366656611445378316586465
+	var Ln10Inv = Float256{
+		0x3fff_dbcb_7b15_26e5, 0x0e32_a6ab_7555_f5a6,
+		0x7b86_47dc_68c0_48b9, 0x3440_4747_e5a8_9ef2,
+	}
+	return a.Log().Mul(Ln10Inv)
+}
+
+// Log2 returns the binary logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float256) Log2() Float256 {
+	var (
+		// Half = 0.5
+		Half = Float256{
+			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+
+		// Ln2Inv = 1/ln(2)
+		// ~ 1.44269504088896340735992468100189213742664595415298593413544940693110922
+		Ln2Inv = Float256{
+			0x3fff_f715_4765_2b82, 0xfe17_77d0_ffda_0d23,
+			0xa7d1_1d6a_ef55_1bad, 0x2b4b_1164_a2cd_9a34,
+		}
+	)
+
+	frac, exp := a.Frexp()
+	// Make sure exact powers of two give an exact answer.
+	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
+	if frac.Eq(Half) {
+		return NewFloat256(float64(exp - 1))
+	}
+	return frac.Log().Mul(Ln2Inv).Add(NewFloat256(float64(exp)))
+}

@@ -53,3 +53,21 @@ func (a Float32) Log() Float32 {
 	hfsq := 0.5 * f * f
 	return k*Ln2Hi - ((hfsq - (s*(hfsq+R) + k*Ln2Lo)) - f)
 }
+
+// Log10 returns the decimal logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float32) Log10() Float32 {
+	return a.Log() * (1 / math.Ln10)
+}
+
+// Log2 returns the binary logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float32) Log2() Float32 {
+	frac, exp := a.Frexp()
+	// Make sure exact powers of two give an exact answer.
+	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
+	if frac == 0.5 {
+		return Float32(exp - 1)
+	}
+	return frac.Log()*(1/math.Ln2) + Float32(exp)
+}

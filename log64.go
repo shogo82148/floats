@@ -13,3 +13,15 @@ import "math"
 func (a Float64) Log() Float64 {
 	return NewFloat64(math.Log(a.BuiltIn()))
 }
+
+// Log10 returns the decimal logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float64) Log10() Float64 {
+	return NewFloat64(math.Log10(a.BuiltIn()))
+}
+
+// Log2 returns the binary logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float64) Log2() Float64 {
+	return NewFloat64(math.Log2(a.BuiltIn()))
+}
