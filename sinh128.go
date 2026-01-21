@@ -115,6 +115,9 @@ func (a Float128) Tanh() Float128 {
 	default:
 		// TODO: optimize using minimax approximation
 		z = z.Sinh().Quo(z.Cosh())
+		if a.Signbit() {
+			z = z.Neg()
+		}
 	}
 	return z
 }
