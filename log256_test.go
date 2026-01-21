@@ -53,3 +53,99 @@ func BenchmarkFloat256_Log(b *testing.B) {
 		runtime.KeepAlive(x.Log())
 	}
 }
+
+func TestFloat256_Log10(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0.25), "-0.602059991327962390427477789448986053536379762924217082620854922254216378548849019"},
+		{exact256(0.5), "-0.3010299956639811952137388947244930267681898814621085413104274611271081892744245095"},
+		{exact256(1), "0"},
+		{exact256(2), "0.3010299956639811952137388947244930267681898814621085413104274611271081892744245095"},
+		{exact256(3), "0.477121254719662437295027903255115309200128864190695864829865640305229152783661123"},
+		{exact256(4), "0.602059991327962390427477789448986053536379762924217082620854922254216378548849019"},
+		{exact256(100), "2"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Log10()
+		if !close256(got, tt.want) {
+			t.Errorf("Log10(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(0), exact256(math.Inf(-1))},
+		{exact256(math.Copysign(0, -1)), exact256(math.Inf(-1))},
+		{exact256(-1), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Log10()
+		if !eq256(got, tt.want) {
+			t.Errorf("Log10(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Log10(b *testing.B) {
+	x := exact256(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Log10())
+	}
+}
+
+func TestFloat256_Log2(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0.25), "-2"},
+		{exact256(0.5), "-1"},
+		{exact256(1), "0"},
+		{exact256(2), "1"},
+		{exact256(3), "1.584962500721156181453738943947816508759814407692481060455752654541098227794358563"},
+		{exact256(4), "2"},
+		{exact256(100), "6.643856189774724695740638858978780351729662786049161224109512791631869553217250432"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Log2()
+		if !close256(got, tt.want) {
+			t.Errorf("Log2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(0), exact256(math.Inf(-1))},
+		{exact256(math.Copysign(0, -1)), exact256(math.Inf(-1))},
+		{exact256(-1), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Log2()
+		if !eq256(got, tt.want) {
+			t.Errorf("Log2(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Log2(b *testing.B) {
+	x := exact256(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Log2())
+	}
+}
