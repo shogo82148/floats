@@ -81,6 +81,7 @@ func TestFloat32_Pow(t *testing.T) {
 		// ±0.Pow(b) = +Inf for finite b < 0 and not an odd integer
 		{exact32(0), exact32(-2), exact32(math.Inf(1))},
 		{exact32(math.Copysign(0, -1)), exact32(-2), exact32(math.Inf(1))},
+		{exact32(math.Copysign(0, -1)), exact32(-0.5), exact32(math.Inf(1))},
 
 		// ±0.Pow(b) = ±0 for b an odd integer > 0
 		{exact32(0), exact32(3), exact32(0)},

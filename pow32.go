@@ -31,10 +31,6 @@ func (a Float32) Pow(b Float32) Float32 {
 		return 1
 	case b == 1:
 		return a
-	case b == 0.5:
-		return a.Sqrt()
-	case b == -0.5:
-		return 1 / a.Sqrt()
 	case a.IsNaN() || b.IsNaN():
 		return NewFloat32NaN()
 	case a == 0:
@@ -69,6 +65,10 @@ func (a Float32) Pow(b Float32) Float32 {
 		case b > 0:
 			return NewFloat32Inf(1)
 		}
+	case b == 0.5:
+		return a.Sqrt()
+	case b == -0.5:
+		return 1 / a.Sqrt()
 	}
 
 	absy := b
