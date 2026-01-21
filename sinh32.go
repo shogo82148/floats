@@ -46,3 +46,19 @@ func (a Float32) Sinh() Float32 {
 	}
 	return temp
 }
+
+// Cosh returns the hyperbolic cosine of x.
+//
+// Special cases are:
+//
+//	±0.Cosh() = 1
+//	±Inf.Cosh() = +Inf
+//	NaN.Cosh() = NaN
+func (a Float32) Cosh() Float32 {
+	a = a.Abs()
+	if a > 21 {
+		return a.Exp() * 0.5
+	}
+	ex := a.Exp()
+	return (ex + 1/ex) * 0.5
+}

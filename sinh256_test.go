@@ -53,3 +53,50 @@ func BenchmarkFloat256_Sinh(b *testing.B) {
 		runtime.KeepAlive(x.Sinh())
 	}
 }
+
+func TestFloat256_Cosh(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0), "1"},
+		{exact256(1), "1.543080634815243778477905620757061682601529112365863704737402214710769"},
+		{exact256(2), "3.762195691083631459562213477773746108293973558230711602777643347588324"},
+		{exact256(3), "10.06766199577776584195393603511588983680980371537128667997328097865245"},
+		{exact256(4), "27.30823283601648662920198961206705982250132455308377216029809694299646"},
+		{exact256(43), "2363919734114673280.737228781372140185515632533070023109815169030476886"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Cosh()
+		if !close256(got, tt.want) {
+			t.Errorf("Cosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(0), exact256(1)},
+		{exact256(math.Copysign(0, -1)), exact256(1)},
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.Inf(1))},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Cosh()
+		if !eq256(got, tt.want) {
+			t.Errorf("Cosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Cosh(b *testing.B) {
+	x := exact256(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Cosh())
+	}
+}

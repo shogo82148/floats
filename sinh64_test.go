@@ -52,3 +52,50 @@ func BenchmarkFloat64_Sinh(b *testing.B) {
 		runtime.KeepAlive(x.Sinh())
 	}
 }
+
+func TestFloat64_Cosh(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want float64
+	}{
+		{exact64(0), math.Cosh(0)},
+		{exact64(1), math.Cosh(1)},
+		{exact64(2), math.Cosh(2)},
+		{exact64(3), math.Cosh(3)},
+		{exact64(4), math.Cosh(4)},
+		{exact64(11), math.Cosh(11)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Cosh()
+		if !close64(got, tt.want) {
+			t.Errorf("Cosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float64
+		want Float64
+	}{
+		// special cases
+		{exact64(0), exact64(1)},
+		{exact64(math.Copysign(0, -1)), exact64(1)},
+		{exact64(math.Inf(1)), exact64(math.Inf(1))},
+		{exact64(math.Inf(-1)), exact64(math.Inf(1))},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Cosh()
+		if !eq64(got, tt.want) {
+			t.Errorf("Cosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Cosh(b *testing.B) {
+	x := exact64(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Cosh())
+	}
+}

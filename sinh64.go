@@ -12,3 +12,14 @@ import "math"
 func (a Float64) Sinh() Float64 {
 	return NewFloat64(math.Sinh(a.BuiltIn()))
 }
+
+// Cosh returns the hyperbolic cosine of x.
+//
+// Special cases are:
+//
+//	±0.Cosh() = 1
+//	±Inf.Cosh() = +Inf
+//	NaN.Cosh() = NaN
+func (a Float64) Cosh() Float64 {
+	return NewFloat64(math.Cosh(a.BuiltIn()))
+}
