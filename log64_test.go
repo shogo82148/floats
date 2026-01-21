@@ -94,7 +94,7 @@ func TestFloat64_Log10(t *testing.T) {
 func BenchmarkFloat64_Log10(b *testing.B) {
 	x := exact64(1.5)
 	for b.Loop() {
-		runtime.KeepAlive(x.Log())
+		runtime.KeepAlive(x.Log10())
 	}
 }
 
