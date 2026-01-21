@@ -80,6 +80,7 @@ func TestFloat64_Pow(t *testing.T) {
 		// ±0.Pow(b) = +Inf for finite b < 0 and not an odd integer
 		{exact64(0), exact64(-2), exact64(math.Inf(1))},
 		{exact64(math.Copysign(0, -1)), exact64(-2), exact64(math.Inf(1))},
+		{exact64(math.Copysign(0, -1)), exact64(-0.5), exact64(math.Inf(1))},
 
 		// ±0.Pow(b) = ±0 for b an odd integer > 0
 		{exact64(0), exact64(3), exact64(0)},
