@@ -51,3 +51,32 @@ func (a Float128) Log() Float128 {
 	}
 	return k.Mul(Ln2Hi).Add(r.Add(r).Add(k.Mul(Ln2Lo)))
 }
+
+// Log10 returns the decimal logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float128) Log10() Float128 {
+	// // 1/ln(10) ~ 0.4342944819032518276511289189166051
+	var Ln10Inv = Float128{0x3ffd_bcb7_b152_6e50, 0xe32a_6ab7_555f_5a68}
+	return a.Log().Mul(Ln10Inv)
+}
+
+// Log2 returns the binary logarithm of a.
+// The special cases are the same as for [Log].
+func (a Float128) Log2() Float128 {
+	var (
+		// Half = 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// Ln2Inv = 1/ln(2)
+		// ~ 1.442695040888963407359924681001892
+		Ln2Inv = Float128{0x3fff_7154_7652_b82f, 0xe177_7d0f_fda0_d23a}
+	)
+
+	frac, exp := a.Frexp()
+	// Make sure exact powers of two give an exact answer.
+	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
+	if frac.Eq(Half) {
+		return NewFloat128(float64(exp - 1))
+	}
+	return frac.Log().Mul(Ln2Inv).Add(NewFloat128(float64(exp)))
+}
