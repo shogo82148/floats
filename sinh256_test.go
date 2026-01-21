@@ -100,3 +100,51 @@ func BenchmarkFloat256_Cosh(b *testing.B) {
 		runtime.KeepAlive(x.Cosh())
 	}
 }
+
+func TestFloat256_Tanh(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(0), "0"},
+		{exact256(1), "0.7615941559557648881194582826047935904127685972579365515968105001219532445766384835"},
+		{exact256(2), "0.9640275800758168839464137241009231502550299762409347760482632174131079463176102026"},
+		{exact256(3), "0.9950547536867304513318801852554884750978138547002824918238788151306647027825591767"},
+		{exact256(4), "0.9993292997390670437922433443417249620053398528944096480078068964566788861183201802"},
+		{exact256(43), "0.9999999999999999999999999999999999999105244138763775853074468832166051200464931478"},
+		{exact256(100000), "1"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Tanh()
+		if !close256(got, tt.want) {
+			t.Errorf("Tanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+		{exact256(math.Inf(1)), exact256(1)},
+		{exact256(math.Inf(-1)), exact256(-1)},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Tanh()
+		if !eq256(got, tt.want) {
+			t.Errorf("Tanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Tanh(b *testing.B) {
+	x := exact256(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Tanh())
+	}
+}
