@@ -72,7 +72,7 @@ func TestFloat16_Cosh(t *testing.T) {
 	for _, tt := range tests {
 		got := tt.x.Cosh()
 		if !close16(got, tt.want) {
-			t.Errorf("Sinh(%v) = %v; want %v", tt.x, got, tt.want)
+			t.Errorf("Cosh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
 
