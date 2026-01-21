@@ -2,7 +2,7 @@ package floats
 
 import "math"
 
-// Log returns the natural logarithm of x.
+// Log returns the natural logarithm of a.
 //
 // Special cases are:
 //
