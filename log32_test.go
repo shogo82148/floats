@@ -113,7 +113,7 @@ func TestFloat32_Log2(t *testing.T) {
 	for _, tt := range tests {
 		got := tt.x.Log2()
 		if !close32(got, tt.want) {
-			t.Errorf("Log(%v) = %v; want %v", tt.x, got, tt.want)
+			t.Errorf("Log2(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
 
