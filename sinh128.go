@@ -1,6 +1,6 @@
 package floats
 
-// Sinh returns the hyperbolic sine of x.
+// Sinh returns the hyperbolic sine of a.
 //
 // Special cases are:
 //
@@ -48,7 +48,7 @@ func (a Float128) Sinh() Float128 {
 	return temp
 }
 
-// Cosh returns the hyperbolic cosine of x.
+// Cosh returns the hyperbolic cosine of a.
 //
 // Special cases are:
 //
@@ -73,4 +73,51 @@ func (a Float128) Cosh() Float128 {
 	}
 	ex := a.Exp()
 	return ex.Add(One.Quo(ex)).Mul(Half)
+}
+
+// Tanh returns the hyperbolic tangent of a.
+//
+// Special cases are:
+//
+//	±0.Tanh() = ±0
+//	±Inf.Tanh() = ±1
+//	NaN.Tanh() = NaN
+func (a Float128) Tanh() Float128 {
+	var (
+		// Overflow = ln(max float128 + 0.5ulp)/2 = ln(2¹⁶³⁸³×(2-2⁻¹¹³))/2
+		// ~ 5678.2617031470719747459655389853825
+		Overflow = Float128{0x400b_62e4_2fef_a39e, 0xf357_93c7_6730_07e6}
+
+		// One = 1.0
+		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// Two = 2.0
+		Two = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// NearZero = 0.625
+		NearZero = Float128{0x3ffe_4000_0000_0000, 0x0000_0000_0000_0000}
+	)
+	z := a.Abs()
+	switch {
+	case z.Gt(Overflow):
+		if a.Signbit() {
+			return One.Neg()
+		}
+		return One
+	case z.Ge(NearZero):
+		s := z.Add(z).Exp()
+		z = One.Sub(Two.Quo(s.Add(One)))
+		if a.Signbit() {
+			z = z.Neg()
+		}
+	case z.IsZero():
+		return a
+	default:
+		// TODO: optimize using minimax approximation
+		z = z.Sinh().Quo(z.Cosh())
+		if a.Signbit() {
+			z = z.Neg()
+		}
+	}
+	return z
 }

@@ -101,3 +101,59 @@ func BenchmarkFloat128_Cosh(b *testing.B) {
 		runtime.KeepAlive(x.Cosh())
 	}
 }
+
+func TestFloat128_Tanh(t *testing.T) {
+	tests := []struct {
+		x    Float128
+		want string
+	}{
+		{exact128(0), "0"},
+		{exact128(0.5), "0.4621171572600097585023184836436725487302892803301130385527318158380809"},
+		{exact128(1), "0.7615941559557648881194582826047935904127685972579365515968105001219532"},
+		{exact128(2), "0.964027580075816883946413724100923150255029976240934776048263217413108"},
+		{exact128(3), "0.9950547536867304513318801852554884750978138547002824918238788151306647"},
+		{exact128(4), "0.9993292997390670437922433443417249620053398528944096480078068964566789"},
+		{exact128(43), "1"},
+
+		{exact128(math.Copysign(0, -1)), "-0"},
+		{exact128(-0.5), "-0.4621171572600097585023184836436725487302892803301130385527318158380809"},
+		{exact128(-1), "-0.7615941559557648881194582826047935904127685972579365515968105001219532"},
+		{exact128(-2), "-0.964027580075816883946413724100923150255029976240934776048263217413108"},
+		{exact128(-3), "-0.9950547536867304513318801852554884750978138547002824918238788151306647"},
+		{exact128(-4), "-0.9993292997390670437922433443417249620053398528944096480078068964566789"},
+		{exact128(-43), "-1"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Tanh()
+		if !close128(got, tt.want) {
+			t.Errorf("Tanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float128
+		want Float128
+	}{
+		// special cases
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+		{exact128(math.Inf(1)), exact128(1)},
+		{exact128(math.Inf(-1)), exact128(-1)},
+		{exact128(math.NaN()), exact128(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Tanh()
+		if !eq128(got, tt.want) {
+			t.Errorf("Tanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Tanh(b *testing.B) {
+	x := exact128(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Tanh())
+	}
+}
