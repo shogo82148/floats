@@ -32,7 +32,7 @@ func (a Float128) Sinh() Float128 {
 
 	case a.Gt(Half):
 		ex := a.Exp()
-		temp = (ex.Sub(One.Quo(ex))).Mul(Half)
+		temp = ex.Sub(One.Quo(ex)).Mul(Half)
 
 	default:
 		// Taylor series expansion
@@ -46,4 +46,31 @@ func (a Float128) Sinh() Float128 {
 		temp = temp.Neg()
 	}
 	return temp
+}
+
+// Cosh returns the hyperbolic cosine of x.
+//
+// Special cases are:
+//
+//	±0.Cosh() = 1
+//	±Inf.Cosh() = +Inf
+//	NaN.Cosh() = NaN
+func (a Float128) Cosh() Float128 {
+	a = a.Abs()
+	var (
+		// Large = 42
+		Large = Float128{0x4004_5000_0000_0000, 0x0000_0000_0000_0000}
+
+		// One = 1.0
+		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// Half = 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+	)
+
+	if a.Gt(Large) {
+		return a.Exp().Mul(Half)
+	}
+	ex := a.Exp()
+	return ex.Add(One.Quo(ex)).Mul(Half)
 }
