@@ -15,6 +15,7 @@ func TestFloat32_Pow(t *testing.T) {
 		{exact32(2), exact32(3), math.Pow(2, 3)},
 		{exact32(5), exact32(0.5), math.Pow(5, 0.5)},
 		{exact32(5), exact32(1.5), math.Pow(5, 1.5)},
+		{exact32(5), exact32(-1.5), math.Pow(5, -1.5)},
 	}
 
 	for _, tt := range tests {

@@ -127,7 +127,7 @@ func (a Float32) Pow(b Float32) Float32 {
 }
 
 func isOddInt32(x Float32) bool {
-	if x >= 1<<24 {
+	if x.Abs() >= 1<<24 {
 		// 1 << 24 is the largest exact integer in the float32 format.
 		// Any number outside this range will be truncated before the decimal point and therefore will always be
 		// an even integer.
