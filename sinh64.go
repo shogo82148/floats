@@ -23,3 +23,14 @@ func (a Float64) Sinh() Float64 {
 func (a Float64) Cosh() Float64 {
 	return NewFloat64(math.Cosh(a.BuiltIn()))
 }
+
+// Tanh returns the hyperbolic tangent of x.
+//
+// Special cases are:
+//
+//	±0.Tanh() = ±0
+//	±Inf.Tanh() = ±1
+//	NaN.Tanh() = NaN
+func (a Float64) Tanh() Float64 {
+	return NewFloat64(math.Tanh(a.BuiltIn()))
+}
