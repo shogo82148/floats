@@ -87,7 +87,7 @@ func (a Float16) Uint64() uint64 {
 }
 
 // Int128 returns the unsigned 128-bit integer value of a, rounding towards zero.
-// If a cannot be represented in a uint128, the result is undefined.
+// If a cannot be represented in a int128, the result is undefined.
 func (a Float16) Int128() ints.Int128 {
 	ret := ints.Int64(a.Int64())
 	return ret.Int128()
