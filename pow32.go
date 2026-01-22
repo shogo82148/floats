@@ -81,8 +81,17 @@ func (a Float32) Pow(b Float32) Float32 {
 	if yf != 0 && a < 0 {
 		return NewFloat32NaN()
 	}
-	if yi >= 1<<31 {
-		return (b * a.Log()).Exp()
+	if yi >= 1<<63 {
+		// yi is a large even int that will lead to overflow (or underflow to 0)
+		// for all x except -1 (x == 1 was handled earlier)
+		switch {
+		case a == -1:
+			return 1
+		case (a.Abs() < 1) == (b > 0):
+			return 0
+		default:
+			return NewFloat32Inf(1)
+		}
 	}
 
 	// ans = a1 * 2**ae (= 1 for now).
@@ -103,7 +112,7 @@ func (a Float32) Pow(b Float32) Float32 {
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
 	x1, xe := a.Frexp()
-	for i := int32(yi); i != 0; i >>= 1 {
+	for i := int64(yi); i != 0; i >>= 1 {
 		if i&1 == 1 {
 			a1 *= x1
 			ae += xe

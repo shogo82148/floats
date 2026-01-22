@@ -30,6 +30,12 @@ func TestFloat32_Pow(t *testing.T) {
 		y    Float32
 		want Float32
 	}{
+		{exact32(2), exact32(1 << 64), exact32(math.Inf(1))},  // overflow
+		{exact32(-2), exact32(1 << 64), exact32(math.Inf(1))}, // overflow
+		{exact32(0.5), exact32(1 << 64), exact32(0)},          // underflow
+		{exact32(-0.5), exact32(1 << 64), exact32(0)},         // underflow
+		{exact32(-1), exact32(1 << 64), exact32(1)},
+
 		// special cases
 		// a.Pow(±0) = 1 for any a
 		{exact32(2), exact32(0), exact32(1)},
