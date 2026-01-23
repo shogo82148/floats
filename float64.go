@@ -216,7 +216,7 @@ func (a Float64) normalize() (sign uint64, exp int, frac uint64) {
 	exp = int((b>>shift64)&mask64) - bias64
 	frac = b & fracMask64
 
-	if exp == -bias32 {
+	if exp == -bias64 {
 		// a is subnormal
 		// normalize
 		l := bits.Len64(frac)
