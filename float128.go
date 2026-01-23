@@ -97,7 +97,7 @@ func (a Float128) Uint64() uint64 {
 	return uint64(frac.Uint64())
 }
 
-// Int128 returns the unsigned 128-bit integer value of a, rounding towards zero.
+// Int128 returns the signed 128-bit integer value of a, rounding towards zero.
 // If a cannot be represented in a int128, the result is undefined.
 func (a Float128) Int128() ints.Int128 {
 	sign, exp, frac := a.normalize()
