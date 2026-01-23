@@ -97,6 +97,22 @@ func (a Float128) Uint64() uint64 {
 	return uint64(frac.Uint64())
 }
 
+// Int128 returns the signed 128-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a int128, the result is undefined.
+func (a Float128) Int128() ints.Int128 {
+	sign, exp, frac := a.normalize()
+	if exp <= shift128 {
+		frac = frac.Rsh(uint(shift128 - exp))
+	} else {
+		frac = frac.Lsh(uint(exp - shift128))
+	}
+	ret := ints.Int128(frac)
+	if sign != 0 {
+		ret = ret.Neg()
+	}
+	return ret
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float128) IsZero() bool {
 	return (a[0]&^signMask128[0])|a[1] == 0

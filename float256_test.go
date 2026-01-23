@@ -4,6 +4,8 @@ import (
 	"math"
 	"runtime"
 	"testing"
+
+	"github.com/shogo82148/ints"
 )
 
 func TestFloat256_IsNaN(t *testing.T) {
@@ -245,6 +247,27 @@ func TestFloat256_Uint64(t *testing.T) {
 	for _, tt := range tests {
 		if got := tt.in.Uint64(); got != tt.out {
 			t.Errorf("Float256(%v).Uint64() = %v, want %v", tt.in, got, tt.out)
+		}
+	}
+}
+
+func TestFloat256_Int128(t *testing.T) {
+	tests := []struct {
+		in  Float256
+		out ints.Int128
+	}{
+		{exact256(0), ints.Int128{0, 0}},
+		{exact256(1), ints.Int128{0, 1}},
+		{exact256(0.5), ints.Int128{0, 0}},
+		{exact256(1 << 63), ints.Int128{0, 1 << 63}},
+		{exact256(1 << 127), ints.Int128{1 << (127 - 64), 0}},
+		{exact256(-1), ints.Int128{0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.Int128()
+		if got != tt.out {
+			t.Errorf("Float256(%v).Int128() = %v, want %v", tt.in, got, tt.out)
 		}
 	}
 }

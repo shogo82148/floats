@@ -1,6 +1,11 @@
 package floats
 
-import "math"
+import (
+	"math"
+	"math/bits"
+
+	"github.com/shogo82148/ints"
+)
 
 const (
 	uvnan64    = 0x7ff8000000000000 // NaN value for Float64
@@ -81,6 +86,22 @@ func (a Float64) Int64() int64 {
 // If a cannot be represented in a uint64, the result is undefined.
 func (a Float64) Uint64() uint64 {
 	return uint64(a)
+}
+
+// Int128 returns the signed 128-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a int128, the result is undefined.
+func (a Float64) Int128() ints.Int128 {
+	sign, exp, frac := a.normalize()
+	frac128 := ints.Int128{0, frac}
+	if exp <= shift64 {
+		frac128 = frac128.Rsh(uint(shift64 - exp))
+	} else {
+		frac128 = frac128.Lsh(uint(exp - shift64))
+	}
+	if sign != 0 {
+		frac128 = frac128.Neg()
+	}
+	return frac128
 }
 
 // IsZero reports whether a is zero (+0 or -0).
@@ -187,6 +208,26 @@ func (a Float64) Le(b Float64) bool {
 //	Ge(NaN, x) == false
 func (a Float64) Ge(b Float64) bool {
 	return a >= b
+}
+
+func (a Float64) normalize() (sign uint64, exp int, frac uint64) {
+	b := math.Float64bits(float64(a))
+	sign = b & signMask64
+	exp = int((b>>shift64)&mask64) - bias64
+	frac = b & fracMask64
+
+	if exp == -bias64 {
+		// a is subnormal
+		// normalize
+		l := bits.Len64(frac)
+		frac <<= uint(shift64 + 1 - l)
+		exp = l - (bias64 + shift64)
+		return
+	}
+
+	// a is normal
+	frac |= 1 << shift64
+	return
 }
 
 // FMA64 returns x * y + z, computed with only one rounding.
