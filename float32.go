@@ -136,7 +136,7 @@ func (a Float32) Int256() ints.Int256 {
 	return frac256
 }
 
-// Uit256 returns the unsigned 256-bit integer value of a, rounding towards zero.
+// Uint256 returns the unsigned 256-bit integer value of a, rounding towards zero.
 // If a cannot be represented in a uint256, the result is undefined.
 func (a Float32) Uint256() ints.Uint256 {
 	// The maximum value of Float32 is approximately 3.4e38,
