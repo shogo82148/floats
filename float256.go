@@ -151,6 +151,18 @@ func (a Float256) Int256() ints.Int256 {
 	return ret
 }
 
+// Uint256 returns the unsigned 256-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a uint256, the result is undefined.
+func (a Float256) Uint256() ints.Uint256 {
+	_, exp, frac := a.normalize()
+	if exp <= shift256 {
+		frac = frac.Rsh(uint(shift256 - exp))
+	} else {
+		frac = frac.Lsh(uint(exp - shift256))
+	}
+	return frac
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float256) IsZero() bool {
 	return (a[0]&^signMask256[0])|a[1]|a[2]|a[3] == 0

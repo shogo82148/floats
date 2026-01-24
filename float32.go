@@ -136,6 +136,16 @@ func (a Float32) Int256() ints.Int256 {
 	return frac256
 }
 
+// Uint256 returns the unsigned 256-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a uint256, the result is undefined.
+func (a Float32) Uint256() ints.Uint256 {
+	// The maximum value of Float32 is approximately 3.4e38,
+	// so it will not exceed the range of Uint128.
+	ret := a.Uint128()
+
+	return ret.Uint256()
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float32) IsZero() bool {
 	return a == 0
