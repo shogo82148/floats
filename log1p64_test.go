@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -42,5 +43,12 @@ func TestFloat64_Log1p(t *testing.T) {
 		if !eq64(got, tt.want) {
 			t.Errorf("Log1p(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func BenchmarkFloat64_Log1p(b *testing.B) {
+	x := NewFloat64(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Log1p())
 	}
 }

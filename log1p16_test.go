@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -42,5 +43,12 @@ func TestFloat16_Log1p(t *testing.T) {
 		if !eq16(got, tt.want) {
 			t.Errorf("Log1p(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func BenchmarkFloat16_Log1p(b *testing.B) {
+	x := NewFloat16(1.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Log1p())
 	}
 }
