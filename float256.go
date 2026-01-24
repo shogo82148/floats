@@ -127,6 +127,22 @@ func (a Float256) Int128() ints.Int128 {
 	return ret
 }
 
+// Int256 returns the signed 256-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a int256, the result is undefined.
+func (a Float256) Int256() ints.Int256 {
+	sign, exp, frac := a.normalize()
+	if exp <= shift256 {
+		frac = frac.Rsh(uint(shift256 - exp))
+	} else {
+		frac = frac.Lsh(uint(exp - shift256))
+	}
+	ret := ints.Int256(frac.Uint256())
+	if sign != 0 {
+		ret = ret.Neg()
+	}
+	return ret
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float256) IsZero() bool {
 	return (a[0]&^signMask256[0])|a[1]|a[2]|a[3] == 0
