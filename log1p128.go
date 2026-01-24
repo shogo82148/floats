@@ -65,6 +65,7 @@ func (a Float128) Log1p() Float128 {
 
 	// |a| < 0.5
 	// log(1+a) = a - a²/2 + a³/3 - a⁴/4 + ...
+	// TODO: use a polynomial approximation
 	var r Float128
 	for n := 100; n > 0; n-- {
 		term := power128(a, n).Quo(NewFloat128(float64(n)))
