@@ -6,8 +6,8 @@ import "math"
 //
 // Special cases are:
 //
-//	Pow10(n) =    0 for n < -7
-//	Pow10(n) = +Inf for n > 4
+//	NewFloat16Pow10(n) =    0 for n < -7
+//	NewFloat16Pow10(n) = +Inf for n > 4
 func NewFloat16Pow10(n int) Float16 {
 	return NewFloat16(math.Pow10(n))
 }
