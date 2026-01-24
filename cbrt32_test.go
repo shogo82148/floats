@@ -11,10 +11,10 @@ func TestFloat32_Cbrt(t *testing.T) {
 		x    Float32
 		want float64
 	}{
-		// {exact32(27), 3},
-		// {exact32(8), 2},
-		// {exact32(2), math.Cbrt(2)},
-		// {exact32(1), 1},
+		{exact32(27), 3},
+		{exact32(8), 2},
+		{exact32(2), math.Cbrt(2)},
+		{exact32(1), 1},
 		{exact32(0x1p-127), math.Cbrt(0x1p-127)},
 		{exact32(0), 0},
 		{exact32(-0x1p-127), math.Cbrt(-0x1p-127)},
