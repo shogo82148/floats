@@ -107,6 +107,19 @@ func (a Float32) Int128() ints.Int128 {
 	return frac128
 }
 
+// Uint128 returns the unsigned 128-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a uint128, the result is undefined.
+func (a Float32) Uint128() ints.Uint128 {
+	_, exp, frac := a.normalize()
+	frac128 := ints.Uint128{0, uint64(frac)}
+	if exp <= shift32 {
+		frac128 = frac128.Rsh(uint(shift32 - exp))
+	} else {
+		frac128 = frac128.Lsh(uint(exp - shift32))
+	}
+	return frac128
+}
+
 // Int256 returns the signed 256-bit integer value of a, rounding towards zero.
 // If a cannot be represented in a int256, the result is undefined.
 func (a Float32) Int256() ints.Int256 {
