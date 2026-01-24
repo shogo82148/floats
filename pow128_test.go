@@ -1,17 +1,12 @@
 package floats
 
 import (
-	"log"
 	"math"
 	"runtime"
 	"testing"
 )
 
 func TestFloat128_Pow(t *testing.T) {
-	x, _ := ParseFloat128("10384593717069655257060992658440192")
-	log.Printf("%016x, %016x", x[0], x[1])
-	log.Printf("%g", x)
-
 	tests := []struct {
 		x    Float128
 		y    Float128
