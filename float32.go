@@ -3,6 +3,8 @@ package floats
 import (
 	"math"
 	"math/bits"
+
+	"github.com/shogo82148/ints"
 )
 
 const (
@@ -87,6 +89,22 @@ func (a Float32) Int64() int64 {
 // If a cannot be represented in a uint64, the result is undefined.
 func (a Float32) Uint64() uint64 {
 	return uint64(a)
+}
+
+// Int128 returns the signed 128-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a int128, the result is undefined.
+func (a Float32) Int128() ints.Int128 {
+	sign, exp, frac := a.normalize()
+	frac128 := ints.Int128{0, uint64(frac)}
+	if exp <= shift32 {
+		frac128 = frac128.Rsh(uint(shift32 - exp))
+	} else {
+		frac128 = frac128.Lsh(uint(exp - shift32))
+	}
+	if sign != 0 {
+		frac128 = frac128.Neg()
+	}
+	return frac128
 }
 
 // IsZero reports whether a is zero (+0 or -0).

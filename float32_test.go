@@ -5,6 +5,8 @@ import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
+
+	"github.com/shogo82148/ints"
 )
 
 func TestFloat32_IsNaN(t *testing.T) {
@@ -148,11 +150,33 @@ func TestFloat32_Uint64(t *testing.T) {
 		{exact32(1), 1},
 		{exact32(1.5), 1},
 		{exact32(2), 2},
+		{exact32(1 << 63), 1 << 63},
 	}
 	for _, test := range tests {
 		got := test.in.Uint64()
 		if got != test.out {
 			t.Errorf("Float32(%v).Uint64() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
+func TestFloat32_Int128(t *testing.T) {
+	tests := []struct {
+		in  Float32
+		out ints.Int128
+	}{
+		{exact32(0), ints.Int128{}},
+		{exact32(1), ints.Int128{0, 1}},
+		{exact32(2), ints.Int128{0, 2}},
+		{exact32(1 << 63), ints.Int128{0, 1 << 63}},
+		{exact32(1 << 127), ints.Int128{1 << (127 - 64), 0}},
+		{exact32(-1), ints.Int128{0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+	}
+
+	for _, test := range tests {
+		got := test.in.Int128()
+		if got != test.out {
+			t.Errorf("Float32(%v).Int128() = %v, want %v", test.in, got, test.out)
 		}
 	}
 }
