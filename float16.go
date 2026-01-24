@@ -116,6 +116,16 @@ func (a Float16) Int256() ints.Int256 {
 	return ret.Int256()
 }
 
+// Uint256 returns the unsigned 256-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a uint256, the result is undefined.
+func (a Float16) Uint256() ints.Uint256 {
+	// The maximum value of Float16 is 65504, so it will not exceed the range of Uint64.
+	// Therefore, this conversion is safe.
+	ret := ints.Uint64(a.Uint64())
+
+	return ret.Uint256()
+}
+
 // IsZero reports whether a is zero (+0 or -0).
 func (a Float16) IsZero() bool {
 	return a&^signMask16 == 0

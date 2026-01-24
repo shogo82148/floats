@@ -236,6 +236,25 @@ func TestFloat16_Int256(t *testing.T) {
 	}
 }
 
+func TestFloat16_Uint256(t *testing.T) {
+	tests := []struct {
+		in  Float16
+		out ints.Uint256
+	}{
+		{exact16(0), ints.Uint256{}},
+		{exact16(1), ints.Uint256{0, 0, 0, 1}},
+		{exact16(1.5), ints.Uint256{0, 0, 0, 1}},
+		{exact16(65504), ints.Uint256{0, 0, 0, 65504}},
+	}
+
+	for _, test := range tests {
+		got := test.in.Uint256()
+		if got != test.out {
+			t.Errorf("Float16(%v).Uint256() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
 func TestFloat16_IsZero(t *testing.T) {
 	tests := []struct {
 		in   Float16
