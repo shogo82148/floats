@@ -44,7 +44,7 @@ func TestFloat64_Cbrt(t *testing.T) {
 	for _, tt := range strictTests {
 		got := tt.x.Cbrt()
 		if !eq64(got, tt.want) {
-			t.Errorf("Float32.Cbrt(%v) = %v; want %v", tt.x, got, tt.want)
+			t.Errorf("Float64.Cbrt(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
 }
