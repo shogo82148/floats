@@ -97,7 +97,7 @@ func (a Float256) Pow(b Float256) Float256 {
 		flip = true
 	}
 	yi, yf := absy.Modf()
-	if yf.IsZero() && a.Lt(Zero) {
+	if !yf.IsZero() && a.Lt(Zero) {
 		return NewFloat256NaN()
 	}
 	if yi.Ge(MaxInt64) {
