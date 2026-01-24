@@ -164,7 +164,6 @@ func TestFloat64_Int128(t *testing.T) {
 		{exact64(1), ints.Int128{0, 1}},
 		{exact64(0.5), ints.Int128{0, 0}},
 		{exact64(1 << 63), ints.Int128{0, 1 << 63}},
-		{exact64(1 << 127), ints.Int128{1 << (127 - 64), 0}},
 		{exact64(-1), ints.Int128{0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
 	}
 
@@ -172,6 +171,34 @@ func TestFloat64_Int128(t *testing.T) {
 		got := test.in.Int128()
 		if got != test.want {
 			t.Errorf("Float64.Int128(%v) = %v, want %v", test.in, got, test.want)
+		}
+	}
+}
+
+func TestFloat64_Int256(t *testing.T) {
+	tests := []struct {
+		in   Float64
+		want ints.Int256
+	}{
+		{exact64(0), ints.Int256{0, 0, 0, 0}},
+		{exact64(1), ints.Int256{0, 0, 0, 1}},
+		{exact64(0.5), ints.Int256{0, 0, 0, 0}},
+		{exact64(1 << 63), ints.Int256{0, 0, 0, 1 << 63}},
+		{exact64(1 << 127), ints.Int256{0, 0, 1 << (127 - 64), 0}},
+		{exact64(1 << 128), ints.Int256{0, 1, 0, 0}},
+		{
+			exact64(-1),
+			ints.Int256{ // -1
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		got := test.in.Int256()
+		if got != test.want {
+			t.Errorf("Float64.Int256(%v) = %v, want %v", test.in, got, test.want)
 		}
 	}
 }
