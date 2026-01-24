@@ -482,7 +482,7 @@ func (a Float256) Sqrt() Float256 {
 
 	// final rounding
 	if !frac.IsZero() {
-		q = q.Add(q.And(ints.Uint256{0, 1}))
+		q = q.Add(q.And(ints.Uint256{0, 0, 0, 1}))
 	}
 	q = q.Rsh(1)
 	q = q.Add(ints.Uint256{uint64(exp-1+bias256) << (shift256 - 192), 0, 0, 0})
