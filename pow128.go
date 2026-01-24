@@ -159,5 +159,5 @@ func isOddInt128(x Float128) bool {
 	}
 
 	xi, xf := x.Modf()
-	return xf.IsZero() && xi.Int64()&1 == 1
+	return xf.IsZero() && xi.Int128()[1]&1 == 1
 }
