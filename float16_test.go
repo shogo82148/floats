@@ -177,6 +177,46 @@ func TestFloat16_Int128(t *testing.T) {
 	}
 }
 
+func TestFloat16_Int256(t *testing.T) {
+	tests := []struct {
+		in  Float16
+		out ints.Int256
+	}{
+		{exact16(0), ints.Int256{}},
+		{exact16(1), ints.Int256{0, 0, 0, 1}},
+		{exact16(1.5), ints.Int256{0, 0, 0, 1}},
+		{exact16(65504), ints.Int256{0, 0, 0, 65504}},
+
+		{
+			exact16(-1),
+			ints.Int256{ // -1
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+		},
+		{
+			exact16(-1.5),
+			ints.Int256{ // -1
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+		},
+		{
+			exact16(-65504),
+			ints.Int256{ // -65504
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0x1_0000_0000_0000_0000 - 65504,
+			},
+		},
+	}
+	for _, test := range tests {
+		got := test.in.Int256()
+		if got != test.out {
+			t.Errorf("Float16(%v).Int256() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
 func TestFloat16_IsZero(t *testing.T) {
 	tests := []struct {
 		in   Float16
