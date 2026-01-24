@@ -96,6 +96,16 @@ func (a Float16) Int128() ints.Int128 {
 	return ret.Int128()
 }
 
+// Uint128 returns the unsigned 128-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a uint128, the result is undefined.
+func (a Float16) Uint128() ints.Uint128 {
+	// The maximum value of Float16 is 65504, so it will not exceed the range of Uint64.
+	// Therefore, this conversion is safe.
+	ret := ints.Uint64(a.Uint64())
+
+	return ret.Uint128()
+}
+
 // Int256 returns the signed 256-bit integer value of a, rounding towards zero.
 // If a cannot be represented in a int256, the result is undefined.
 func (a Float16) Int256() ints.Int256 {

@@ -272,6 +272,26 @@ func TestFloat256_Int128(t *testing.T) {
 	}
 }
 
+func TestFloat256_Uint128(t *testing.T) {
+	tests := []struct {
+		in  Float256
+		out ints.Uint128
+	}{
+		{exact256(0), ints.Uint128{0, 0}},
+		{exact256(1), ints.Uint128{0, 1}},
+		{exact256(0.5), ints.Uint128{0, 0}},
+		{exact256(1 << 63), ints.Uint128{0, 1 << 63}},
+		{exact256(1 << 127), ints.Uint128{1 << 63, 0}},
+	}
+
+	for _, tt := range tests {
+		got := tt.in.Uint128()
+		if got != tt.out {
+			t.Errorf("Float256(%v).Uint128() = %v, want %v", tt.in, got, tt.out)
+		}
+	}
+}
+
 func TestFloat256_Int256(t *testing.T) {
 	tests := []struct {
 		in  Float256
