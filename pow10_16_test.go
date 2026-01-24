@@ -1,6 +1,9 @@
 package floats
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestNewFloat16Pow10(t *testing.T) {
 	tests := []struct {
@@ -22,6 +25,21 @@ func TestNewFloat16Pow10(t *testing.T) {
 		got := NewFloat16Pow10(test.n)
 		if !close16(got, test.want) {
 			t.Errorf("NewFloat16Pow10(%d) = %v; want %v", test.n, got, test.want)
+		}
+	}
+
+	strictTests := []struct {
+		n    int
+		want Float16
+	}{
+		{5, exact16(math.Inf(1))}, // overflow
+		{-8, exact16(0)},          // underflow
+	}
+
+	for _, tt := range strictTests {
+		got := NewFloat16Pow10(tt.n)
+		if !eq16(got, tt.want) {
+			t.Errorf("NewFloat16Pow10(%d) = %v; want %v", tt.n, got, tt.want)
 		}
 	}
 }
