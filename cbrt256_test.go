@@ -48,7 +48,7 @@ func TestFloat256_Cbrt(t *testing.T) {
 	for _, tt := range strictTests {
 		got := tt.x.Cbrt()
 		if !eq256(got, tt.want) {
-			t.Errorf("Float128.Cbrt(%v) = %v; want %v", tt.x, got, tt.want)
+			t.Errorf("Float256.Cbrt(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
 }
