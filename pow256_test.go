@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestFloat2356_Pow(t *testing.T) {
+func TestFloat256_Pow(t *testing.T) {
 	tests := []struct {
 		x    Float256
 		y    Float256
