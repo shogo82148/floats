@@ -190,6 +190,8 @@ func TestFloat128_Int256(t *testing.T) {
 		{exact128(2), ints.Int256{0, 0, 0, 2}},
 		{exact128(1 << 63), ints.Int256{0, 0, 0, 1 << 63}},
 		{exact128(1 << 113), ints.Int256{0, 0, 1 << (113 - 64), 0}},
+		{exact128(1 << 192), ints.Int256{1, 0, 0, 0}},
+		{exact128(1 << 254), ints.Int256{0x4000_0000_0000_0000, 0, 0, 0}},
 		{
 			exact128(-1),
 			ints.Int256{
