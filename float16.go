@@ -89,8 +89,21 @@ func (a Float16) Uint64() uint64 {
 // Int128 returns the signed 128-bit integer value of a, rounding towards zero.
 // If a cannot be represented in a int128, the result is undefined.
 func (a Float16) Int128() ints.Int128 {
+	// The maximum value of Float16 is 65504, so it will not exceed the range of Int64.
+	// Therefore, this conversion is safe.
 	ret := ints.Int64(a.Int64())
+
 	return ret.Int128()
+}
+
+// Int256 returns the signed 256-bit integer value of a, rounding towards zero.
+// If a cannot be represented in a int256, the result is undefined.
+func (a Float16) Int256() ints.Int256 {
+	// The maximum value of Float16 is 65504, so it will not exceed the range of Int64.
+	// Therefore, this conversion is safe.
+	ret := ints.Int64(a.Int64())
+
+	return ret.Int256()
 }
 
 // IsZero reports whether a is zero (+0 or -0).

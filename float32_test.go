@@ -169,7 +169,6 @@ func TestFloat32_Int128(t *testing.T) {
 		{exact32(1), ints.Int128{0, 1}},
 		{exact32(2), ints.Int128{0, 2}},
 		{exact32(1 << 63), ints.Int128{0, 1 << 63}},
-		{exact32(1 << 127), ints.Int128{1 << (127 - 64), 0}},
 		{exact32(-1), ints.Int128{0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
 	}
 
@@ -177,6 +176,33 @@ func TestFloat32_Int128(t *testing.T) {
 		got := test.in.Int128()
 		if got != test.out {
 			t.Errorf("Float32(%v).Int128() = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
+
+func TestFloat32_Int256(t *testing.T) {
+	tests := []struct {
+		in  Float32
+		out ints.Int256
+	}{
+		{exact32(0), ints.Int256{}},
+		{exact32(1), ints.Int256{0, 0, 0, 1}},
+		{exact32(2), ints.Int256{0, 0, 0, 2}},
+		{exact32(1 << 63), ints.Int256{0, 0, 0, 1 << 63}},
+		{exact32(1 << 127), ints.Int256{0, 0, 1 << (127 - 64), 0}},
+		{
+			exact32(-1),
+			ints.Int256{ // -1
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+				0xffff_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		got := test.in.Int256()
+		if got != test.out {
+			t.Errorf("Float32(%v).Int256() = %v, want %v", test.in, got, test.out)
 		}
 	}
 }
