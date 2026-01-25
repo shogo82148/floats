@@ -71,3 +71,57 @@ func (a Float128) Acosh() Float128 {
 	t := a.Sub(One)
 	return (t.Add((t.Mul(t).Add(Two.Mul(t))).Sqrt())).Log1p() // 2 >= a > 1
 }
+
+// Atanh returns the inverse hyperbolic tangent of a.
+//
+// Special cases are:
+//
+//	1.Atanh() = +Inf
+//	±0.Atanh() = ±0
+//	-1.Atanh() = -Inf
+//	x.Atanh() = NaN if x < -1 or x > 1
+//	NaN.Atanh() = NaN
+func (a Float128) Atanh() Float128 {
+	var (
+		// Zero = 0.0
+		Zero = Float128{}
+
+		// Half = 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+
+		// One = 1.0
+		One = Float128(uvone128)
+
+		// NearZero = 2**-58
+		NearZero = Float128{0x3fc5_0000_0000_0000, 0x0000_0000_0000_0000}
+	)
+
+	// special cases
+	switch {
+	case a.Lt(One.Neg()) || a.Gt(One) || a.IsNaN():
+		return NewFloat128NaN()
+	case a.Eq(One):
+		return NewFloat128Inf(1)
+	case a.Eq(One.Neg()):
+		return NewFloat128Inf(-1)
+	}
+	sign := false
+	if a.Lt(Zero) {
+		a = a.Neg()
+		sign = true
+	}
+	var temp Float128
+	switch {
+	case a.Lt(NearZero):
+		temp = a
+	case a.Lt(Half):
+		temp = a.Add(a)
+		temp = Half.Mul(temp.Add(temp.Mul(a).Quo(One.Sub(a))).Log1p())
+	default:
+		temp = Half.Mul((a.Add(a).Quo(One.Sub(a))).Log1p())
+	}
+	if sign {
+		temp = temp.Neg()
+	}
+	return temp
+}
