@@ -13,7 +13,9 @@ package floats
 func (a Float256) Expm1() Float256 {
 	var (
 		// VerySmall = 2**-237
-		VerySmall = Float256{0x3f8e_0000_0000_0000, 0x0000_0000_0000_0000}
+		VerySmall = Float256{
+			0x3ff1_2000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
 
 		// Small = 0.5
 		Small = Float256{
