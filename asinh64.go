@@ -12,3 +12,14 @@ import "math"
 func (a Float64) Asinh() Float64 {
 	return NewFloat64(math.Asinh(a.BuiltIn()))
 }
+
+// Acosh returns the inverse hyperbolic cosine of a.
+//
+// Special cases are:
+//
+//	+Inf.Acosh() = +Inf
+//	x.Acosh() = NaN if x < 1
+//	NaN.Acosh() = NaN
+func (a Float64) Acosh() Float64 {
+	return NewFloat64(math.Acosh(a.BuiltIn()))
+}
