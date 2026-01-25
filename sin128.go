@@ -173,3 +173,99 @@ func (a Float128) Cos() Float128 {
 	}
 	return y
 }
+
+// Sincos returns Sin(a), Cos(a).
+//
+// Special cases are:
+//
+//	±0.Sincos() = ±0, 1
+//	±Inf.Sincos() = NaN, NaN
+//	NaN.Sincos() = NaN, NaN
+func (a Float128) Sincos() (sin, cos Float128) {
+	var (
+		Zero = Float128{}
+
+		One = Float128(uvone128)
+
+		// MPI4 = 4/pi
+		MPI4 = Float128{0x3fff_45f3_06dc_9c88, 0x2a53_f84e_afa3_ea6a}
+
+		// Pi/4 split into three parts
+		PI4A = Float128{0x3ffe_921f_b544_42d1, 0x8400_0000_0000_0000}
+		PI4B = Float128{0x3fc4_a626_3314_5c06, 0xe000_0000_0000_0000}
+		PI4C = Float128{0x3f8b_cd12_9024_e088, 0xa67c_c740_20bb_ea64}
+	)
+
+	// special cases
+	switch {
+	case a.IsZero():
+		return a, One // return ±0.0, 1.0
+	case a.IsNaN() || a.IsInf(0):
+		return NewFloat128NaN(), NewFloat128NaN()
+	}
+
+	// make argument positive
+	sinSign, cosSign := false, false
+	if a.Lt(Zero) {
+		a = a.Neg()
+		sinSign = true
+	}
+
+	var j uint64
+	var y, z Float128
+	// TODO: use Payne-Hanek reduction for large arguments
+	j = a.Mul(MPI4).Uint64()
+	y = NewFloat128(float64(j))
+
+	// map zeros to origin
+	if j&1 == 1 {
+		j++
+		y = y.Add(One)
+	}
+	j &= 7 // octant modulo 2Pi radians (360 degrees)
+
+	// Extended precision modular arithmetic
+	y = y.Neg()
+	z = FMA128(y, PI4A, a)
+	z = FMA128(y, PI4B, z)
+	z = FMA128(y, PI4C, z)
+
+	if j > 3 { // reflect in x axis
+		j -= 4
+		sinSign, cosSign = !sinSign, !cosSign
+	}
+	if j > 1 {
+		cosSign = !cosSign
+	}
+
+	// taylor series expansion of sin around 0
+	sin = Zero
+	for n := 20; n >= 0; n-- {
+		term := power128(z, 2*n+1).Quo(factorial128(2*n + 1))
+		if n%2 != 0 {
+			term = term.Neg()
+		}
+		sin = sin.Add(term)
+	}
+
+	// taylor series expansion of cos around 0
+	cos = Zero
+	for n := 20; n >= 0; n-- {
+		term := power128(z, 2*n).Quo(factorial128(2 * n))
+		if n%2 != 0 {
+			term = term.Neg()
+		}
+		cos = cos.Add(term)
+	}
+
+	if j == 1 || j == 2 {
+		sin, cos = cos, sin
+	}
+	if cosSign {
+		cos = cos.Neg()
+	}
+	if sinSign {
+		sin = sin.Neg()
+	}
+	return
+}
