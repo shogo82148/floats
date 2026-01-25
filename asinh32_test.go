@@ -91,3 +91,43 @@ func TestFloat32_Acosh(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Atanh(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(0x1p-29), math.Atanh(0x1p-29)},
+		{exact32(0.25), math.Atanh(0.25)},
+		{exact32(0.5), math.Atanh(0.5)},
+		{exact32(0.75), math.Atanh(0.75)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Atanh()
+		if !close32(got, tt.want) {
+			t.Errorf("Atanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		// special cases
+		{exact32(2), exact32(math.NaN())},
+		{exact32(1), exact32(math.Inf(1))},
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(-1), exact32(math.Inf(-1))},
+		{exact32(-2), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Atanh()
+		if !eq32(got, tt.want) {
+			t.Errorf("Atanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
