@@ -11,11 +11,13 @@ func TestFloat32_Asinh(t *testing.T) {
 		want float64
 	}{
 		{exact32(0), math.Asinh(0)},
+		{exact32(0x1p-29), math.Asinh(0x1p-29)},
 		{exact32(0.25), math.Asinh(0.25)},
 		{exact32(0.5), math.Asinh(0.5)},
 		{exact32(1), math.Asinh(1)},
 		{exact32(21), math.Asinh(21)},
 		{exact32(22), math.Asinh(22)},
+		{exact32(0x1p29), math.Asinh(0x1p29)},
 
 		{exact32(-0), -math.Asinh(0)},
 		{exact32(-0.25), -math.Asinh(0.25)},
