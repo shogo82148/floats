@@ -54,3 +54,40 @@ func TestFloat32_Asinh(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Acosh(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(1), math.Acosh(1)},
+		{exact32(1.5), math.Acosh(1.5)},
+		{exact32(21), math.Acosh(21)},
+		{exact32(22), math.Acosh(22)},
+		{exact32(0x1p29), math.Acosh(0x1p29)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Acosh()
+		if !close32(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		// special cases
+		{exact32(math.Inf(1)), exact32(math.Inf(1))},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Acosh()
+		if !eq32(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

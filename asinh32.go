@@ -39,3 +39,29 @@ func (a Float32) Asinh() Float32 {
 	}
 	return temp
 }
+
+// Acosh returns the inverse hyperbolic cosine of a.
+//
+// Special cases are:
+//
+//	+Inf.Acosh() = +Inf
+//	x.Acosh() = NaN if x < 1
+//	NaN.Acosh() = NaN
+func (a Float32) Acosh() Float32 {
+	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/acosh.go#L40-L53
+	const Ln2 = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
+	const Large = 1 << 28                  // 2**28
+	// first case is special case
+	switch {
+	case a < 1 || a.IsNaN():
+		return NewFloat32NaN()
+	case a == 1:
+		return 0
+	case a >= Large:
+		return a.Log() + Ln2 // a > 2**28
+	case a > 2:
+		return (2*a - 1./(a+(a*a-1).Sqrt())).Log() // 2**28 > a > 2
+	}
+	t := a - 1
+	return (t + (2*t + t*t).Sqrt()).Log1p() // 2 >= a > 1
+}
