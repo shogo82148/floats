@@ -94,9 +94,9 @@ func (a Float256) Acosh() Float256 {
 	case a.Eq(One):
 		return Zero
 	case a.Ge(Large):
-		return a.Log().Add(Ln2) // a > 2**58
+		return a.Log().Add(Ln2) // a >= 2**170
 	case a.Gt(Two):
-		return (a.Add((a.Mul(a).Sub(One)).Sqrt())).Log() // 2**58 > a > 2.0
+		return (a.Add((a.Mul(a).Sub(One)).Sqrt())).Log() // 2**170 > a > 2.0
 	}
 	t := a.Sub(One)
 	return (t.Add((t.Mul(t).Add(Two.Mul(t))).Sqrt())).Log1p() // 2 >= a > 1
