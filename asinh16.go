@@ -23,3 +23,16 @@ func (a Float16) Asinh() Float16 {
 func (a Float16) Acosh() Float16 {
 	return NewFloat16(math.Acosh(a.Float64().BuiltIn()))
 }
+
+// Atanh returns the inverse hyperbolic tangent of a.
+//
+// Special cases are:
+//
+//	1.Atanh() = +Inf
+//	±0.Atanh() = ±0
+//	-1.Atanh() = -Inf
+//	x.Atanh() = NaN if x < -1 or x > 1
+//	NaN.Atanh() = NaN
+func (a Float16) Atanh() Float16 {
+	return NewFloat16(math.Atanh(a.Float64().BuiltIn()))
+}
