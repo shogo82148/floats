@@ -139,3 +139,42 @@ func TestFloat128_Sincos(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat128_Tan(t *testing.T) {
+	tests := []struct {
+		x    Float128
+		want string
+	}{
+		{exact128(-2), "2.185039863261518991643306102313682543432017746227663164562955869966773747209194182"},
+		{exact128(-1), "-1.55740772465490223050697480745836017308725077238152003838394660569886139715172729"},
+		{exact128(1), "1.55740772465490223050697480745836017308725077238152003838394660569886139715172729"},
+		{exact128(2), "-2.185039863261518991643306102313682543432017746227663164562955869966773747209194182"},
+		{exact128(3), "-0.1425465430742778052956354105339134932260922849018046476332389766888585952215385381"},
+		{exact128(4), "1.157821282349577583137342418267323923119762767367142130084857189358985762063503791"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Tan()
+		if !close128(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float128
+		want Float128
+	}{
+		// special cases
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+		{exact128(math.Inf(1)), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(math.NaN())},
+		{exact128(math.NaN()), exact128(math.NaN())},
+	}
+	for _, tt := range strictTests {
+		got := tt.x.Tan()
+		if !eq128(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

@@ -269,3 +269,15 @@ func (a Float128) Sincos() (sin, cos Float128) {
 	}
 	return
 }
+
+// Tan returns the tangent of the radian argument a.
+//
+// Special cases are:
+//
+//	±0.Tan() = ±0
+//	±Inf.Tan() = NaN
+//	NaN.Tan() = NaN
+func (a Float128) Tan() Float128 {
+	sin, cos := a.Sincos()
+	return sin.Quo(cos)
+}

@@ -119,3 +119,39 @@ func TestFloat16_Sincos(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Tan(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want float64
+	}{
+		{exact16(1), math.Tan(1)},
+		{exact16(2), math.Tan(2)},
+		{exact16(3), math.Tan(3)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Tan()
+		if !close16(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float16
+		want Float16
+	}{
+		// special cases
+		{exact16(0), exact16(0)},
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
+		{exact16(math.Inf(1)), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(math.NaN())},
+	}
+	for _, tt := range strictTests {
+		got := tt.x.Tan()
+		if !eq16(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}

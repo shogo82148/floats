@@ -123,3 +123,39 @@ func TestFloat32_Sincos(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Tan(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(1), math.Tan(1)},
+		{exact32(2), math.Tan(2)},
+		{exact32(3), math.Tan(3)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Tan()
+		if !close32(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		// special cases
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+	for _, tt := range strictTests {
+		got := tt.x.Tan()
+		if !eq32(got, tt.want) {
+			t.Errorf("Tan(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
