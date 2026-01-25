@@ -52,3 +52,39 @@ func TestFloat16_Asinh(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat16_Acosh(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want float64
+	}{
+		{exact16(1), math.Acosh(1)},
+		{exact16(21), math.Acosh(21)},
+		{exact16(22), math.Acosh(22)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Acosh()
+		if !close16(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float16
+		want Float16
+	}{
+		// special cases
+		{exact16(math.Inf(1)), exact16(math.Inf(1))},
+		{exact16(-2), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Acosh()
+		if !eq16(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
