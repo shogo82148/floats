@@ -65,3 +65,45 @@ func (a Float32) Acosh() Float32 {
 	t := a - 1
 	return (t + (2*t + t*t).Sqrt()).Log1p() // 2 >= a > 1
 }
+
+// Atanh returns the inverse hyperbolic tangent of a.
+//
+// Special cases are:
+//
+//	1.Atanh() = +Inf
+//	±0.Atanh() = ±0
+//	-1.Atanh() = -Inf
+//	x.Atanh() = NaN if x < -1 or x > 1
+//	NaN.Atanh() = NaN
+func (a Float32) Atanh() Float32 {
+	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/atanh.go#L45-L73
+	const NearZero = 1.0 / (1 << 28) // 2**-28
+	// special cases
+	switch {
+	case a < -1 || a > 1 || a.IsNaN():
+		return NewFloat32NaN()
+	case a == 1:
+		return NewFloat32Inf(1)
+	case a == -1:
+		return NewFloat32Inf(-1)
+	}
+	sign := false
+	if a < 0 {
+		a = -a
+		sign = true
+	}
+	var temp Float32
+	switch {
+	case a < NearZero:
+		temp = a
+	case a < 0.5:
+		temp = a + a
+		temp = 0.5 * (temp + temp*a/(1-a)).Log1p()
+	default:
+		temp = 0.5 * ((a + a) / (1 - a)).Log1p()
+	}
+	if sign {
+		temp = -temp
+	}
+	return temp
+}
