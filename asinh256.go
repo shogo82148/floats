@@ -59,3 +59,45 @@ func (a Float256) Asinh() Float256 {
 	}
 	return temp
 }
+
+// Acosh returns the inverse hyperbolic cosine of a.
+//
+// Special cases are:
+//
+//	+Inf.Acosh() = +Inf
+//	x.Acosh() = NaN if x < 1
+//	NaN.Acosh() = NaN
+func (a Float256) Acosh() Float256 {
+	var (
+		// Ln2 = ln(2)
+		Ln2 = Float256{
+			0x3fff_e62e_42fe_fa39, 0xef35_793c_7673_007e,
+			0x5ed5_e81e_6864_ce53, 0x16c5_b141_a2eb_7175,
+		}
+		// Zero = 0.0
+		Zero = Float256{}
+		// One = 1.0
+		One = Float256(uvone256)
+		// Two = 2.0
+		Two = Float256{
+			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+		// Large = 2**170
+		Large = Float256{
+			0x400a_9000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+	)
+	switch {
+	case a.Lt(One) || a.IsNaN():
+		return NewFloat256NaN()
+	case a.Eq(One):
+		return Zero
+	case a.Ge(Large):
+		return a.Log().Add(Ln2) // a > 2**58
+	case a.Gt(Two):
+		return (a.Add((a.Mul(a).Sub(One)).Sqrt())).Log() // 2**58 > a > 2.0
+	}
+	t := a.Sub(One)
+	return (t.Add((t.Mul(t).Add(Two.Mul(t))).Sqrt())).Log1p() // 2 >= a > 1
+}

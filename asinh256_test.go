@@ -52,3 +52,39 @@ func TestFloat256_Asinh(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat256_Acosh(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(1), "0"},
+		{exact256(1.5), "0.9624236501192068949955178268487368462703686687713210393220363376803277352164435488"},
+		{exact256(21), "3.737102242198923900976805054113159386884204741143073889422198983717266311856623625"},
+		{exact256(0x1p59), "41.58883083359671856503392728749059408377769167708905124214080918578138008352876707"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Acosh()
+		if !close256(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(math.Inf(1)), exact256(math.Inf(1))},
+		{exact256(math.Inf(-1)), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Acosh()
+		if !eq256(got, tt.want) {
+			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
