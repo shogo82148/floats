@@ -44,3 +44,37 @@ func TestFloat32_Sin(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Cos(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(1), math.Cos(1)},
+		{exact32(2), math.Cos(2)},
+		{exact32(3), math.Cos(3)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Cos()
+		if !close32(got, tt.want) {
+			t.Errorf("Cos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		// special cases
+		{exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN())},
+	}
+	for _, tt := range strictTests {
+		got := tt.x.Cos()
+		if !eq32(got, tt.want) {
+			t.Errorf("Cos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
