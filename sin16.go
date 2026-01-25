@@ -34,3 +34,14 @@ func (a Float16) Sincos() (sin, cos Float16) {
 	s, c := math.Sincos(a.Float64().BuiltIn())
 	return NewFloat16(s), NewFloat16(c)
 }
+
+// Tan returns the tangent of the radian argument a.
+//
+// Special cases are:
+//
+//	±0.Tan() = ±0
+//	±Inf.Tan() = NaN
+//	NaN.Tan() = NaN
+func (a Float16) Tan() Float16 {
+	return NewFloat16(math.Tan(a.Float64().BuiltIn()))
+}
