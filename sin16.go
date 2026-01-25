@@ -12,3 +12,13 @@ import "math"
 func (a Float16) Sin() Float16 {
 	return NewFloat16(math.Sin(a.Float64().BuiltIn()))
 }
+
+// Cos returns the cosine of the radian argument a.
+//
+// Special cases are:
+//
+//	±Inf.Cos() = NaN
+//	NaN.Cos() = NaN
+func (a Float16) Cos() Float16 {
+	return NewFloat16(math.Cos(a.Float64().BuiltIn()))
+}
