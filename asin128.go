@@ -113,3 +113,79 @@ func xatan128(x Float128) Float128 {
 	}
 	return y
 }
+
+// Atan2 returns the arc tangent of a/b, using
+// the signs of the two to determine the quadrant
+// of the return value.
+//
+// Special cases are (in order):
+//
+//	y.Atan2(NaN) = NaN
+//	NaN.Atan2(x) = NaN
+//	+0.Atan2(x>=0) = +0
+//	-0.Atan2(x>=0) = -0
+//	+0.Atan2(x<=-0) = +Pi
+//	-0.Atan2(x<=-0) = -Pi
+//	y>0.Atan2(0) = +Pi/2
+//	y<0.Atan2(0) = -Pi/2
+//	+Inf.Atan2(+Inf) = +Pi/4
+//	-Inf.Atan2(+Inf) = -Pi/4
+//	+Inf.Atan2(-Inf) = 3Pi/4
+//	-Inf.Atan2(-Inf) = -3Pi/4
+//	y.Atan2(+Inf) = 0
+//	(y>0).Atan2(-Inf) = +Pi
+//	(y<0).Atan2(-Inf) = -Pi
+//	+Inf.Atan2(x) = +Pi/2
+//	-Inf.Atan2(x) = -Pi/2
+func (a Float128) Atan2(b Float128) Float128 {
+	var (
+		Zero = Float128{}
+		// Pi = Pi
+		Pi = Float128{0x4000_921f_b544_42d1, 0x8469_898c_c517_01b8}
+		// Pi2 = Pi/2
+		Pi2 = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
+		// Pi4 = Pi/4
+		Pi4 = Float128{0x3ffe_921f_b544_42d1, 0x8469_898c_c517_01b8}
+		// Pi34 = 3Pi/4
+		Pi34 = Float128{0x4000_2d97_c7f3_321d, 0x234f_2729_93d1_414a}
+	)
+
+	// special cases
+	switch {
+	case a.IsNaN() || b.IsNaN():
+		return NewFloat128NaN()
+	case a.IsZero():
+		if b.Ge(Zero) && !b.Signbit() {
+			return Zero.Copysign(a)
+		}
+		return Pi.Copysign(a)
+	case b.IsZero():
+		return Pi2.Copysign(a)
+	case b.IsInf(0):
+		if b.IsInf(1) {
+			switch {
+			case a.IsInf(0):
+				return Pi4.Copysign(a)
+			default:
+				return Zero.Copysign(a)
+			}
+		}
+		switch {
+		case a.IsInf(0):
+			return Pi34.Copysign(a)
+		default:
+			return Pi.Copysign(a)
+		}
+	case a.IsInf(0):
+		return Pi2.Copysign(a)
+	}
+
+	q := a.Quo(b).Atan()
+	if b.Lt(Zero) {
+		if q.Le(Zero) {
+			return q.Add(Pi)
+		}
+		return q.Sub(Pi)
+	}
+	return q
+}

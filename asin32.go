@@ -30,3 +30,30 @@ func (a Float32) Acos() Float32 {
 func (a Float32) Atan() Float32 {
 	return NewFloat32(math.Atan(a.Float64().BuiltIn()))
 }
+
+// Atan2 returns the arc tangent of a/b, using
+// the signs of the two to determine the quadrant
+// of the return value.
+//
+// Special cases are (in order):
+//
+//	y.Atan2(NaN) = NaN
+//	NaN.Atan2(x) = NaN
+//	+0.Atan2(x>=0) = +0
+//	-0.Atan2(x>=0) = -0
+//	+0.Atan2(x<=-0) = +Pi
+//	-0.Atan2(x<=-0) = -Pi
+//	y>0.Atan2(0) = +Pi/2
+//	y<0.Atan2(0) = -Pi/2
+//	+Inf.Atan2(+Inf) = +Pi/4
+//	-Inf.Atan2(+Inf) = -Pi/4
+//	+Inf.Atan2(-Inf) = 3Pi/4
+//	-Inf.Atan2(-Inf) = -3Pi/4
+//	y.Atan2(+Inf) = 0
+//	(y>0).Atan2(-Inf) = +Pi
+//	(y<0).Atan2(-Inf) = -Pi
+//	+Inf.Atan2(x) = +Pi/2
+//	-Inf.Atan2(x) = -Pi/2
+func (a Float32) Atan2(b Float32) Float32 {
+	return NewFloat32(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+}
