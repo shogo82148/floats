@@ -43,19 +43,19 @@ func satan128(x Float128) Float128 {
 
 	switch {
 	case x.Le(Dot66):
-		return xatan(x)
+		return xatan128(x)
 	case x.Gt(Tan3pio8):
 		// atan(x) = pi/2 - atan(1/x)
-		return Pi2Hi.Sub(xatan(One.Quo(x))).Add(Pi2Lo)
+		return Pi2Hi.Sub(xatan128(One.Quo(x))).Add(Pi2Lo)
 	default:
 		// atan(x) = pi/4 + atan((x-1)/(x+1))
-		return Pi4Hi.Add(xatan((x.Sub(One)).Quo(x.Add(One)))).Add(Pi4Lo)
+		return Pi4Hi.Add(xatan128((x.Sub(One)).Quo(x.Add(One)))).Add(Pi4Lo)
 	}
 }
 
-// xatan returns the arctangent.
+// xatan128 returns the arctangent.
 // it is valid in the range [0, 0.66].
-func xatan(x Float128) Float128 {
+func xatan128(x Float128) Float128 {
 	var y Float128
 	for n := 50; n >= 0; n-- {
 		term := power128(x, 2*n+1).Quo(NewFloat128(float64(2*n + 1)))
