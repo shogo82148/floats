@@ -12,6 +12,15 @@ func (a Float64) Asin() Float64 {
 	return NewFloat64(math.Asin(a.BuiltIn()))
 }
 
+// Acos returns the arccosine, in radians, of a.
+//
+// Special case is:
+//
+//	x.Acos() = NaN if x < -1 or x > 1
+func (a Float64) Acos() Float64 {
+	return NewFloat64(math.Acos(a.BuiltIn()))
+}
+
 // Atan returns the arctangent, in radians, of a.
 //
 // Special cases are:
