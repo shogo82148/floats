@@ -36,6 +36,17 @@ func (a Float128) Asin() Float128 {
 	return temp
 }
 
+// Acos returns the arccosine, in radians, of a.
+//
+// Special case is:
+//
+//	x.Acos() = NaN if x < -1 or x > 1
+func (a Float128) Acos() Float128 {
+	// acos(x) = pi/2 - asin(x)
+	var Pi2 = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
+	return Pi2.Sub(a.Asin())
+}
+
 // Atan returns the arctangent, in radians, of a.
 //
 // Special cases are:
