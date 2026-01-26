@@ -47,6 +47,46 @@ func TestFloat32_Asin(t *testing.T) {
 	}
 }
 
+func TestFloat32_Acos(t *testing.T) {
+	tests := []struct {
+		x    Float32
+		want float64
+	}{
+		{exact32(-1), math.Acos(-1)},
+		{exact32(-0.75), math.Acos(-0.75)},
+		{exact32(-0.5), math.Acos(-0.5)},
+		{exact32(-0.25), math.Acos(-0.25)},
+		{exact32(0.25), math.Acos(0.25)},
+		{exact32(0.5), math.Acos(0.5)},
+		{exact32(0.75), math.Acos(0.75)},
+		{exact32(1), math.Acos(1)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Acos()
+		if !close32(got, tt.want) {
+			t.Errorf("Acos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float32
+		want Float32
+	}{
+		// special cases
+		{exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(2), exact32(math.NaN())},
+		{exact32(-2), exact32(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Acos()
+		if !eq32(got, tt.want) {
+			t.Errorf("Acos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
 func TestFloat32_Atan(t *testing.T) {
 	tests := []struct {
 		x    Float32

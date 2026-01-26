@@ -47,6 +47,46 @@ func TestFloat256_Asin(t *testing.T) {
 	}
 }
 
+func TestFloat256_Acos(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(-1), "3.141592653589793238462643383279502884197169399375105820974944592307816406286208999"},
+		{exact256(-0.75), "2.418858405776377627284266030638169522171950912950665553348190459724109024371578734"},
+		{exact256(-0.5), "2.094395102393195492308428922186335256131446266250070547316629728205210937524139332"},
+		{exact256(-0.25), "1.823476581936975272716979128633462414350778432784391104121396074894483263624125722"},
+		{exact256(0.25), "1.318116071652817965745664254646040469846390966590714716853548517413333142662083277"},
+		{exact256(0.5), "1.047197551196597746154214461093167628065723133125035273658314864102605468762069666"},
+		{exact256(0.75), "0.722734247813415611178377352641333362025218486424440267626754132583707381914630265"},
+		{exact256(1), "0"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Acos()
+		if !close256(got, tt.want) {
+			t.Errorf("Acos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(2), exact256(math.NaN())},
+		{exact256(-2), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Acos()
+		if !eq256(got, tt.want) {
+			t.Errorf("Acos(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
 func TestFloat256_Atan(t *testing.T) {
 	tests := []struct {
 		x    Float256
