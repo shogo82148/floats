@@ -1,5 +1,47 @@
 package floats
 
+// Asin returns the arcsine, in radians, of a.
+//
+// Special cases are:
+//
+//	±0.Asin() = ±0
+//	x.Asin() = NaN if x < -1 or x > 1
+func (a Float256) Asin() Float256 {
+	switch {
+	case a.IsZero():
+		return a
+	case a.IsNaN():
+		return NewFloat256NaN()
+	}
+
+	sign := a.Signbit()
+	if sign {
+		a = a.Neg()
+	}
+
+	var Dot7 = Float256{
+		0x3fff_e666_6666_6666, 0x6666_6666_6666_6666,
+		0x6666_6666_6666_6666, 0x6666_6666_6666_6666,
+	} // 0.7
+	temp := Float256(uvone256).Sub(a.Mul(a)).Sqrt()
+	if a.Gt(Dot7) {
+		// asin(x) = pi/2 - atan(sqrt(1-x²)/x)
+		var Pi2 = Float256{
+			0x3fff_f921_fb54_442d, 0x1846_9898_cc51_701b,
+			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
+		}
+		temp = Pi2.Sub(satan256(temp.Quo(a)))
+	} else {
+		// asin(x) = atan(x/sqrt(1-x²))
+		temp = satan256(a.Quo(temp))
+	}
+
+	if sign {
+		temp = temp.Neg()
+	}
+	return temp
+}
+
 // Atan returns the arctangent, in radians, of a.
 //
 // Special cases are:
@@ -75,7 +117,7 @@ func satan256(x Float256) Float256 {
 // it is valid in the range [0, 0.66].
 func xatan256(x Float256) Float256 {
 	var y Float256
-	for n := 120; n >= 0; n-- {
+	for n := 130; n >= 0; n-- {
 		term := power256(x, 2*n+1).Quo(NewFloat256(float64(2*n + 1)))
 		if n%2 != 0 {
 			term = term.Neg()

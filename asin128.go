@@ -1,5 +1,41 @@
 package floats
 
+// Asin returns the arcsine, in radians, of a.
+//
+// Special cases are:
+//
+//	±0.Asin() = ±0
+//	x.Asin() = NaN if x < -1 or x > 1
+func (a Float128) Asin() Float128 {
+	switch {
+	case a.IsZero():
+		return a
+	case a.IsNaN():
+		return NewFloat128NaN()
+	}
+
+	sign := a.Signbit()
+	if sign {
+		a = a.Neg()
+	}
+
+	var Dot7 = Float128{0x3ffe_6666_6666_6666, 0x6666_6666_6666_6666} // 0.7
+	temp := Float128(uvone128).Sub(a.Mul(a)).Sqrt()
+	if a.Gt(Dot7) {
+		// asin(x) = pi/2 - atan(sqrt(1-x²)/x)
+		var Pi2 = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
+		temp = Pi2.Sub(satan128(temp.Quo(a)))
+	} else {
+		// asin(x) = atan(x/sqrt(1-x²))
+		temp = satan128(a.Quo(temp))
+	}
+
+	if sign {
+		temp = temp.Neg()
+	}
+	return temp
+}
+
 // Atan returns the arctangent, in radians, of a.
 //
 // Special cases are:
@@ -57,7 +93,7 @@ func satan128(x Float128) Float128 {
 // it is valid in the range [0, 0.66].
 func xatan128(x Float128) Float128 {
 	var y Float128
-	for n := 50; n >= 0; n-- {
+	for n := 60; n >= 0; n-- {
 		term := power128(x, 2*n+1).Quo(NewFloat128(float64(2*n + 1)))
 		if n%2 != 0 {
 			term = term.Neg()
