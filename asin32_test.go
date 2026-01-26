@@ -129,3 +129,76 @@ func TestFloat32_Atan(t *testing.T) {
 		}
 	}
 }
+
+func TestFloat32_Atan2(t *testing.T) {
+	tests := []struct {
+		y, x Float32
+		want float64
+	}{
+		{exact32(1), exact32(1), math.Pi / 4},
+		{exact32(1), exact32(-1), 3 * math.Pi / 4},
+		{exact32(-1), exact32(-1), -3 * math.Pi / 4},
+		{exact32(-1), exact32(1), -math.Pi / 4},
+
+		// special cases
+		// +0.Atan2(x<=-0) = +Pi
+		{exact32(0), exact32(-1), math.Pi},
+		// -0.Atan2(x<=-0) = -Pi
+		{exact32(math.Copysign(0, -1)), exact32(-1), -math.Pi},
+		// y>0.Atan2(0) = +Pi/2
+		{exact32(1), exact32(0), math.Pi / 2},
+		{exact32(1), exact32(math.Copysign(0, -1)), math.Pi / 2},
+		// y<0.Atan2(0) = -Pi/2
+		{exact32(-1), exact32(0), -math.Pi / 2},
+		{exact32(-1), exact32(math.Copysign(0, -1)), -math.Pi / 2},
+		// +Inf.Atan2(+Inf) = +Pi/4
+		{exact32(math.Inf(1)), exact32(math.Inf(1)), math.Pi / 4},
+		// -Inf.Atan2(+Inf) = -Pi/4
+		{exact32(math.Inf(-1)), exact32(math.Inf(1)), -math.Pi / 4},
+		// +Inf.Atan2(-Inf) = 3*Pi/4
+		{exact32(math.Inf(1)), exact32(math.Inf(-1)), 3 * math.Pi / 4},
+		// -Inf.Atan2(-Inf) = -3*Pi/4
+		{exact32(math.Inf(-1)), exact32(math.Inf(-1)), -3 * math.Pi / 4},
+		// y.Atan2(+Inf) = 0
+		{exact32(1), exact32(math.Inf(1)), 0},
+		{exact32(-1), exact32(math.Inf(1)), 0},
+		// (y>0).Atan2(-Inf) = +Pi
+		{exact32(1), exact32(math.Inf(-1)), math.Pi},
+		// (y<0).Atan2(-Inf) = -Pi
+		{exact32(-1), exact32(math.Inf(-1)), -math.Pi},
+		// +Inf.Atan2(x) = +Pi/2
+		{exact32(math.Inf(1)), exact32(1), math.Pi / 2},
+		// -Inf.Atan2(x) = -Pi/2
+		{exact32(math.Inf(-1)), exact32(1), -math.Pi / 2},
+	}
+
+	for _, tt := range tests {
+		got := tt.y.Atan2(tt.x)
+		if !close32(got, tt.want) {
+			t.Errorf("Atan2(%v, %v) = %v; want %v", tt.y, tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		y, x Float32
+		want Float32
+	}{
+		// special cases
+		// y.Atan2(NaN) = NaN
+		{exact32(1), exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(math.NaN()), exact32(math.NaN()), exact32(math.NaN())},
+		// NaN.Atan2(x) = NaN
+		{exact32(math.NaN()), exact32(1), exact32(math.NaN())},
+		// +0.Atan2(x>=0) = +0
+		{exact32(0), exact32(1), exact32(0)},
+		// -0.Atan2(x>=0) = -0
+		{exact32(math.Copysign(0, -1)), exact32(1), exact32(math.Copysign(0, -1))},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.y.Atan2(tt.x)
+		if !eq32(got, tt.want) {
+			t.Errorf("Atan2(%v, %v) = %v; want %v", tt.y, tt.x, got, tt.want)
+		}
+	}
+}
