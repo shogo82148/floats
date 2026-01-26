@@ -2,6 +2,16 @@ package floats
 
 import "math"
 
+// Asin returns the arcsine, in radians, of a.
+//
+// Special cases are:
+//
+//	±0.Asin() = ±0
+//	x.Asin() = NaN if x < -1 or x > 1
+func (a Float32) Asin() Float32 {
+	return NewFloat32(math.Asin(a.Float64().BuiltIn()))
+}
+
 // Atan returns the arctangent, in radians, of a.
 //
 // Special cases are:
