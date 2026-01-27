@@ -180,7 +180,7 @@ func (a Float128) Erfinv() Float128 {
 	x := NewFloat128(math.Erfinv(fa))
 
 	// Newton-Raphson iteration
-	for range 3 {
+	for range 30 {
 		diff := x.Erf().Sub(a)
 		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
 		x = x.Sub(diff.Mul(exp))
