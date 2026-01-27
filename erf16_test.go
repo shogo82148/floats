@@ -94,3 +94,51 @@ func BenchmarkFloat16_Erfc(b *testing.B) {
 		runtime.KeepAlive(x.Erfc())
 	}
 }
+
+func TestFloat16_Erfinv(t *testing.T) {
+	tests := []struct {
+		x    Float16
+		want float64
+	}{
+		{exact16(-0.75), math.Erfinv(-0.75)},
+		{exact16(-0.5), math.Erfinv(-0.5)},
+		{exact16(-0.25), math.Erfinv(-0.25)},
+		{exact16(0), math.Erfinv(0)},
+		{exact16(0.25), math.Erfinv(0.25)},
+		{exact16(0.5), math.Erfinv(0.5)},
+		{exact16(0.75), math.Erfinv(0.75)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Erfinv()
+		if !close16(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float16
+		want Float16
+	}{
+		// special cases
+		{exact16(1), exact16(math.Inf(1))},
+		{exact16(-1), exact16(math.Inf(-1))},
+		{exact16(2), exact16(math.NaN())},
+		{exact16(-2), exact16(math.NaN())},
+		{exact16(math.NaN()), exact16(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Erfinv()
+		if !eq16(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Erfinv(b *testing.B) {
+	x := exact16(0.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Erfinv())
+	}
+}
