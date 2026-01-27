@@ -1,5 +1,9 @@
 package floats
 
+import (
+	"math"
+)
+
 // Erf returns the error function of a.
 //
 // Special cases are:
@@ -135,4 +139,51 @@ func (a Float128) Erfc() Float128 {
 		y = Two.Sub(y)
 	}
 	return y
+}
+
+// Erfinv returns the inverse error function of a.
+//
+// Special cases are:
+//
+//	1.Erfinv() = +Inf
+//	-1.Erfinv() = -Inf
+//	x.Erfinv() = NaN if x < -1 or x > 1
+//	NaN.Erfinv() = NaN
+func (a Float128) Erfinv() Float128 {
+	var (
+		// One is 1
+		One = Float128(uvone128)
+		// SqrtPiOverTwo is sqrt(π)/2
+		SqrtPiOverTwo = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+	)
+
+	// special cases
+	switch {
+	case a.Eq(One):
+		return NewFloat128Inf(1)
+	case a.Eq(One.Neg()):
+		return NewFloat128Inf(-1)
+	case a.Lt(One.Neg()) || a.Gt(One):
+		return NewFloat128NaN()
+	case a.IsNaN():
+		return NewFloat128NaN()
+	}
+
+	// Initial approximation using built-in math.Erfinv
+	fa := a.Float64().BuiltIn()
+	if fa == 1 {
+		fa = math.Nextafter(1, 0)
+	}
+	if fa == -1 {
+		fa = math.Nextafter(-1, 0)
+	}
+	x := NewFloat128(math.Erfinv(fa))
+
+	// Newton-Raphson iteration
+	for range 3 {
+		diff := x.Erf().Sub(a)
+		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
+		x = x.Sub(diff.Mul(exp))
+	}
+	return x
 }

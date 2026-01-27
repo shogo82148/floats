@@ -103,3 +103,53 @@ func BenchmarkFloat128_Erfc(b *testing.B) {
 		runtime.KeepAlive(x.Erfc())
 	}
 }
+
+func TestFloat128_Erfinv(t *testing.T) {
+	tests := []struct {
+		x    Float128
+		want string
+	}{
+		{exact128(-1).Nextafter(exact128(0)), "-6.112407507065135062557744259782837"},
+		{exact128(-0.75), "-0.813419847597618541690289359893421"},
+		{exact128(-0.5), "-0.47693627620446987338141835364313055"},
+		{exact128(-0.25), "-0.22531205501217810472501401395227754"},
+		{exact128(0), "0"},
+		{exact128(0.25), "0.22531205501217810472501401395227754"},
+		{exact128(0.5), "0.47693627620446987338141835364313055"},
+		{exact128(0.75), "0.813419847597618541690289359893421"},
+		{exact128(1).Nextafter(exact128(0)), "6.112407507065135062557744259782837"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Erfinv()
+		if !close128(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float128
+		want Float128
+	}{
+		// special cases
+		{exact128(1), exact128(math.Inf(1))},
+		{exact128(-1), exact128(math.Inf(-1))},
+		{exact128(2), exact128(math.NaN())},
+		{exact128(-2), exact128(math.NaN())},
+		{exact128(math.NaN()), exact128(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Erfinv()
+		if !eq128(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat128_Erfinv(b *testing.B) {
+	x := exact128(0.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Erfinv())
+	}
+}
