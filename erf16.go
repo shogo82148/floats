@@ -12,3 +12,14 @@ import "math"
 func (a Float16) Erf() Float16 {
 	return NewFloat16(math.Erf(a.Float64().BuiltIn()))
 }
+
+// Erfc returns the complementary error function of x.
+//
+// Special cases are:
+//
+//	+Inf.Erfc() = 0
+//	-Inf.Erfc() = 2
+//	NaN.Erfc() = NaN
+func (a Float16) Erfc() Float16 {
+	return NewFloat16(math.Erfc(a.Float64().BuiltIn()))
+}
