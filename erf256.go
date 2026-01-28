@@ -113,8 +113,8 @@ func (a Float256) Erfinv() Float256 {
 		}
 		// SqrtPiOverTwo is sqrt(π)/2
 		SqrtPiOverTwo = Float256{
-			0x3fff_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+			0x3fff_ec5b_f891_b4ef, 0x6aa7_9c3b_0520_d5db,
+			0x9383_fe39_2154_6f63, 0xb252_dca1_00bd_3ea1,
 		}
 	)
 
