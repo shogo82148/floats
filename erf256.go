@@ -97,8 +97,20 @@ func (a Float256) Erf() Float256 {
 //	NaN.Erfinv() = NaN
 func (a Float256) Erfinv() Float256 {
 	var (
+		// Zero is 0
+		Zero = Float256{}
 		// One is 1
 		One = Float256(uvone256)
+		// Two is 2
+		Two = Float256{
+			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+		// Half is 0.5
+		Half = Float256{
+			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
 		// SqrtPiOverTwo is sqrt(π)/2
 		SqrtPiOverTwo = Float256{
 			0x3fff_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9,
@@ -118,25 +130,49 @@ func (a Float256) Erfinv() Float256 {
 		return NewFloat256NaN()
 	}
 
+	sign := a.Signbit()
+	if sign {
+		a = a.Neg()
+	}
+
+	if a.Gt(Half) {
+		// bisection search
+		lo := Zero
+		hi := One
+		for hi.Erf().Lt(a) {
+			hi = hi.Mul(Two)
+		}
+		for range 256 {
+			mid := lo.Add(hi).Mul(Half)
+			if mid.Erf().Lt(a) {
+				lo = mid
+			} else {
+				hi = mid
+			}
+		}
+		mid := lo.Add(hi).Mul(Half)
+		if sign {
+			return mid.Neg()
+		}
+		return mid
+	}
+
 	// Initial approximation using built-in math.Erfinv
 	fa := a.Float64().BuiltIn()
-	if fa == 1 {
-		fa = math.Nextafter(1, 0)
-	}
-	if fa == -1 {
-		fa = math.Nextafter(-1, 0)
-	}
 	x := NewFloat256(math.Erfinv(fa))
 
 	// Newton-Raphson iteration
 	for range 700 {
 		diff := x.Erf().Sub(a)
 		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
-		diff = diff.Mul(exp)
-		if diff.IsZero() {
+		xn := x.Sub(diff.Mul(exp))
+		if xn.Eq(x) {
 			break
 		}
-		x = x.Sub(diff)
+		x = xn
+	}
+	if sign {
+		x = x.Neg()
 	}
 	return x
 }
