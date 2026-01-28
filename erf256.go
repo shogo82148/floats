@@ -176,3 +176,15 @@ func (a Float256) Erfinv() Float256 {
 	}
 	return x
 }
+
+// Erfcinv returns the inverse of [Erfc](a).
+//
+// Special cases are:
+//
+//	0.Erfcinv() = +Inf
+//	2.Erfcinv() = -Inf
+//	x.Erfcinv() = NaN if x < 0 or x > 2
+//	NaN.Erfcinv() = NaN
+func (a Float256) Erfcinv() Float256 {
+	return (Float256(uvone256).Sub(a)).Erfinv()
+}
