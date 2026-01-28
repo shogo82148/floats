@@ -186,6 +186,6 @@ func TestFloat32_Erfcinv(t *testing.T) {
 func BenchmarkFloat32_Erfcinv(b *testing.B) {
 	x := exact32(0.5)
 	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+		runtime.KeepAlive(x.Erfcinv())
 	}
 }

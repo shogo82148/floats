@@ -187,6 +187,6 @@ func TestFloat16_Erfcinv(t *testing.T) {
 func BenchmarkFloat16_Erfcinv(b *testing.B) {
 	x := exact16(0.5)
 	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+		runtime.KeepAlive(x.Erfcinv())
 	}
 }
