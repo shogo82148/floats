@@ -35,3 +35,15 @@ func (a Float16) Erfc() Float16 {
 func (a Float16) Erfinv() Float16 {
 	return NewFloat16(math.Erfinv(a.Float64().BuiltIn()))
 }
+
+// Erfcinv returns the inverse of [Erfc](a).
+//
+// Special cases are:
+//
+//	0.Erfcinv() = +Inf
+//	2.Erfcinv() = -Inf
+//	x.Erfcinv() = NaN if x < 0 or x > 2
+//	NaN.Erfcinv() = NaN
+func (a Float16) Erfcinv() Float16 {
+	return NewFloat16(math.Erfcinv(a.Float64().BuiltIn()))
+}
