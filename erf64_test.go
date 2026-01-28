@@ -141,3 +141,51 @@ func BenchmarkFloat64_Erfinv(b *testing.B) {
 		runtime.KeepAlive(x.Erfinv())
 	}
 }
+
+func TestFloat64_Erfcinv(t *testing.T) {
+	tests := []struct {
+		x    Float64
+		want float64
+	}{
+		{exact64(0.25), math.Erfcinv(0.25)},
+		{exact64(0.5), math.Erfcinv(0.5)},
+		{exact64(0.75), math.Erfcinv(0.75)},
+		{exact64(1), math.Erfcinv(1)},
+		{exact64(1.25), math.Erfcinv(1.25)},
+		{exact64(1.5), math.Erfcinv(1.5)},
+		{exact64(1.75), math.Erfcinv(1.75)},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Erfcinv()
+		if !close64(got, tt.want) {
+			t.Errorf("Erfcinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float64
+		want Float64
+	}{
+		// special cases
+		{exact64(0), exact64(math.Inf(1))},
+		{exact64(2), exact64(math.Inf(-1))},
+		{exact64(3), exact64(math.NaN())},
+		{exact64(-1), exact64(math.NaN())},
+		{exact64(math.NaN()), exact64(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Erfcinv()
+		if !eq64(got, tt.want) {
+			t.Errorf("Erfcinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat64_Erfcinv(b *testing.B) {
+	x := exact64(0.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Erfcinv())
+	}
+}
