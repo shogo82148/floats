@@ -1,5 +1,9 @@
 package floats
 
+import (
+	"math"
+)
+
 // Erf returns the error function of a.
 //
 // Special cases are:
@@ -81,4 +85,94 @@ func (a Float256) Erf() Float256 {
 		y = y.Neg()
 	}
 	return y
+}
+
+// Erfinv returns the inverse error function of a.
+//
+// Special cases are:
+//
+//	1.Erfinv() = +Inf
+//	-1.Erfinv() = -Inf
+//	x.Erfinv() = NaN if x < -1 or x > 1
+//	NaN.Erfinv() = NaN
+func (a Float256) Erfinv() Float256 {
+	var (
+		// Zero is 0
+		Zero = Float256{}
+		// One is 1
+		One = Float256(uvone256)
+		// Two is 2
+		Two = Float256{
+			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+		// Half is 0.5
+		Half = Float256{
+			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
+			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		}
+		// SqrtPiOverTwo is sqrt(π)/2
+		SqrtPiOverTwo = Float256{
+			0x3fff_ec5b_f891_b4ef, 0x6aa7_9c3b_0520_d5db,
+			0x9383_fe39_2154_6f63, 0xb252_dca1_00bd_3ea1,
+		}
+	)
+
+	// special cases
+	switch {
+	case a.Eq(One):
+		return NewFloat256Inf(1)
+	case a.Eq(One.Neg()):
+		return NewFloat256Inf(-1)
+	case a.Lt(One.Neg()) || a.Gt(One):
+		return NewFloat256NaN()
+	case a.IsNaN():
+		return NewFloat256NaN()
+	}
+
+	sign := a.Signbit()
+	if sign {
+		a = a.Neg()
+	}
+
+	if a.Gt(Half) {
+		// bisection search
+		lo := Zero
+		hi := One
+		for hi.Erf().Lt(a) {
+			hi = hi.Mul(Two)
+		}
+		for range 256 {
+			mid := lo.Add(hi).Mul(Half)
+			if mid.Erf().Lt(a) {
+				lo = mid
+			} else {
+				hi = mid
+			}
+		}
+		mid := lo.Add(hi).Mul(Half)
+		if sign {
+			return mid.Neg()
+		}
+		return mid
+	}
+
+	// Initial approximation using built-in math.Erfinv
+	fa := a.Float64().BuiltIn()
+	x := NewFloat256(math.Erfinv(fa))
+
+	// Newton-Raphson iteration
+	for range 700 {
+		diff := x.Erf().Sub(a)
+		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
+		xn := x.Sub(diff.Mul(exp))
+		if xn.Eq(x) {
+			break
+		}
+		x = xn
+	}
+	if sign {
+		x = x.Neg()
+	}
+	return x
 }

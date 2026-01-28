@@ -1,5 +1,9 @@
 package floats
 
+import (
+	"math"
+)
+
 // Erf returns the error function of a.
 //
 // Special cases are:
@@ -135,4 +139,85 @@ func (a Float128) Erfc() Float128 {
 		y = Two.Sub(y)
 	}
 	return y
+}
+
+// Erfinv returns the inverse error function of a.
+//
+// Special cases are:
+//
+//	1.Erfinv() = +Inf
+//	-1.Erfinv() = -Inf
+//	x.Erfinv() = NaN if x < -1 or x > 1
+//	NaN.Erfinv() = NaN
+func (a Float128) Erfinv() Float128 {
+	var (
+		// Zero is 0
+		Zero = Float128{}
+		// One is 1
+		One = Float128(uvone128)
+		// Two is 2
+		Two = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
+		// Half is 0.5
+		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+		// SqrtPiOverTwo is sqrt(π)/2
+		SqrtPiOverTwo = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+	)
+
+	// special cases
+	switch {
+	case a.Eq(One):
+		return NewFloat128Inf(1)
+	case a.Eq(One.Neg()):
+		return NewFloat128Inf(-1)
+	case a.Lt(One.Neg()) || a.Gt(One):
+		return NewFloat128NaN()
+	case a.IsNaN():
+		return NewFloat128NaN()
+	}
+
+	sign := a.Signbit()
+	if sign {
+		a = a.Neg()
+	}
+
+	if a.Gt(Half) {
+		// bisection search
+		lo := Zero
+		hi := One
+		for hi.Erf().Lt(a) {
+			hi = hi.Mul(Two)
+		}
+		for range 128 {
+			mid := lo.Add(hi).Mul(Half)
+			if mid.Erf().Lt(a) {
+				lo = mid
+			} else {
+				hi = mid
+			}
+		}
+		mid := lo.Add(hi).Mul(Half)
+		if sign {
+			return mid.Neg()
+		}
+		return mid
+	}
+
+	// Initial approximation using built-in math.Erfinv
+	fa := a.Float64().BuiltIn()
+	x := NewFloat128(math.Erfinv(fa))
+
+	// Newton-Raphson iteration
+	for range 128 {
+		diff := x.Erf().Sub(a)
+		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
+		xn := x.Sub(diff.Mul(exp))
+		if xn.Eq(x) {
+			break
+		}
+		x = xn
+	}
+	if sign {
+		x = x.Neg()
+	}
+	return x
 }

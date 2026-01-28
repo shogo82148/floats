@@ -23,3 +23,15 @@ func (a Float16) Erf() Float16 {
 func (a Float16) Erfc() Float16 {
 	return NewFloat16(math.Erfc(a.Float64().BuiltIn()))
 }
+
+// Erfinv returns the inverse error function of a.
+//
+// Special cases are:
+//
+//	1.Erfinv() = +Inf
+//	-1.Erfinv() = -Inf
+//	x.Erfinv() = NaN if x < -1 or x > 1
+//	NaN.Erfinv() = NaN
+func (a Float16) Erfinv() Float16 {
+	return NewFloat16(math.Erfinv(a.Float64().BuiltIn()))
+}

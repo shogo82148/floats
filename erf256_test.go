@@ -53,3 +53,53 @@ func BenchmarkFloat256_Erf(b *testing.B) {
 		runtime.KeepAlive(x.Erf())
 	}
 }
+
+func TestFloat256_Erfinv(t *testing.T) {
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(-1).Nextafter(exact256(0)), "-12.6789204758043082417334375024209655173495726943819012599854669839592728"},
+		{exact256(-0.75), "-0.813419847597618541690289359893421085324724835957501548147510003331798062"},
+		{exact256(-0.5), "-0.476936276204469873381418353643130559808969749059470644703882695919383452"},
+		{exact256(-0.25), "-0.225312055012178104725014013952277554782118447807246757600782894957738222"},
+		{exact256(0), "0"},
+		{exact256(0.25), "0.225312055012178104725014013952277554782118447807246757600782894957738222"},
+		{exact256(0.5), "0.476936276204469873381418353643130559808969749059470644703882695919383452"},
+		{exact256(0.75), "0.813419847597618541690289359893421085324724835957501548147510003331798062"},
+		{exact256(1).Nextafter(exact256(0)), "12.6789204758043082417334375024209655173495726943819012599854669839592728"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Erfinv()
+		if !close256(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(1), exact256(math.Inf(1))},
+		{exact256(-1), exact256(math.Inf(-1))},
+		{exact256(2), exact256(math.NaN())},
+		{exact256(-2), exact256(math.NaN())},
+		{exact256(math.NaN()), exact256(math.NaN())},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Erfinv()
+		if !eq256(got, tt.want) {
+			t.Errorf("Erfinv(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Erfinv(b *testing.B) {
+	x := exact256(0.5)
+	for b.Loop() {
+		runtime.KeepAlive(x.Erfinv())
+	}
+}
