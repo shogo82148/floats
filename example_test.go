@@ -75,3 +75,48 @@ func ExampleFloat256_Abs() {
 	// 2.0
 	// 2.0
 }
+
+func ExampleFloat16_Acos() {
+	f := floats.NewFloat16(1)
+	x := f.Acos()
+	fmt.Printf("%.1f\n", x)
+
+	// Output:
+	// 0.0
+}
+
+func ExampleFloat32_Acos() {
+	f := floats.NewFloat32(1)
+	x := f.Acos()
+	fmt.Printf("%.1f\n", x)
+
+	// Output:
+	// 0.0
+}
+
+func ExampleFloat64_Acos() {
+	f := floats.NewFloat64(1)
+	x := f.Acos()
+	fmt.Printf("%.1f\n", x)
+
+	// Output:
+	// 0.0
+}
+
+func ExampleFloat128_Acos() {
+	f := floats.NewFloat128(1)
+	x := f.Acos()
+	fmt.Printf("%.1f\n", x)
+
+	// Output:
+	// 0.0
+}
+
+func ExampleFloat256_Acos() {
+	f := floats.NewFloat256(1)
+	x := f.Acos()
+	fmt.Printf("%.1f\n", x)
+
+	// Output:
+	// 0.0
+}
