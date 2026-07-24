@@ -28,7 +28,7 @@ func (a Float128) Gamma() Float128 {
 		Three = Float128{0x4000_8000_0000_0000, 0x0000_0000_0000_0000}
 
 		// Pi is π
-		Pi = Float128{0x4009_21fb_5444_2d18, 0x4a61_6c16_7a2b_3405}
+		Pi = Float128{0x4000_921f_b544_42d1, 0x8469_898c_c517_01b8}
 
 		// StirlingThreshold is the threshold for using Stirling's approximation
 		StirlingThreshold = Float128{0x4004_b800_0000_0000, 0x0000_0000_0000_0000} // 55
@@ -54,10 +54,7 @@ func (a Float128) Gamma() Float128 {
 		// Note: x is negative but (checked above) not a negative integer,
 		// so x must be small enough to be in range for conversion to int128.
 		// If |x| were >= 2¹²⁷ it would have to be an integer.
-		sign := false
-		if ip := p.Int128(); ip[0]&1 == 0 {
-			sign = true
-		}
+		sign := !isOddInt128(p)
 		z := q.Sub(p)
 		if z.Gt(Half) {
 			p = p.Add(One)
@@ -98,10 +95,93 @@ func (a Float128) Gamma() Float128 {
 	if a.Eq(Two) {
 		return z
 	}
-	// Now 2 < a < 3
-	// TODO: implement precise gamma function for 2 < a < 3
-	y1, y2 := stirling128(a.Add(StirlingThreshold))
-	return y2.Mul(z).Mul(y1)
+	// Now 2 < a < 3.
+	return z.Mul(gammaRational128(a))
+}
+
+// gammaRational128 returns a degree-16/16 Padé approximant of Gamma(a)
+// for 2 < a < 3, expanded around the midpoint a = 2.5.
+func gammaRational128(a Float128) Float128 {
+	var (
+		// Center = 2.5
+		Center = Float128{0x4000_4000_0000_0000, 0x0000_0000_0000_0000}
+
+		P0  = Float128{0x3fff_544f_a6d4_7b38, 0xffdb_52c4_3d8a_064b}
+		P1  = Float128{0x3fff_4333_5a24_871b, 0xdc22_67fb_74b3_6bbb}
+		P2  = Float128{0x3ffe_4b16_9178_daf2, 0x3461_eaff_8620_ce1d}
+		P3  = Float128{0x3ffc_d481_9138_270a, 0x788c_bd4c_4764_ed98}
+		P4  = Float128{0x3ffa_fb77_43e5_566c, 0xbe39_a38b_fee6_179b}
+		P5  = Float128{0x3ff8_bb1b_7fb3_c9b2, 0xde55_01ab_f8b4_481b}
+		P6  = Float128{0x3ff6_41d2_689a_9899, 0x9647_a8cb_3c6a_d721}
+		P7  = Float128{0x3ff3_8c1e_4193_cc17, 0x55a3_c14d_cc41_d4fe}
+		P8  = Float128{0x3ff0_a1db_5d4f_ffdc, 0x84ae_76ba_6f61_7529}
+		P9  = Float128{0x3fed_7ba5_6653_ab0a, 0x1d35_e3f8_447b_e664}
+		P10 = Float128{0x3fea_2922_fd70_3e16, 0x9ed6_7983_f9d7_4eae}
+		P11 = Float128{0x3fe6_8e3e_82b0_b8e3, 0xfab7_d055_b889_1da9}
+		P12 = Float128{0x3fe2_c358_0617_618d, 0xfba7_23f7_5061_c8e5}
+		P13 = Float128{0x3fde_a5ea_8b25_5679, 0x114e_6df3_46e3_4372}
+		P14 = Float128{0x3fda_37fd_8074_83fd, 0xaa3b_fba9_816c_0174}
+		P15 = Float128{0x3fd5_4c91_d1a9_4595, 0xbc80_a42c_bc24_f4c9}
+		P16 = Float128{0x3fcf_a015_628f_479a, 0xac05_d27a_bb9d_b472}
+
+		Q0  = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
+		Q1  = Float128{0x3ffc_f8f6_abcc_70de, 0x725a_9f2e_df59_bd0d}
+		Q2  = Float128{0xbffc_6f3e_10a2_5a61, 0x4511_7432_c1ee_008b}
+		Q3  = Float128{0xbff8_d182_4470_6483, 0x796e_64ae_d3d8_8005}
+		Q4  = Float128{0x3ff8_f525_5e25_320d, 0x2d98_33aa_6b98_1712}
+		Q5  = Float128{0xbff5_0acc_7ea6_55f3, 0x6590_fcdb_60f2_f7b6}
+		Q6  = Float128{0xbff4_1a81_2021_5257, 0x72c7_e221_1ea5_95f1}
+		Q7  = Float128{0x3ff1_b5f1_aab2_c47d, 0x1508_e6cc_27cf_217c}
+		Q8  = Float128{0x3feb_45af_71fb_1b11, 0x6502_2962_c97e_7bac}
+		Q9  = Float128{0xbfec_47bf_047c_71ad, 0x66af_d549_869d_d48b}
+		Q10 = Float128{0x3fe9_3213_0da9_9bdd, 0x8082_107c_a1c9_ade2}
+		Q11 = Float128{0xbfe0_3000_81a8_df9c, 0x4165_a6c8_0159_4e88}
+		Q12 = Float128{0xbfe2_a9d5_c682_acc4, 0x327f_88c2_a0bf_4597}
+		Q13 = Float128{0x3fdf_8d19_9899_89cc, 0x26a5_dd00_4c74_c891}
+		Q14 = Float128{0xbfdb_6718_0552_5cda, 0xff41_a65b_9fc0_f190}
+		Q15 = Float128{0x3fd6_4e8c_b37b_c516, 0x9c0c_c5c8_e952_b5ab}
+		Q16 = Float128{0xbfcf_eeaf_366d_8e29, 0xa81c_befc_d2ae_9923}
+	)
+
+	t := a.Sub(Center)
+
+	p := P16
+	p = FMA128(p, t, P15)
+	p = FMA128(p, t, P14)
+	p = FMA128(p, t, P13)
+	p = FMA128(p, t, P12)
+	p = FMA128(p, t, P11)
+	p = FMA128(p, t, P10)
+	p = FMA128(p, t, P9)
+	p = FMA128(p, t, P8)
+	p = FMA128(p, t, P7)
+	p = FMA128(p, t, P6)
+	p = FMA128(p, t, P5)
+	p = FMA128(p, t, P4)
+	p = FMA128(p, t, P3)
+	p = FMA128(p, t, P2)
+	p = FMA128(p, t, P1)
+	p = FMA128(p, t, P0)
+
+	q := Q16
+	q = FMA128(q, t, Q15)
+	q = FMA128(q, t, Q14)
+	q = FMA128(q, t, Q13)
+	q = FMA128(q, t, Q12)
+	q = FMA128(q, t, Q11)
+	q = FMA128(q, t, Q10)
+	q = FMA128(q, t, Q9)
+	q = FMA128(q, t, Q8)
+	q = FMA128(q, t, Q7)
+	q = FMA128(q, t, Q6)
+	q = FMA128(q, t, Q5)
+	q = FMA128(q, t, Q4)
+	q = FMA128(q, t, Q3)
+	q = FMA128(q, t, Q2)
+	q = FMA128(q, t, Q1)
+	q = FMA128(q, t, Q0)
+
+	return p.Quo(q)
 }
 
 func isNegInt128(x Float128) bool {

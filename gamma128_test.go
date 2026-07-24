@@ -1,16 +1,11 @@
 package floats
 
 import (
-	"log"
 	"math"
 	"testing"
 )
 
 func TestFloat128_Gamma(t *testing.T) {
-	x, _ := ParseFloat128("4.3319354677049217064816009744746307783586988759274251000053327583456634718E-72")
-	log.Printf("0x%016x, 0x%016x", x[0], x[1])
-	log.Printf("%v", x)
-
 	tests := []struct {
 		x    Float128
 		want string
