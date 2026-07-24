@@ -1,4 +1,2 @@
-github.com/shogo82148/ints v0.1.0 h1:jm+pZsnaIjY0u0pcA1T3s2PfY0qAO8NGp31IiEPRY2s=
-github.com/shogo82148/ints v0.1.0/go.mod h1:gbLl66XIaav9DKkYMj9/I6DtV+ZcwWHPqpcFnLq3ANM=
-github.com/shogo82148/ints v0.1.1 h1:iPDeMnkMIQmuCPYhwbzg/7Zhx1O9ImlP3YS5fEqjcBc=
-github.com/shogo82148/ints v0.1.1/go.mod h1:gbLl66XIaav9DKkYMj9/I6DtV+ZcwWHPqpcFnLq3ANM=
+github.com/shogo82148/ints v0.1.3 h1:d0jJ4P71nOWfX1XVX7iWD+qdRpZ72uut+O/q+39Tf/c=
+github.com/shogo82148/ints v0.1.3/go.mod h1:gbLl66XIaav9DKkYMj9/I6DtV+ZcwWHPqpcFnLq3ANM=
