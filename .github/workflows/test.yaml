@@ -11,17 +11,17 @@ jobs:
       matrix:
         include:
           # the latest Go version
-          - go: "1.25"
+          - go: "1.26"
             os: ubuntu-24.04
             arch: "amd64"
-          - go: "1.25"
+          - go: "1.26"
             os: ubuntu-24.04
             arch: "386"
-          - go: "1.25"
+          - go: "1.26"
             os: ubuntu-24.04-arm
             arch: "arm64"
           # the old stable Go version
-          - go: "1.24"
+          - go: "1.25"
             os: ubuntu-24.04
             arch: "amd64"
     timeout-minutes: 30
