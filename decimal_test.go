@@ -22,7 +22,8 @@ var shifttests = []struct {
 
 func TestDecimalShift(t *testing.T) {
 	for _, test := range shifttests {
-		d := new(decimal)
+		var buf [decimalDigits128]byte
+		d := &decimal{d: buf[:]}
 		d.AssignUint64(test.i)
 		d.Shift(test.shift)
 		s := d.String()
