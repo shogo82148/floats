@@ -5,9 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/shogo82148/ints"
 )
+
+// decimalPool256 recycles the large backing arrays used to format Float256
+// values. Each array is decimalDigits256 bytes (~190 KB) and is too large to
+// live on the stack, so without pooling every conversion would allocate and
+// zero a fresh one. The arrays only ever hold valid digits in d[:nd], so they
+// can be reused without clearing.
+var decimalPool256 = sync.Pool{
+	New: func() any { return new([decimalDigits256]byte) },
+}
 
 var _ fmt.Formatter = Float256{}
 
@@ -152,7 +162,9 @@ func (a Float256) appendHex(dst []byte, fmt byte, prec int) []byte {
 
 func (a Float256) append(dst []byte, fmt byte, prec int) []byte {
 	sign, exp, frac := a.split()
-	d := new(decimal)
+	bufp := decimalPool256.Get().(*[decimalDigits256]byte)
+	defer decimalPool256.Put(bufp)
+	d := &decimal{d: bufp[:]}
 	d.AssignUint256(frac)
 	d.Shift(exp - shift256)
 	shortest := prec < 0
@@ -197,7 +209,9 @@ func roundShortest256(d *decimal, frac ints.Uint256, exp int) {
 	// d = frac << (exp - shift16)
 	// Next highest floating point number is frac+1 << exp-shift16.
 	// Our upper bound is halfway between, frac*2+1 << exp-shift16-1.
-	upper := new(decimal)
+	upperp := decimalPool256.Get().(*[decimalDigits256]byte)
+	defer decimalPool256.Put(upperp)
+	upper := &decimal{d: upperp[:]}
 	upper.AssignUint256(frac.Lsh(1).Add(one))
 	upper.Shift(exp - shift256 - 1)
 	// d = frac << (exp - shift16)
@@ -215,7 +229,9 @@ func roundShortest256(d *decimal, frac ints.Uint256, exp int) {
 		fraclo = frac.Lsh(1).Sub(one)
 		explo = exp - 1
 	}
-	lower := new(decimal)
+	lowerp := decimalPool256.Get().(*[decimalDigits256]byte)
+	defer decimalPool256.Put(lowerp)
+	lower := &decimal{d: lowerp[:]}
 	lower.AssignUint256(fraclo.Lsh(1).Add(one))
 	lower.Shift(explo - shift256 - 1)
 

@@ -184,7 +184,8 @@ func (a Float16) appendHex(dst []byte, fmt byte, prec int) []byte {
 func (a Float16) append(dst []byte, fmt byte, prec int) []byte {
 	sign, exp, frac := a.split()
 
-	d := new(decimal)
+	var buf [decimalDigits16]byte
+	d := &decimal{d: buf[:]}
 	d.AssignUint64(uint64(frac))
 	d.Shift(exp - shift16)
 	shortest := prec < 0
@@ -228,7 +229,8 @@ func roundShortest16(d *decimal, frac uint16, exp int) {
 	// d = frac << (exp - shift16)
 	// Next highest floating point number is frac+1 << exp-shift16.
 	// Our upper bound is halfway between, frac*2+1 << exp-shift16-1.
-	upper := new(decimal)
+	var upperBuf [decimalDigits16]byte
+	upper := &decimal{d: upperBuf[:]}
 	upper.AssignUint64(uint64(frac*2 + 1))
 	upper.Shift(exp - shift16 - 1)
 
@@ -247,7 +249,8 @@ func roundShortest16(d *decimal, frac uint16, exp int) {
 		fraclo = frac*2 - 1
 		explo = exp - 1
 	}
-	lower := new(decimal)
+	var lowerBuf [decimalDigits16]byte
+	lower := &decimal{d: lowerBuf[:]}
 	lower.AssignUint64(uint64(fraclo*2 + 1))
 	lower.Shift(explo - shift16 - 1)
 

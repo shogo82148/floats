@@ -25,7 +25,8 @@ func atof128(s string) (f Float128, n int, err error) {
 		return f, n, err
 	}
 
-	var d decimal
+	var buf [decimalDigits128]byte
+	d := decimal{d: buf[:]}
 	if !d.set(s[:n]) {
 		return Float128{}, n, syntaxError(fnParseFloat128, s)
 	}

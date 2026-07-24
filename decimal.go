@@ -14,12 +14,22 @@ package floats
 import "github.com/shogo82148/ints"
 
 type decimal struct {
-	d     [256000]byte // digits, big-endian representation
-	nd    int          // number of digits used
-	dp    int          // decimal point
-	neg   bool         // negative flag
-	trunc bool         // discarded nonzero digits beyond d[:nd]
+	d     []byte // digits, big-endian representation; backing array sized per float type
+	nd    int    // number of digits used
+	dp    int    // decimal point
+	neg   bool   // negative flag
+	trunc bool   // discarded nonzero digits beyond d[:nd]
 }
+
+// Maximum number of decimal digits that may be produced by (or consumed for a
+// correctly-rounded conversion of) each float type. The worst case is the
+// exact expansion of the largest subnormal value. A small margin is added on
+// top of the computed maxima (16->22, 128->11564, 256->183467).
+const (
+	decimalDigits16  = 32
+	decimalDigits128 = 12288
+	decimalDigits256 = 190000
+)
 
 func (a *decimal) String() string {
 	n := 10 + a.nd

@@ -153,7 +153,8 @@ func (a Float128) appendHex(dst []byte, fmt byte, prec int) []byte {
 
 func (a Float128) append(dst []byte, fmt byte, prec int) []byte {
 	sign, exp, frac := a.split()
-	d := new(decimal)
+	var buf [decimalDigits128]byte
+	d := &decimal{d: buf[:]}
 	d.AssignUint128(frac)
 	d.Shift(exp - shift128)
 	shortest := prec < 0
@@ -198,7 +199,8 @@ func roundShortest128(d *decimal, frac ints.Uint128, exp int) {
 	// d = frac << (exp - shift16)
 	// Next highest floating point number is frac+1 << exp-shift16.
 	// Our upper bound is halfway between, frac*2+1 << exp-shift16-1.
-	upper := new(decimal)
+	var upperBuf [decimalDigits128]byte
+	upper := &decimal{d: upperBuf[:]}
 	upper.AssignUint128(frac.Lsh(1).Add(one))
 	upper.Shift(exp - shift128 - 1)
 
@@ -217,7 +219,8 @@ func roundShortest128(d *decimal, frac ints.Uint128, exp int) {
 		fraclo = frac.Lsh(1).Sub(one)
 		explo = exp - 1
 	}
-	lower := new(decimal)
+	var lowerBuf [decimalDigits128]byte
+	lower := &decimal{d: lowerBuf[:]}
 	lower.AssignUint128(fraclo.Lsh(1).Add(one))
 	lower.Shift(explo - shift128 - 1)
 

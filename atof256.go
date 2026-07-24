@@ -25,7 +25,9 @@ func atof256(s string) (f Float256, n int, err error) {
 		return f, n, err
 	}
 
-	var d decimal
+	bufp := decimalPool256.Get().(*[decimalDigits256]byte)
+	defer decimalPool256.Put(bufp)
+	d := decimal{d: bufp[:]}
 	if !d.set(s[:n]) {
 		return Float256{}, n, syntaxError(fnParseFloat256, s)
 	}

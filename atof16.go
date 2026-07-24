@@ -23,7 +23,8 @@ func atof16(s string) (f Float16, n int, err error) {
 		return f, n, err
 	}
 
-	var d decimal
+	var buf [decimalDigits16]byte
+	d := decimal{d: buf[:]}
 	if !d.set(s[:n]) {
 		return 0, n, syntaxError(fnParseFloat16, s)
 	}
