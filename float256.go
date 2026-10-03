@@ -393,67 +393,54 @@ func (a Float256) Add(b Float256) Float256 {
 		return b
 	}
 
-	if expA < expB {
-		// swap a and b
+	// make |a| >= |b|
+	if expA < expB || (expA == expB && fracA.Cmp(fracB) < 0) {
 		signA, signB = signB, signA
 		expA, expB = expB, expA
 		fracA, fracB = fracB, fracA
 	}
 
+	// Place the fractions at the top of 256-bit integers, leaving one bit for carry-out.
+	// The extra low bits work as guard, round, and sticky bits.
+	const extra = 256 - 1 - (shift256 + 1) - 1
+	fracA = fracA.Lsh(extra)
+	fracB = shrcompress256(fracB.Lsh(extra), uint(expA-expB))
+
 	// add the fractions
-	const offset = 256
-	fracA512 := ints.Uint512{fracA[0], fracA[1], fracA[2], fracA[3], 0, 0, 0, 0}
-	fracB512 := ints.Uint512{fracB[0], fracB[1], fracB[2], fracB[3], 0, 0, 0, 0}
-	fracB512 = fracB512.Rsh(uint(expA - expB))
-	if signA != 0 {
-		fracA512 = fracA512.Neg()
-	}
-	if signB != 0 {
-		fracB512 = fracB512.Neg()
-	}
-	frac512 := fracA512.Add(fracB512)
-	sign := uint64(0)
-	if ints.Int512(frac512).Sign() < 0 {
-		sign = signMask256[0]
-		frac512 = frac512.Neg()
+	var frac ints.Uint256
+	if signA == signB {
+		frac = fracA.Add(fracB)
+	} else {
+		frac = fracA.Sub(fracB)
+		if frac.IsZero() {
+			// x - x = +0
+			return Float256{}
+		}
 	}
 
-	shift := frac512.BitLen() - (shift256 + 1)
-	exp := expA + shift - offset
-
-	if frac512.IsZero() || exp < -(bias256+shift256) {
-		// underflow
-		return Float256{sign, 0, 0, 0}
-	}
-	if exp <= -bias256 {
+	// the exponent of the result
+	exp := expA + frac.BitLen() - (shift256 + 1 + extra)
+	if exp < 1-bias256 {
 		// the result is subnormal
-		shift := offset - (expA + bias256) + 1
-		frac512 = roundToNearestEven512(frac512, uint(shift))
-		frac512 = frac512.Rsh(uint(shift))
-		return Float256{sign | frac512[4], frac512[5], frac512[6], frac512[7]}
+		exp = 1 - bias256
 	}
 	if exp >= mask256-bias256 {
 		// overflow
-		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
+		return Float256{signA | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
 	}
 
-	frac512 = roundToNearestEven512(frac512, uint(shift))
-	// detect carry-out caused by rounding
-	if frac512.BitLen() > shift256+shift+1 {
-		frac512 = frac512.Rsh(1)
-		exp++
-		if exp >= mask256 {
-			// overflow
-			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
-		}
+	// round the fraction
+	if shift := exp - expA + extra; shift > 0 {
+		frac = roundToNearestEven256(frac, uint(shift))
+	} else {
+		frac = frac.Lsh(uint(-shift))
 	}
-	frac512 = frac512.Rsh(uint(shift))
-	return Float256{
-		sign | uint64(exp+bias256)<<(shift256-192) | frac512[4]&fracMask256[0],
-		frac512[5],
-		frac512[6],
-		frac512[7],
-	}
+
+	// The hidden bit of frac is added to the exponent.
+	// It also handles carry-out caused by rounding, and subnormal results.
+	// If the result overflows, it becomes infinity.
+	frac[0] += uint64(exp-1+bias256) << (shift256 - 192)
+	return Float256{signA | frac[0], frac[1], frac[2], frac[3]}
 }
 
 // Sub returns the difference of a and b.
@@ -485,23 +472,16 @@ func (a Float256) Sqrt() Float256 {
 	// exponent of square root
 	exp >>= 1
 
-	// generate sqrt(frac) bit by bit
-	frac = frac.Lsh(1)
-	var q, s ints.Uint256 // q = sqrt(frac)
-	r := ints.Uint256{1 << (shift256 + 1 - 192), 0, 0, 0}
-	for !r.IsZero() {
-		t := s.Add(r)
-		if t.Cmp(frac) <= 0 {
-			s = t.Add(r)
-			frac = frac.Sub(t)
-			q = q.Add(r)
-		}
-		frac = frac.Lsh(1)
-		r = r.Rsh(1)
-	}
+	// q = floor(sqrt(frac << (shift256 + 2))) has shift256 + 2 bits,
+	// including one guard bit for rounding.
+	// Scale frac so that its top word is normalized for sqrtRem512.
+	const extra = (512 - (shift256 + 2) - (shift256 + 2)) / 2
+	n := ints.Uint512{0, 0, 0, 0, frac[0], frac[1], frac[2], frac[3]}.Lsh(shift256 + 2 + 2*extra)
+	root, inexact := sqrtRem512(n)
+	q := root.Rsh(extra)
 
 	// final rounding
-	if !frac.IsZero() {
+	if root[3]&(1<<extra-1) != 0 || inexact {
 		q = q.Add(q.And(ints.Uint256{0, 0, 0, 1}))
 	}
 	q = q.Rsh(1)

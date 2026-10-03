@@ -30,6 +30,13 @@ func nonzero64(x uint64) uint64 {
 	return 0
 }
 
+func nonzero128(x ints.Uint128) ints.Uint128 {
+	if x[0]|x[1] != 0 {
+		return ints.Uint128{0, 1}
+	}
+	return ints.Uint128{0, 0}
+}
+
 func nonzero256(x ints.Uint256) ints.Uint256 {
 	y := x[0] | x[1] | x[2] | x[3]
 	if y != 0 {
@@ -76,14 +83,27 @@ func shrcompress64(x uint64, n uint) uint64 {
 	return y
 }
 
+func shrcompress128(x ints.Uint128, n uint) ints.Uint128 {
+	if n >= 128 {
+		return nonzero128(x)
+	}
+	y := x.Rsh(n)
+	// x.Lsh(128-n) is the bits shifted out.
+	if !x.Lsh(128 - n).IsZero() {
+		y[1] |= 1
+	}
+	return y
+}
+
 func shrcompress256(x ints.Uint256, n uint) ints.Uint256 {
 	if n >= 256 {
 		return nonzero256(x)
 	}
-	one := ints.Uint256{0, 0, 0, 1}
-	mask := one.Lsh(n).Sub(one)
 	y := x.Rsh(n)
-	y = y.Or(nonzero256(x.And(mask)))
+	// x.Lsh(256-n) is the bits shifted out.
+	if !x.Lsh(256 - n).IsZero() {
+		y[3] |= 1
+	}
 	return y
 }
 
@@ -110,18 +130,30 @@ func roundToNearestEven32(x uint32, shift uint) uint32 {
 	return x >> shift
 }
 
+// roundToNearestEven128 returns x >> shift rounded to nearest even.
+// shift must be in the range [1, 128].
 func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
-	one := ints.Uint128{0, 1}
-	mask := one.Lsh(shift - 1).Sub(one)
-	x = x.Add(mask).Add(x.Rsh(shift).And(one))
-	return x.Rsh(shift)
+	q := x.Rsh(shift)
+	// r is the bits shifted out, aligned to the most significant bit.
+	r := x.Lsh(128 - shift)
+	const half = 1 << 63
+	if r[0] > half || (r[0] == half && (r[1] != 0 || q[1]&1 != 0)) {
+		q = q.Add(ints.Uint128{0, 1})
+	}
+	return q
 }
 
+// roundToNearestEven256 returns x >> shift rounded to nearest even.
+// shift must be in the range [1, 256].
 func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
-	one := ints.Uint256{0, 0, 0, 1}
-	mask := one.Lsh(shift - 1).Sub(one)
-	x = x.Add(mask).Add(x.Rsh(shift).And(one))
-	return x.Rsh(shift)
+	q := x.Rsh(shift)
+	// r is the bits shifted out, aligned to the most significant bit.
+	r := x.Lsh(256 - shift)
+	const half = 1 << 63
+	if r[0] > half || (r[0] == half && (r[1]|r[2]|r[3] != 0 || q[3]&1 != 0)) {
+		q = q.Add(ints.Uint256{0, 0, 0, 1})
+	}
+	return q
 }
 
 func roundToNearestEven512(x ints.Uint512, shift uint) ints.Uint512 {
