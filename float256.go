@@ -316,12 +316,14 @@ func (a Float256) Quo(b Float256) Float256 {
 		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
 	}
 
-	shift := shift256 + 3 // 1 for the implicit bit, 1 for the rounding bit, 1 for the guard bit
-	fracA512 := fracA.Uint512().Lsh(uint(shift))
-	fracB512 := fracB.Uint512()
-	frac512, mod := fracA512.DivMod(fracB512)
-	frac512[7] |= squash512(mod)
-	frac := frac512.Uint256()
+	const shift = shift256 + 3 // 1 for the implicit bit, 1 for the rounding bit, 1 for the guard bit
+	// normalize the divisor so that its most significant bit is set.
+	const norm = 256 - (shift256 + 1)
+	// fracA << (shift + norm) == (fracA << 2) << 256
+	frac, inexact := quo512by256(fracA.Lsh(shift+norm-256), fracB.Lsh(norm))
+	if inexact {
+		frac[3] |= 1
+	}
 
 	if exp <= 0 {
 		// the result is subnormal
