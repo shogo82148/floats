@@ -368,60 +368,54 @@ func (a Float128) Add(b Float128) Float128 {
 		return b
 	}
 
-	if expA < expB {
-		// swap a and b
+	// make |a| >= |b|
+	if expA < expB || (expA == expB && fracA.Cmp(fracB) < 0) {
 		signA, signB = signB, signA
 		expA, expB = expB, expA
 		fracA, fracB = fracB, fracA
 	}
 
+	// Place the fractions at the top of 128-bit integers, leaving one bit for carry-out.
+	// The extra low bits work as guard, round, and sticky bits.
+	const extra = 128 - 1 - (shift128 + 1) - 1
+	fracA = fracA.Lsh(extra)
+	fracB = shrcompress128(fracB.Lsh(extra), uint(expA-expB))
+
 	// add the fractions
-	const offset = 128
-	fracA256 := ints.Int256{fracA[0], fracA[1], 0, 0}
-	fracB256 := ints.Int256{fracB[0], fracB[1], 0, 0}
-	fracB256 = fracB256.Rsh(uint(expA - expB))
-	if signA != 0 {
-		fracA256 = fracA256.Neg()
-	}
-	if signB != 0 {
-		fracB256 = fracB256.Neg()
-	}
-	frac256 := fracA256.Add(fracB256)
-	sign := uint64(0)
-	if frac256.Sign() < 0 {
-		sign = signMask128[0]
-		frac256 = frac256.Neg()
+	var frac ints.Uint128
+	if signA == signB {
+		frac = fracA.Add(fracB)
+	} else {
+		frac = fracA.Sub(fracB)
+		if frac.IsZero() {
+			// x - x = +0
+			return Float128{}
+		}
 	}
 
-	shift := ints.Uint256(frac256).BitLen() - (shift128 + 1)
-	exp := expA + shift - offset
-
-	if frac256.IsZero() || exp < -(bias128+shift128) {
-		// underflow
-		return Float128{sign, 0}
-	}
-	if exp <= -bias128 {
+	// the exponent of the result
+	exp := expA + frac.BitLen() - (shift128 + 1 + extra)
+	if exp < 1-bias128 {
 		// the result is subnormal
-		shift := offset - (expA + bias128) + 1
-		frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
-		return Float128{sign | frac256[2]&fracMask128[0], frac256[3]}
+		exp = 1 - bias128
 	}
 	if exp >= mask128-bias128 {
 		// overflow
-		return Float128{sign | uvinf128[0], uvinf128[1]}
+		return Float128{signA | uvinf128[0], uvinf128[1]}
 	}
 
-	frac256 = ints.Int256(roundToNearestEven256(ints.Uint256(frac256), uint(shift)))
-	// detect carry-out caused by rounding
-	if ints.Uint256(frac256).BitLen() > shift128+1 {
-		frac256 = frac256.Rsh(1)
-		exp++
-		if exp >= mask128 {
-			// overflow
-			return Float128{sign | uvinf128[0], uvinf128[1]}
-		}
+	// round the fraction
+	if shift := exp - expA + extra; shift > 0 {
+		frac = roundToNearestEven128(frac, uint(shift))
+	} else {
+		frac = frac.Lsh(uint(-shift))
 	}
-	return Float128{sign | uint64(exp+bias128)<<(shift128-64) | frac256[2]&fracMask128[0], frac256[3]}
+
+	// The hidden bit of frac is added to the exponent.
+	// It also handles carry-out caused by rounding, and subnormal results.
+	// If the result overflows, it becomes infinity.
+	frac[0] += uint64(exp-1+bias128) << (shift128 - 64)
+	return Float128{signA | frac[0], frac[1]}
 }
 
 // Sub returns the difference of a and b.
@@ -453,23 +447,16 @@ func (a Float128) Sqrt() Float128 {
 	// exponent of square root
 	exp >>= 1
 
-	// generate sqrt(frac) bit by bit
-	frac = frac.Lsh(1)
-	var q, s ints.Uint128
-	r := ints.Uint128{1 << (shift128 + 1 - 64), 0}
-	for !r.IsZero() {
-		t := s.Add(r)
-		if t.Cmp(frac) <= 0 {
-			s = t.Add(r)
-			frac = frac.Sub(t)
-			q = q.Add(r)
-		}
-		frac = frac.Lsh(1)
-		r = r.Rsh(1)
-	}
+	// q = floor(sqrt(frac << (shift128 + 2))) has shift128 + 2 bits,
+	// including one guard bit for rounding.
+	// Scale frac so that its top word is normalized for sqrtRem256.
+	const extra = (256 - (shift128 + 2) - (shift128 + 2)) / 2
+	n := ints.Uint256{0, 0, frac[0], frac[1]}.Lsh(shift128 + 2 + 2*extra)
+	root, rem := sqrtRem256(n)
+	q := root.Rsh(extra)
 
 	// final rounding
-	if !frac.IsZero() {
+	if root[1]&(1<<extra-1) != 0 || !rem.IsZero() {
 		q = q.Add(q.And(ints.Uint128{0, 1}))
 	}
 	q = q.Rsh(1)
