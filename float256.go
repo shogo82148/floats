@@ -223,40 +223,47 @@ func (a Float256) Mul(b Float256) Float256 {
 		return Float256{sign, 0, 0, 0}
 	}
 
-	// normal case
-	exp := expA + expB
-	frac := fracA.Mul512(fracB)
-	shift := frac.BitLen() - (shift256 + 1)
-	exp += shift - shift256
+	// p = fracA * fracB is in [2^472, 2^474).
+	p := fracA.Mul512(fracB)
 
-	if exp < -(bias256 + shift256) {
-		// underflow
-		return Float256{sign, 0, 0, 0}
-	} else if exp <= -bias256 {
-		// the result is subnormal
-		// normalize
-		shift := shift256 - (expA + expB + bias256) + 1
-		frac = roundToNearestEven512(frac, uint(shift))
-		frac = frac.Rsh(uint(shift))
-		return Float256{sign | frac[4], frac[5], frac[6], frac[7]}
+	// Shift p right by 220 bits, keeping the shifted-out bits as a sticky bit.
+	// frac is in [2^252, 2^254), and frac * 2^(base-253) is the exact product.
+	const extra = 256 - 1 - (shift256 + 1) - 1
+	frac := ints.Uint256{
+		p[0]<<36 | p[1]>>28,
+		p[1]<<36 | p[2]>>28,
+		p[2]<<36 | p[3]>>28,
+		p[3]<<36 | p[4]>>28,
 	}
+	if p[4]<<36|p[5]|p[6]|p[7] != 0 {
+		frac[3] |= 1
+	}
+	base := expA + expB + 1
 
-	exp = expA + expB + bias256
-	frac = roundToNearestEven512(frac, uint(shift))
-	shift = frac.BitLen() - (shift256 + 1)
-	exp += shift - shift256
-	if exp >= mask256 {
+	// the exponent of the result
+	exp := base + frac.BitLen() - (shift256 + 1 + extra)
+	if exp < 1-bias256 {
+		// the result is subnormal
+		exp = 1 - bias256
+	}
+	if exp >= mask256-bias256 {
 		// overflow
 		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
 	}
 
-	frac = frac.Rsh(uint(shift))
-	return Float256{
-		sign | uint64(exp)<<(shift256-192) | frac[4]&fracMask256[0],
-		frac[5],
-		frac[6],
-		frac[7],
+	// round the fraction
+	shift := exp - base + extra
+	if shift >= 256 {
+		// underflow: frac < 2^254, so it is rounded to zero.
+		return Float256{sign, 0, 0, 0}
 	}
+	frac = roundToNearestEven256(frac, uint(shift))
+
+	// The hidden bit of frac is added to the exponent.
+	// It also handles carry-out caused by rounding, and subnormal results.
+	// If the result overflows, it becomes infinity.
+	frac[0] += uint64(exp-1+bias256) << (shift256 - 192)
+	return Float256{sign | frac[0], frac[1], frac[2], frac[3]}
 }
 
 // Quo returns the quotient of a and b.

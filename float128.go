@@ -214,34 +214,42 @@ func (a Float128) Mul(b Float128) Float128 {
 		return Float128{sign, 0}
 	}
 
-	exp := expA + expB
-	frac := fracA.Mul256(fracB)
-	shift := frac.BitLen() - (shift128 + 1)
-	exp += shift - shift128
+	// p = fracA * fracB is in [2^224, 2^226).
+	p := fracA.Mul256(fracB)
 
-	if exp < -(bias128 + shift128) {
-		// underflow
-		return Float128{sign, 0}
-	} else if exp <= -bias128 {
-		// the result is subnormal
-		// normalize
-		shift := shift128 - (expA + expB + bias128) + 1
-		frac = roundToNearestEven256(frac, uint(shift))
-		return Float128{sign | frac[2], frac[3]}
+	// Shift p right by 100 bits, keeping the shifted-out bits as a sticky bit.
+	// frac is in [2^124, 2^126), and frac * 2^(base-125) is the exact product.
+	const extra = 128 - 1 - (shift128 + 1) - 1
+	frac := ints.Uint128{p[0]<<28 | p[1]>>36, p[1]<<28 | p[2]>>36}
+	if p[2]<<28|p[3] != 0 {
+		frac[1] |= 1
 	}
+	base := expA + expB + 1
 
-	exp = expA + expB + bias128
-	frac = roundToNearestEven256(frac, uint(shift))
-	shift = frac.BitLen() + shift - (shift128 + 1)
-	exp += shift - shift128
-	if exp >= mask128 {
+	// the exponent of the result
+	exp := base + frac.BitLen() - (shift128 + 1 + extra)
+	if exp < 1-bias128 {
+		// the result is subnormal
+		exp = 1 - bias128
+	}
+	if exp >= mask128-bias128 {
 		// overflow
 		return Float128{sign | uvinf128[0], uvinf128[1]}
 	}
-	return Float128{
-		sign | uint64(exp)<<(shift128-64) | frac[2]&fracMask128[0],
-		frac[3],
+
+	// round the fraction
+	shift := exp - base + extra
+	if shift >= 128 {
+		// underflow: frac < 2^126, so it is rounded to zero.
+		return Float128{sign, 0}
 	}
+	frac = roundToNearestEven128(frac, uint(shift))
+
+	// The hidden bit of frac is added to the exponent.
+	// It also handles carry-out caused by rounding, and subnormal results.
+	// If the result overflows, it becomes infinity.
+	frac[0] += uint64(exp-1+bias128) << (shift128 - 64)
+	return Float128{sign | frac[0], frac[1]}
 }
 
 // Quo returns the quotient of a and b.
