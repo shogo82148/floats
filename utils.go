@@ -99,11 +99,23 @@ func shrcompress256(x ints.Uint256, n uint) ints.Uint256 {
 	if n >= 256 {
 		return nonzero256(x)
 	}
-	y := x.Rsh(n)
-	// x.Lsh(256-n) is the bits shifted out.
-	if !x.Lsh(256 - n).IsZero() {
-		y[3] |= 1
+
+	// shift by words, and then by bits.
+	// It is faster than ints.Uint256.Rsh, which shifts in constant time.
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint256
+	y[w] = x[0] >> b
+	for i := w + 1; i < len(y); i++ {
+		y[i] = x[i-w]>>b | x[i-w-1]<<(64-b)
 	}
+
+	// the bits shifted out
+	sticky := x[len(x)-1-w] << (64 - b)
+	for i := len(x) - w; i < len(x); i++ {
+		sticky |= x[i]
+	}
+	y[len(y)-1] |= nonzero64(sticky)
 	return y
 }
 
@@ -111,10 +123,57 @@ func shrcompress512(x ints.Uint512, n uint) ints.Uint512 {
 	if n >= 512 {
 		return nonzero512(x)
 	}
-	one := ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1}
-	mask := one.Lsh(n).Sub(one)
-	y := x.Rsh(n)
-	y = y.Or(nonzero512(x.And(mask)))
+
+	// shift by words, and then by bits.
+	// It is faster than ints.Uint512.Rsh, which shifts in constant time.
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint512
+	y[w] = x[0] >> b
+	for i := w + 1; i < len(y); i++ {
+		y[i] = x[i-w]>>b | x[i-w-1]<<(64-b)
+	}
+
+	// the bits shifted out
+	sticky := x[len(x)-1-w] << (64 - b)
+	for i := len(x) - w; i < len(x); i++ {
+		sticky |= x[i]
+	}
+	y[len(y)-1] |= nonzero64(sticky)
+	return y
+}
+
+// lsh256 returns x << n.
+// It is faster than ints.Uint256.Lsh, which shifts in constant time.
+func lsh256(x ints.Uint256, n uint) ints.Uint256 {
+	if n >= 256 {
+		return ints.Uint256{}
+	}
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint256
+	last := len(y) - 1 - w
+	for i := 0; i < last; i++ {
+		y[i] = x[i+w]<<b | x[i+w+1]>>(64-b)
+	}
+	y[last] = x[len(x)-1] << b
+	return y
+}
+
+// lsh512 returns x << n.
+// It is faster than ints.Uint512.Lsh, which shifts in constant time.
+func lsh512(x ints.Uint512, n uint) ints.Uint512 {
+	if n >= 512 {
+		return ints.Uint512{}
+	}
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint512
+	last := len(y) - 1 - w
+	for i := 0; i < last; i++ {
+		y[i] = x[i+w]<<b | x[i+w+1]>>(64-b)
+	}
+	y[last] = x[len(x)-1] << b
 	return y
 }
 

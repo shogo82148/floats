@@ -636,15 +636,18 @@ func FMA256(x, y, z Float256) Float256 {
 
 	// Compute product p = x*y as sign, exponent, mantissa.
 	expP := expX + expY + 1
-	fracP := fracX.Lsh(18).Mul512(fracY.Lsh(19))
+	fracP := lsh256(fracX, 18).Mul512(lsh256(fracY, 19))
 	signP := signX ^ signY // product sign
 
 	// Normalize the product
-	is510zero := uint((^fracP[0] >> 62) & 1)
-	fracP = fracP.Lsh(is510zero)
-	expP -= int(is510zero)
+	if fracP[0]>>62 == 0 {
+		fracP = lsh512(fracP, 1)
+		expP--
+	}
 
-	fracZ := fracZ0.Uint512().Lsh(18 + 256)
+	// fracZ = fracZ0 << (18 + 256)
+	zz := lsh256(fracZ0, 18)
+	fracZ := ints.Uint512{zz[0], zz[1], zz[2], zz[3], 0, 0, 0, 0}
 
 	// Swap addition operands so |p| >= |z|
 	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
@@ -666,14 +669,25 @@ func FMA256(x, y, z Float256) Float256 {
 	if signP == signZ {
 		// Adding fracP + fracZ
 		fracP = fracP.Add(fracZ)
-		expP += int(fracP[0] >> 63)
-		frac = shrcompress512(fracP, uint(256+fracP[0]>>63)).Uint256()
+		carry := fracP[0] >> 63
+		expP += int(carry)
+		// frac = shrcompress512(fracP, 256+carry)
+		frac = ints.Uint256{
+			fracP[0] >> carry,
+			fracP[1]>>carry | fracP[0]<<(64-carry),
+			fracP[2]>>carry | fracP[1]<<(64-carry),
+			fracP[3]>>carry | fracP[2]<<(64-carry),
+		}
+		frac[3] |= nonzero64(fracP[3]&carry | fracP[4] | fracP[5] | fracP[6] | fracP[7])
 	} else {
 		// Subtracting fracP - fracZ
 		fracP = fracP.Sub(fracZ)
 		nz := fracP.LeadingZeros() - 1
 		expP -= nz
-		frac = shrcompress512(fracP.Lsh(uint(nz)), 256).Uint256()
+		// frac = shrcompress512(fracP << nz, 256)
+		fracP = lsh512(fracP, uint(nz))
+		frac = ints.Uint256{fracP[0], fracP[1], fracP[2], fracP[3]}
+		frac[3] |= nonzero64(fracP[4] | fracP[5] | fracP[6] | fracP[7])
 	}
 
 	// check for underflow
