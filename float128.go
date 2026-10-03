@@ -615,11 +615,19 @@ func FMA128(x, y, z Float128) Float128 {
 	signP := signX ^ signY // product sign
 
 	// Normalize the product
-	is254zero := uint((^fracP[0] >> 62) & 1)
-	fracP = fracP.Lsh(is254zero)
-	expP -= int(is254zero)
+	if fracP[0]>>62 == 0 {
+		fracP = ints.Uint256{
+			fracP[0]<<1 | fracP[1]>>63,
+			fracP[1]<<1 | fracP[2]>>63,
+			fracP[2]<<1 | fracP[3]>>63,
+			fracP[3] << 1,
+		}
+		expP--
+	}
 
-	fracZ := fracZ0.Uint256().Lsh(14 + 128)
+	// fracZ = fracZ0 << (14 + 128)
+	zz := fracZ0.Lsh(14)
+	fracZ := ints.Uint256{zz[0], zz[1], 0, 0}
 
 	// Swap addition operands so |p| >= |z|
 	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
@@ -641,14 +649,20 @@ func FMA128(x, y, z Float128) Float128 {
 	if signP == signZ {
 		// Adding fracP + fracZ
 		fracP = fracP.Add(fracZ)
-		expP += int(fracP[0] >> 63)
-		frac = shrcompress256(fracP, uint(128+fracP[0]>>63)).Uint128()
+		carry := fracP[0] >> 63
+		expP += int(carry)
+		// frac = shrcompress256(fracP, 128+carry)
+		frac = ints.Uint128{fracP[0], fracP[1]}.Rsh(uint(carry))
+		frac[1] |= nonzero64(fracP[1]&carry | fracP[2] | fracP[3])
 	} else {
 		// Subtracting fracP - fracZ
 		fracP = fracP.Sub(fracZ)
 		nz := fracP.LeadingZeros() - 1
 		expP -= nz
-		frac = shrcompress256(fracP.Lsh(uint(nz)), 128).Uint128()
+		// frac = shrcompress256(fracP << nz, 128)
+		fracP = lsh256(fracP, uint(nz))
+		frac = ints.Uint128{fracP[0], fracP[1]}
+		frac[1] |= nonzero64(fracP[2] | fracP[3])
 	}
 
 	// check for underflow
