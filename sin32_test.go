@@ -245,10 +245,10 @@ func testFloat32SinCosTan(t *testing.T, name string) (total, misrounded int) {
 	return
 }
 
-// TestFloat32_SinCosRandom compares Sin, Cos, and Sincos with math.Sin and math.Cos on random inputs.
-// math.Sin and math.Cos rounded to float32 are correctly rounded except for rare cases,
+// TestFloat32_SinCosTanRandom compares Sin, Cos, Sincos, and Tan with math.Sin, math.Cos, and math.Tan on random inputs.
+// math.Sin, math.Cos, and math.Tan rounded to float32 are correctly rounded except for rare cases,
 // so the results should almost always match.
-func TestFloat32_SinCosRandom(t *testing.T) {
+func TestFloat32_SinCosTanRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -289,10 +289,19 @@ func TestFloat32_SinCosRandom(t *testing.T) {
 			if got := x.Cos(); !eq32(got, cos) {
 				t.Fatalf("Cos(%v) = %v; want %v", x, got, cos)
 			}
+
+			wantTan := NewFloat32(math.Tan(float64(x)))
+			tan := x.Tan()
+			if !within1ulp32(tan, wantTan) {
+				t.Fatalf("Tan(%v) = %v; want %v", x, tan, wantTan)
+			}
+			if !eq32(tan, wantTan) {
+				mismatch++
+			}
 		}
-		// Checking all Float32 values, about 100 of 2**33 results are different.
+		// Checking all Float32 values, about 200 of 3*2**32 results are different.
 		if mismatch > 3 {
-			t.Errorf("%s: %d results are different from math.Sin and math.Cos", g.name, mismatch)
+			t.Errorf("%s: %d results are different from math.Sin, math.Cos, and math.Tan", g.name, mismatch)
 		}
 	}
 }
@@ -330,6 +339,16 @@ func BenchmarkFloat32_Sincos(b *testing.B) {
 				s, c := x.Sincos()
 				runtime.KeepAlive(s)
 				runtime.KeepAlive(c)
+			}
+		})
+	}
+}
+
+func BenchmarkFloat32_Tan(b *testing.B) {
+	for _, x := range []Float32{0.5, 3, 1e6, 1e30} {
+		b.Run(x.String(), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Tan())
 			}
 		})
 	}
