@@ -126,7 +126,33 @@ func (a Float32) Sincos() (sin, cos Float32) {
 //	±Inf.Tan() = NaN
 //	NaN.Tan() = NaN
 func (a Float32) Tan() Float32 {
-	return NewFloat32(math.Tan(a.Float64().BuiltIn()))
+	ix := a.Bits() &^ signMask32
+	if ix < 0x3f490fdb { // |a| < Pi/4
+		if ix < 0x39800000 { // |a| < 2**-12
+			// tan(a) = a + a**3/3 + ... rounds to a.
+			return a
+		}
+		x := float64(a)
+		p, q := tanKernel32(x, x*x)
+		return Float32(p / q)
+	}
+	if ix >= uvinf32 {
+		// tan(±Inf) = NaN, tan(NaN) = NaN
+		return NewFloat32NaN()
+	}
+
+	n, r := trigReduce32(ix)
+	p, q := tanKernel32(r, r*r)
+	var t float64
+	if n&1 == 0 {
+		t = p / q
+	} else {
+		t = -q / p
+	}
+	if a < 0 {
+		t = -t
+	}
+	return Float32(t)
 }
 
 // sinKernel32 returns sin(x) for |x| <= Pi/4, where z = x*x.
@@ -153,6 +179,22 @@ func cosKernel32(z float64) float64 {
 		c6 = 0x1.1c81c3531fff2p-29
 	)
 	return 1 - 0.5*z + z*z*(c2+z*(c3+z*(c4+z*(c5+z*c6))))
+}
+
+// tanKernel32 returns p and q such that tan(x) = p/q for |x| <= Pi/4, where z = x*x.
+// The relative error of p/q is less than 2**-54.
+func tanKernel32(x, z float64) (p, q float64) {
+	const (
+		p1 = -0x1.06b97bdbd0256p-3
+		p2 = 0x1.6fc6fd9814ca2p-9
+		p3 = -0x1.f637dbd78d4e5p-18
+		q1 = -0x1.d8b213433d64dp-2
+		q2 = 0x1.7e7b689111f03p-6
+		q3 = -0x1.b525afbf1a0cep-13
+	)
+	p = x * (1 + z*(p1+z*(p2+z*p3)))
+	q = 1 + z*(q1+z*(q2+z*q3))
+	return
 }
 
 // trigReduce32 reduces |x| >= Pi/4 to r in [-Pi/4, Pi/4] such that
