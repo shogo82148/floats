@@ -1,104 +1,150 @@
 package floats
 
-func reducePowerOfTwoLarge256(a Float256) (j uint64, z Float256, ok bool) {
-	_, exp, frac := a.normalize()
-	if frac[0] != (uint64(1)<<(shift256-192)) || frac[1] != 0 || frac[2] != 0 || frac[3] != 0 {
-		return 0, Float256{}, false
-	}
+import (
+	"math/bits"
 
-	// Need enough 4/pi bits for fractional reconstruction.
-	const fracBits = 420
-	maxBit := 64 * (len(mPi4Long128) - 1)
-	if exp+fracBits+2 > maxBit {
-		return 0, Float256{}, false
-	}
+	"github.com/shogo82148/ints"
+)
 
-	// j0 = floor(2^exp * 4/pi) mod 8 from the 4/pi bit stream.
-	j0 := bitOf4PiLong128(exp) | (bitOf4PiLong128(exp-1) << 1) | (bitOf4PiLong128(exp-2) << 2)
-
-	one256 := Float256(uvone256)
-	frac256 := Float256{}
-	for k := exp + fracBits; k >= exp+1; k-- {
-		if bitOf4PiLong128(k) == 1 {
-			frac256 = frac256.Add(one256)
+// pi4Bits returns 64 bits of 4/pi.
+// The most significant bit of the result is the bit of 4/pi whose weight is 2^-k.
+func pi4Bits(k int) uint64 {
+	// g is the position of the bit in the bit stream of mPi4Long.
+	g := k + 63
+	if g < 0 {
+		if g <= -64 {
+			return 0
 		}
-		frac256 = frac256.Ldexp(-1)
+		return mPi4Long[0] >> uint(-g)
 	}
-
-	if j0&1 == 1 {
-		j = (j0 + 1) & 7
-		frac256 = frac256.Sub(one256)
-	} else {
-		j = j0
+	i, s := g/64, uint(g%64)
+	w := mPi4Long[i] << s
+	if s != 0 {
+		w |= mPi4Long[i+1] >> (64 - s)
 	}
+	return w
+}
 
-	pi4 := Float256{
+// reduce256 reduces the non-negative finite argument a by Pi/4.
+// It returns the octant j (0 <= j < 8) and the reduced argument z
+// such that a = j * Pi/4 + z (mod 2*Pi) and |z| <= Pi/4.
+//
+// It uses the Payne-Hanek algorithm, so the result is accurate
+// even if a is extremely large.
+func reduce256(a Float256) (j uint64, z Float256) {
+	// PI4 = Pi/4
+	var PI4 = Float256{
 		0x3fff_e921_fb54_442d, 0x1846_9898_cc51_701b,
 		0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
 	}
-	z = frac256.Mul(pi4)
-	return j, z, true
-}
-
-func modTauLarge256(a Float256) Float256 {
-	// Tau = 2*pi
-	Tau := Float256{
-		0x4001_0921_fb54_442d, 0x1846_9898_cc51_701b,
-		0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
+	if a.Lt(PI4) {
+		return 0, a
 	}
-	return a.Mod(Tau)
-}
 
-func reduce256(a Float256) (j uint64, z Float256) {
-	var (
-		One = Float256(uvone256)
+	// a = m * 2^e, where m is an integer.
+	_, exp, m := a.normalize()
+	e := exp - shift256
 
-		// Largest consecutive integer in float64.
-		TwoPow53 = NewFloat256(0x1p53)
-
-		// MPI4 = 4/pi
-		MPI4 = Float256{
-			0x3fff_f45f_306d_c9c8, 0x82a5_3f84_eafa_3ea6,
-			0x9bb8_1b6c_52b3_2788, 0x7208_3fca_2c75_7bd7,
-		}
-
-		// Pi/4 split into three parts
-		PI4A = Float256{
-			0x3fff_e921_fb54_442d, 0x1846_9898_cc51_701b, 0x8300_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		PI4B = Float256{
-			0x3ff8_9344_a409_3822, 0x299f_31d0_082e_fa98,
-			0xec00_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		PI4C = Float256{
-			0x3ff1_339b_2251_4a08, 0x798e_3404_ddef_9519,
-			0xb3cd_3a43_1b30_2b0a, 0x6df2_5f79_0a22_9257,
-		}
+	// Compute a * 4/pi mod 8 in fixed point arithmetic.
+	// The bits of 4/pi whose weight is 2^-k for k < e-2 are skipped,
+	// because m * 2^(e-k) is a multiple of 8 for such k.
+	// The window w holds the bits of 4/pi from 2^-(e-2) to 2^-(e-2+windowBits-1),
+	// and p = m * w represents a * 4/pi mod 8 with fixed point at bit fracBits.
+	// The low bits of p are inaccurate because the window is truncated,
+	// but the error is less than m < 2^(shift256+1).
+	const (
+		windowWords = 13
+		windowBits  = 64 * windowWords
+		fracBits    = windowBits - 3
 	)
-
-	if a.Mul(MPI4).Gt(TwoPow53) {
-		if j0, z0, ok := reducePowerOfTwoLarge256(a); ok {
-			return j0, z0
+	var w [windowWords]uint64 // little endian
+	for i := range windowWords {
+		w[windowWords-1-i] = pi4Bits(e - 2 + 64*i)
+	}
+	var p [windowWords]uint64 // little endian, the bits above windowBits are discarded
+	for i := range len(m) {
+		mi := m[len(m)-1-i]
+		if mi == 0 {
+			continue
 		}
-		a = modTauLarge256(a)
+		var carry uint64
+		for k := 0; i+k < windowWords; k++ {
+			hi, lo := bits.Mul64(mi, w[k])
+			var c uint64
+			lo, c = bits.Add64(lo, carry, 0)
+			hi += c
+			p[i+k], c = bits.Add64(p[i+k], lo, 0)
+			carry = hi + c
+		}
 	}
 
-	y := NewFloat256(float64(a.Mul(MPI4).Uint64()))
-	j = y.Uint64()
+	// the integer part of a * 4/pi mod 8
+	j = p[windowWords-1] >> (64 - 3)
+	p[windowWords-1] &= 1<<(64-3) - 1
 
 	// map zeros to origin
+	var sign uint64
 	if j&1 == 1 {
-		j++
-		y = y.Add(One)
-	}
-	j &= 7 // octant modulo 2Pi radians (360 degrees)
+		j = (j + 1) & 7
+		sign = signMask256[0]
 
-	// Extended precision modular arithmetic
-	y = y.Neg()
-	z = FMA256(y, PI4A, a)
-	z = FMA256(y, PI4B, z)
-	z = FMA256(y, PI4C, z)
-	return
+		// p = 1 - p
+		var borrow uint64
+		for i := range windowWords {
+			p[i], borrow = bits.Sub64(0, p[i], borrow)
+		}
+		p[windowWords-1] &= 1<<(64-3) - 1
+	}
+
+	// normalize the fraction part: f = frac * 2^(l - 256 - fracBits)
+	var l int // bit length of p
+	for i := windowWords - 1; i >= 0; i-- {
+		if p[i] != 0 {
+			l = 64*i + bits.Len64(p[i])
+			break
+		}
+	}
+	if l == 0 {
+		return j, Float256{}
+	}
+	var frac ints.Uint256 // big endian
+	for i := range 4 {
+		// the 64 bits from bit position l-64*(i+1)
+		pos := l - 64*(i+1)
+		var v uint64
+		if pos >= 0 {
+			k, s := pos/64, uint(pos%64)
+			v = p[k] >> s
+			if s != 0 && k+1 < windowWords {
+				v |= p[k+1] << (64 - s)
+			}
+		} else if pos > -64 {
+			v = p[0] << uint(-pos)
+		}
+		frac[i] = v
+	}
+
+	// z = f * Pi/4
+	// pi4 = Pi/4 * 2^256
+	pi4 := ints.Uint256{
+		0xc90f_daa2_2168_c234, 0xc4c6_628b_80dc_1cd1,
+		0x2902_4e08_8a67_cc74, 0x020b_bea6_3b13_9b22,
+	}
+	q := frac.Mul512(pi4)
+	r := ints.Uint256{q[0], q[1], q[2], q[3]}
+	if q[4]|q[5]|q[6]|q[7] != 0 {
+		r[3] |= 1 // sticky bit
+	}
+	shift := r.BitLen() - (shift256 + 1)
+	mant := roundToNearestEven256(r, uint(shift))
+	zexp := shift + l - fracBits - 256 + shift256
+	if mant.BitLen() > shift256+1 {
+		mant = mant.Rsh(1)
+		zexp++
+	}
+	mant = mant.And(fracMask256)
+	mant[0] |= sign | uint64(zexp+bias256)<<(shift256-192)
+	return j, Float256(mant)
 }
 
 // Sin returns the sine of the radian argument a.
