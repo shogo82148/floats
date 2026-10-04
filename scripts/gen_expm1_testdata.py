@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates testdata/expm1_128.txt.
+# Generates testdata/expm1_128.txt and testdata/expm1_256.txt.
 # Each line contains the bits of x and the correctly rounded expm1(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_expm1_testdata.py
@@ -53,9 +53,9 @@ def gen(name, P, EB, seed):
     # moderate arguments
     inputs += [random_value(-7, 6) for _ in range(250)]
     # large positive arguments up to the overflow threshold
-    inputs += [random_value(7, 13, 0) for _ in range(40)]
+    inputs += [random_value(7, EB - 2, 0) for _ in range(40)]
     # large negative arguments
-    inputs += [random_value(7, 13, 1) for _ in range(20)]
+    inputs += [random_value(7, EB - 2, 1) for _ in range(20)]
     with mpmath.workprec(4 * P + 64):
         ln2 = mpmath.log(2)
         # near multiples of ln(2)/128, where the reduced argument is
@@ -79,6 +79,10 @@ def gen(name, P, EB, seed):
     # the largest finite value
     inputs.append(enc((1 << (P + 1)) - 1, B))
     inputs.append(enc((1 << (P + 1)) - 1, B, 1))
+    # around the threshold where expm1(x) rounds to x
+    for e in range(-P - 3, -P + 4):
+        for s in range(2):
+            inputs += [enc(1 << P, e, s), enc((1 << P) + 1, e, s), enc((2 << P) - 1, e, s)]
 
     with open(f"testdata/{name}.txt", "w") as f:
         for v in inputs:
@@ -96,3 +100,4 @@ def gen(name, P, EB, seed):
 
 
 gen("expm1_128", 112, 15, 128)
+gen("expm1_256", 236, 19, 256)
