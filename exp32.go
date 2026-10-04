@@ -10,54 +10,25 @@ package floats
 // Very large values overflow to 0 or +Inf.
 // Very small values underflow to 1.
 func (a Float32) Exp() Float32 {
-	const (
-		// ln(2) split into high and low parts
-		Ln2Hi = Float32(6.9313812256e-01)
-		Ln2Lo = Float32(9.0580006145e-06)
-
-		// log2(e)
-		Log2e = Float32(1.4426950216e+00)
-
-		// ln(max float32 + 0.5ulp) = ln(2¹²⁷×(2-2⁻²⁴))
-		Overflow = Float32(88.7228390818706768)
-
-		// ln(min float32 - 0.5ulp) = ln(2⁻¹⁵⁰)
-		Underflow = Float32(-103.972077083991796)
-
-		// The upper limit for underflow
-		// when exp(a) ~ 1 + a + a²/2! + ...
-		NearZero = Float32(0x1p-14) // 2**-14
-	)
-
-	// special cases
-	switch {
-	case a.IsNaN():
-		return NewFloat32NaN()
-	case a.IsInf(1):
-		return NewFloat32Inf(1)
-	case a.IsInf(-1):
-		return 0
-	case a > Overflow:
-		return NewFloat32Inf(1)
-	case a < Underflow:
-		return 0
-	case a.Abs() < NearZero:
-		return 1 + a
+	x := float64(a)
+	if !(x >= -104 && x <= 89) {
+		switch {
+		case x != x:
+			// exp(NaN) = NaN
+			return NewFloat32NaN()
+		case x > 0:
+			// exp(x) overflows.
+			return NewFloat32Inf(1)
+		default:
+			// exp(x) underflows.
+			return 0
+		}
 	}
 
-	// reduce; computed as r = hi - lo for extra precision.
-	var k int
-	switch {
-	case a < 0:
-		k = int(Log2e*a - 0.5)
-	case a > 0:
-		k = int(Log2e*a + 0.5)
-	}
-	hi := a - Float32(k)*Ln2Hi
-	lo := Float32(k) * Ln2Lo
-
-	// compute
-	return expmulti32(hi, lo, k)
+	// The result may overflow or underflow in float32,
+	// but it is correctly handled by the conversion from float64.
+	scale, p := expReduce(x)
+	return Float32(scale + scale*p)
 }
 
 // Exp2 returns 2**x, the base-2 exponential of x.

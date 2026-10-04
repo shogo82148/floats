@@ -93,9 +93,18 @@ func (a Float32) Tanh() Float32 {
 	return Float32(t)
 }
 
-// expm1Small returns e**x - 1 for 0 <= x <= 90.
+// expm1Small returns e**x - 1 for |x| <= 104.
 // The relative error is less than 2**-48.
 func expm1Small(x float64) float64 {
+	// e**x - 1 = 2**(k/32) * (e**r - 1) + (2**(k/32) - 1)
+	scale, p := expReduce(x)
+	return scale*p + (scale - 1)
+}
+
+// expReduce returns scale = 2**(k/32) and p = e**r - 1 such that
+// x = k*ln(2)/32 + r and |r| <= ln(2)/64, for |x| <= 104.
+// The relative error of p is less than 2**-51.
+func expReduce(x float64) (scale, p float64) {
 	const (
 		invLn2N = 0x1.71547652b82fep+5  // 32/ln(2)
 		ln2NHi  = 0x1.62e42fefa2000p-6  // ln(2)/32 with the last 13 bits zero, so k*ln2NHi is exact for |k| < 2**13
@@ -103,16 +112,14 @@ func expm1Small(x float64) float64 {
 		shift   = 0x1.8p52
 	)
 
-	// x = k*ln(2)/32 + r, |r| <= ln(2)/64
 	t := x*invLn2N + shift
 	k := int64(math.Float64bits(t) - math.Float64bits(shift))
 	kf := t - shift
 	r := (x - kf*ln2NHi) - kf*ln2NLo
 
 	// e**r - 1 by the Taylor series; the relative error is about r**6/5040 < 2**-51.
-	p := r + r*r*(1.0/2+r*(1.0/6+r*(1.0/24+r*(1.0/120+r*(1.0/720)))))
+	p = r + r*r*(1.0/2+r*(1.0/6+r*(1.0/24+r*(1.0/120+r*(1.0/720)))))
 
-	// e**x - 1 = 2**(k/32) * (e**r - 1) + (2**(k/32) - 1)
-	scale := math.Float64frombits(math.Float64bits(exp2Table[k&31]) + uint64(k>>5)<<52)
-	return scale*p + (scale - 1)
+	scale = math.Float64frombits(math.Float64bits(exp2Table[k&31]) + uint64(k>>5)<<52)
+	return
 }
