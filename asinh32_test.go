@@ -2,6 +2,8 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
+	"runtime"
 	"testing"
 )
 
@@ -45,6 +47,22 @@ func TestFloat32_Asinh(t *testing.T) {
 		{exact32(math.Inf(1)), exact32(math.Inf(1))},
 		{exact32(math.Inf(-1)), exact32(math.Inf(-1))},
 		{exact32(math.NaN()), exact32(math.NaN())},
+
+		// tiny arguments
+		{NewFloat32FromBits(0x00000001), NewFloat32FromBits(0x00000001)},
+		{NewFloat32FromBits(0x397fffff), NewFloat32FromBits(0x397fffff)},
+		{NewFloat32FromBits(0x39800000), NewFloat32FromBits(0x39800000)},
+
+		// around the boundaries of the algorithms
+		{NewFloat32FromBits(0x3c75c28f), NewFloat32FromBits(0x3c75c033)}, // 0.015
+		{NewFloat32FromBits(0x3c75c290), NewFloat32FromBits(0x3c75c034)},
+		{NewFloat32FromBits(0x3e7fffff), NewFloat32FromBits(0x3e7d67d8)}, // 0.25
+		{NewFloat32FromBits(0x3e800000), NewFloat32FromBits(0x3e7d67d9)},
+		{NewFloat32FromBits(0x40000000), NewFloat32FromBits(0x3fb8c90c)}, // 2
+
+		// the largest finite value
+		{NewFloat32FromBits(0x7f7fffff), NewFloat32FromBits(0x42b2d4fc)},
+		{NewFloat32FromBits(0xff7fffff), NewFloat32FromBits(0xc2b2d4fc)},
 	}
 
 	for _, tt := range strictTests {
@@ -52,6 +70,78 @@ func TestFloat32_Asinh(t *testing.T) {
 		if !eq32(got, tt.want) {
 			t.Errorf("Asinh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+// TestFloat32_AsinhHardCases checks Asinh on the inputs whose results are very close to
+// the midpoint of two adjacent Float32 values.
+// They are found by checking all Float32 values with math.Asinh in float64.
+// The results may not be correctly rounded, but they must be within 1 ulp.
+func TestFloat32_AsinhHardCases(t *testing.T) {
+	// x, and correctly rounded asinh(x)
+	tests := [][2]uint32{
+		{0x6eb1a8ec, 0x42845a89},
+		{0xeeb1a8ec, 0xc2845a89},
+		{0x4bdd65a5, 0x418f034b},
+		{0xcbdd65a5, 0xc18f034b},
+		{0x3ca1078c, 0x3ca104e4},
+		{0xbca1078c, 0xbca104e4},
+		{0x655890d3, 0x4254d1f9},
+		{0xe55890d3, 0xc254d1f9},
+	}
+	for _, tt := range tests {
+		x, want := NewFloat32FromBits(tt[0]), NewFloat32FromBits(tt[1])
+		if got := x.Asinh(); !within1ulp32(got, want) {
+			t.Errorf("Asinh(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+// TestFloat32_AsinhRandom compares Asinh with math.Asinh on random inputs.
+// math.Asinh rounded to float32 is correctly rounded except for rare cases,
+// so the results should almost always match.
+func TestFloat32_AsinhRandom(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 2))
+	gens := []struct {
+		name string
+		gen  func() Float32
+	}{
+		{"bits", func() Float32 { return NewFloat32FromBits(r.Uint32()) }},
+		{"exponent", func() Float32 {
+			// uniformly distributed exponent in [-13, 4]
+			return NewFloat32FromBits(r.Uint32()&(signMask32|fracMask32) | uint32(r.IntN(18)+bias32-13)<<shift32)
+		}},
+	}
+	for _, g := range gens {
+		var mismatch int
+		for range 300000 {
+			x := g.gen()
+			if x.IsNaN() {
+				continue
+			}
+			got := x.Asinh()
+			want := NewFloat32(math.Asinh(float64(x)))
+			if !within1ulp32(got, want) {
+				t.Fatalf("Asinh(%v) = %v; want %v", x, got, want)
+			}
+			if !eq32(got, want) {
+				mismatch++
+			}
+		}
+		// Checking all Float32 values on arm64, only 2 results are different.
+		if mismatch > 3 {
+			t.Errorf("%s: %d results are different from math.Asinh", g.name, mismatch)
+		}
+	}
+}
+
+func BenchmarkFloat32_Asinh(b *testing.B) {
+	for _, x := range []Float32{0.01, 1.5, 1e10} {
+		b.Run(x.String(), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Asinh())
+			}
+		})
 	}
 }
 
