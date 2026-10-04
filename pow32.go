@@ -94,7 +94,7 @@ func powSpecial32(a, b Float32) Float32 {
 // The relative error is less than 2**-40,
 // so the result rounded to Float32 is within 1 ulp, and correctly rounded except for rare cases.
 // Exact results on the midpoint of two adjacent Float32 values are rounded to even,
-// if y is an integer in [1, 64] or x is a power of two.
+// if x is a power of two, or y = n/2**q for an integer n in [1, 64] and q <= 4.
 func pow32(ix uint32, y float64) float64 {
 	// x**y = e**(y*log(x))
 	k, l := logKernel32(ix)
@@ -131,17 +131,27 @@ func powExact32(ix uint32, y, k, l, r float64) float64 {
 		}
 		return r
 	}
-	if y == math.Trunc(y) && y > 0 && y <= 64 {
+
+	// If y = n/2**q, x**y = (x**(1/2**q))**n.
+	// Take square roots while they are exact.
+	f := float64(math.Float32frombits(ix))
+	for i := 0; y != math.Trunc(y); i++ {
+		s := math.Sqrt(f)
+		if i == 4 || s*s != f {
+			return r
+		}
+		f, y = s, y*2
+	}
+	if y > 0 && y <= 64 {
 		// If x**y is the midpoint of two adjacent Float32 values,
-		// it has 25 significant bits, and so does x**i for i <= y.
+		// it has 25 significant bits, and so does f**i for i <= y.
 		// So the following multiplications are exact.
-		x := float64(math.Float32frombits(ix))
 		ret := 1.0
 		for n := int(y); n > 0; n >>= 1 {
 			if n&1 != 0 {
-				ret *= x
+				ret *= f
 			}
-			x *= x
+			f *= f
 		}
 		return ret
 	}

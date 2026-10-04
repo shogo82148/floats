@@ -87,16 +87,22 @@ for o, n in rnd.sample(mids, 40):
 inputs.append((bits32(3 * 2.0**-50), bits32(3.0)))
 inputs.append((bits32(2.0**-50), bits32(3.0)))
 inputs.append((bits32(2.0**-100), bits32(1.5)))
-# exact results on the midpoint with non-integer y, e.g. (s**2)**1.5 = s**3.
-# They are not handled specially, and may not be correctly rounded.
-for s in (257, 301, 321):
-    if (s**3).bit_length() == 25:
-        inputs.append((bits32(float(s * s)), bits32(1.5)))
 # subnormal results, overflow, and underflow
 for _ in range(50):
     inputs.append((bits32(rnd.uniform(1e-10, 1e-5)), bits32(rnd.uniform(4, 16))))
 for y in (127.99, 128.0, -149.0, -149.5, -150.0, -150.01):
     inputs.append((bits32(2.0), bits32(y)))
+
+# exact results on the midpoint with non-integer y = n/2**q, where x = s**(2**q) and s**n has 25 significant bits
+for q in range(1, 4):
+    for s in range(3, 1 << 12, 2):
+        x = s ** (2**q)
+        if x.bit_length() > 24:
+            break
+        for n in range(1, 65, 2):
+            if (s**n).bit_length() == 25:
+                inputs.append((bits32(float(x)), bits32(n / 2**q)))
+                inputs.append((bits32(float(x) * 2.0**-8), bits32(n / 2**q)))
 
 with open("testdata/pow32.txt", "w") as f:
     for x, y in inputs:
