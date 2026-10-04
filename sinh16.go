@@ -88,8 +88,8 @@ func (a Float16) Tanh() Float16 {
 	return NewFloat16(t)
 }
 
-// exp16Table[j] = 2**(j/32)
-var exp16Table = [32]float64{
+// exp2Table[j] = 2**(j/32)
+var exp2Table = [32]float64{
 	0x1.0000000000000p+0, 0x1.059b0d3158574p+0, 0x1.0b5586cf9890fp+0, 0x1.11301d0125b51p+0,
 	0x1.172b83c7d517bp+0, 0x1.1d4873168b9aap+0, 0x1.2387a6e756238p+0, 0x1.29e9df51fdee1p+0,
 	0x1.306fe0a31b715p+0, 0x1.371a7373aa9cbp+0, 0x1.3dea64c123422p+0, 0x1.44e086061892dp+0,
@@ -120,6 +120,6 @@ func exp16(x float64) float64 {
 	p := 1 + r + r*r*(1.0/2+r*(1.0/6+r*(1.0/24+r*(1.0/120))))
 
 	// e**x = 2**(k/32) * e**r
-	scale := math.Float64frombits(math.Float64bits(exp16Table[k&31]) + uint64(k>>5)<<52)
+	scale := math.Float64frombits(math.Float64bits(exp2Table[k&31]) + uint64(k>>5)<<52)
 	return scale * p
 }
