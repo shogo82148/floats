@@ -13,5 +13,26 @@ import "math"
 //	(a < -1).Log1p() = NaN
 //	NaN.Log1p() = NaN
 func (a Float16) Log1p() Float16 {
-	return NewFloat16(math.Log1p(a.Float64().BuiltIn()))
+	ix := a &^ signMask16
+	if ix < 0x1000 { // |a| < 2**-11
+		// log1p(a) = a - a**2/2 + ... rounds to a.
+		return a
+	}
+	if a >= uvinf16 && ix >= uvone16 { // a == +Inf, a <= -1, or NaN
+		switch {
+		case a == uvinf16:
+			// log1p(+Inf) = +Inf
+			return a
+		case a == signMask16|uvone16:
+			// log1p(-1) = -Inf
+			return uvneginf16
+		default:
+			// a < -1 or NaN
+			return NewFloat16NaN()
+		}
+	}
+
+	// 1+a is exact, because a is a normal Float16 value.
+	k, l := logKernel64(1 + normal16ToFloat64(a))
+	return NewFloat16(k*math.Ln2 + l)
 }

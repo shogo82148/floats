@@ -52,3 +52,18 @@ func BenchmarkFloat16_Log1p(b *testing.B) {
 		runtime.KeepAlive(x.Log1p())
 	}
 }
+
+// TestFloat16_Log1pAll checks Log1p for all Float16 values.
+// For every Float16 value greater than -1, the exact log1p is
+// either exactly representable or at least 2**-16 ulp away
+// from the midpoint of two adjacent Float16 values (checked with mpmath),
+// so math.Log1p rounded to Float16 is correctly rounded.
+func TestFloat16_Log1pAll(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		want := NewFloat16(math.Log1p(x.Float64().BuiltIn()))
+		if got := x.Log1p(); !eq16(got, want) {
+			t.Errorf("Log1p(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
