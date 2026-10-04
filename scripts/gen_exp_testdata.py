@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Generates testdata/exp128.txt.
-# Each line contains the bits of x and the correctly rounded exp(x) in hexadecimal.
+# Generates testdata/exp128.txt and testdata/exp2_128.txt.
+# Each line contains the bits of x and the correctly rounded exp(x) or 2**x in hexadecimal.
 #
 # Usage: python3 scripts/gen_exp_testdata.py
 
@@ -8,7 +8,7 @@ import random
 import mpmath
 
 
-def gen(name, P, EB, seed):
+def gen(name, P, EB, seed, base2=False):
     B = (1 << (EB - 1)) - 1
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
@@ -61,7 +61,19 @@ def gen(name, P, EB, seed):
     # large arguments
     inputs += [random_value(7, 13) for _ in range(80)]
     with mpmath.workprec(4 * P + 64):
-        ln2 = mpmath.log(2)
+        # ln2 is the argument that doubles the result.
+        ln2 = mpmath.mpf(1) if base2 else mpmath.log(2)
+        if base2:
+            # exact results, and exactly representable multiples of 1/64
+            for _ in range(40):
+                inputs.append(nearest(mpmath.mpf(rnd.randint(-B - P - 2, B + 1))))
+            for _ in range(40):
+                inputs.append(nearest(mpmath.mpf(rnd.randint(-64 * (B + P + 2), 64 * (B + 1))) / 64))
+            for k in range(-B - P - 2, -B - P + 3):
+                inputs.append(nearest(mpmath.mpf(k)))
+                inputs.append(nearest(mpmath.mpf(k) + mpmath.mpf(1) / 2))
+            for k in (-1, 1, 2, B, B + 1):
+                inputs.append(nearest(mpmath.mpf(k)))
         # near multiples of ln(2)/128, where the reduced argument is
         # close to zero or to a boundary of the table
         for _ in range(60):
@@ -95,13 +107,14 @@ def gen(name, P, EB, seed):
                 x = dec(v)
             if x > 2 ** (EB - 1):
                 y = inf
-            elif x < -(2 ** (EB - 1)):
+            elif x < -(B + P + 3):
                 y = 0
             else:
                 e = max(0, int(mpmath.floor(mpmath.log(abs(x), 2))))
                 with mpmath.workprec(e + 4 * P + 64):
-                    y = round_bits(mpmath.exp(x))
+                    y = round_bits(mpmath.power(2, x) if base2 else mpmath.exp(x))
             f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
 
 gen("exp128", 112, 15, 128)
+gen("exp2_128", 112, 15, 129, base2=True)

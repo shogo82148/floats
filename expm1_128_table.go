@@ -5,6 +5,9 @@ package floats
 // expm1Ln2By64Fix128 is ln(2)/64 * 2**198 mod 2**192.
 var expm1Ln2By64Fix128 = [3]uint64{0xb17217f7d1cf79ab, 0xc9e3b39803f2f6af, 0x40f343267298b62e}
 
+// expm1Ln2Fix128 is ln(2) * 2**128.
+var expm1Ln2Fix128 = [2]uint64{0xb17217f7d1cf79ab, 0xc9e3b39803f2f6af}
+
 // expm1Table128[j] is 2**(j/64) in fixed point with 191 fractional bits.
 var expm1Table128 = [64][3]uint64{
 	{0x8000000000000000, 0x0000000000000000, 0x0000000000000000},
