@@ -293,6 +293,55 @@ func shr512to256(p ints.Uint512, s uint) ints.Uint256 {
 	return r
 }
 
+// expOnePlus256 returns 1 ± m × 2**(exp-236) × g rounded to nearest even,
+// where sign is the sign bit, m is a 237-bit integer, exp <= -8,
+// and g × 2**-255 < 2.
+// m × g is computed with the relative precision,
+// so that the result is rounded correctly even when it is very close to 1.
+func expOnePlus256(sign uint64, exp int, m, g ints.Uint256) Float256 {
+	p := m.Mul512(g)
+
+	// p = m × 2**(exp-236) × g in fixed point with 383 fractional bits.
+	// The product has 236+255-exp fractional bits.
+	v, sticky := rsh512Sticky(p, uint(108-exp))
+	one := ints.Uint512{0, 0, 1 << 63, 0, 0, 0, 0, 0}
+	if sign == 0 {
+		// 1 + p
+		v = v.Add(one)
+	} else {
+		// 1 - p = (1 - v - 1) + (1 - δ) for 0 < δ < 1, where v + δ is the true value of p.
+		v = one.Sub(v)
+		if sticky {
+			v = v.Sub(ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1})
+		}
+	}
+	return fixToFloat256(0, v, sticky, -383)
+}
+
+// rsh512Sticky returns p >> s for s < 512.
+// sticky reports whether any of the shifted out bits is nonzero.
+func rsh512Sticky(p ints.Uint512, s uint) (ints.Uint512, bool) {
+	var sticky bool
+	for ; s >= 64; s -= 64 {
+		sticky = sticky || p[7] != 0
+		p = ints.Uint512{0, p[0], p[1], p[2], p[3], p[4], p[5], p[6]}
+	}
+	if s > 0 {
+		sticky = sticky || p[7]<<(64-s) != 0
+		p = ints.Uint512{
+			p[0] >> s,
+			p[1]>>s | p[0]<<(64-s),
+			p[2]>>s | p[1]<<(64-s),
+			p[3]>>s | p[2]<<(64-s),
+			p[4]>>s | p[3]<<(64-s),
+			p[5]>>s | p[4]<<(64-s),
+			p[6]>>s | p[5]<<(64-s),
+			p[7]>>s | p[6]<<(64-s),
+		}
+	}
+	return p, sticky
+}
+
 // bit512 returns the bit i of p.
 func bit512(p ints.Uint512, i uint) uint64 {
 	return p[7-i/64] >> (i % 64) & 1

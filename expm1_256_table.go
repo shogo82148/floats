@@ -5,6 +5,9 @@ package floats
 // expm1Ln2By64Fix256 is ln(2)/64 * 2**326 mod 2**320.
 var expm1Ln2By64Fix256 = [5]uint64{0xb17217f7d1cf79ab, 0xc9e3b39803f2f6af, 0x40f343267298b62d, 0x8a0d175b8baafa2b, 0xe7b876206debac98}
 
+// expm1Ln2Fix256 is ln(2) * 2**256.
+var expm1Ln2Fix256 = [4]uint64{0xb17217f7d1cf79ab, 0xc9e3b39803f2f6af, 0x40f343267298b62d, 0x8a0d175b8baafa2c}
+
 // expm1Table256[j] is 2**(j/64) in fixed point with 383 fractional bits.
 var expm1Table256 = [64][6]uint64{
 	{0x8000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000},

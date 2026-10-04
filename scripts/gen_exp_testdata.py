@@ -118,3 +118,5 @@ def gen(name, P, EB, seed, base2=False):
 
 gen("exp128", 112, 15, 128)
 gen("exp2_128", 112, 15, 129, base2=True)
+gen("exp256", 236, 19, 256)
+gen("exp2_256", 236, 19, 257, base2=True)
