@@ -143,3 +143,24 @@ func BenchmarkFloat16_Log2(b *testing.B) {
 		runtime.KeepAlive(x.Log2())
 	}
 }
+
+// TestFloat16_LogAll checks Log, Log10, and Log2 for all Float16 values.
+// For every positive finite Float16 value, the exact log, log10, and log2 are
+// either exactly representable or at least 2**-14 ulp away
+// from the midpoint of two adjacent Float16 values (checked with mpmath),
+// so the results of the math package rounded to Float16 are correctly rounded.
+func TestFloat16_LogAll(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		f := x.Float64().BuiltIn()
+		if got, want := x.Log(), NewFloat16(math.Log(f)); !eq16(got, want) {
+			t.Errorf("Log(%v) = %v; want %v", x, got, want)
+		}
+		if got, want := x.Log10(), NewFloat16(math.Log10(f)); !eq16(got, want) {
+			t.Errorf("Log10(%v) = %v; want %v", x, got, want)
+		}
+		if got, want := x.Log2(), NewFloat16(math.Log2(f)); !eq16(got, want) {
+			t.Errorf("Log2(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
