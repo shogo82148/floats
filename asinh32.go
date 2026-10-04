@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 // Asinh returns the inverse hyperbolic sine of a.
 //
 // Special cases are:
@@ -8,36 +10,37 @@ package floats
 //	±Inf.Asinh() = ±Inf
 //	NaN.Asinh() = NaN
 func (a Float32) Asinh() Float32 {
-	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/asinh.go#L36-L66
-	const (
-		Ln2      = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
-		NearZero = 1.0 / (1 << 28)            // 2**-28
-		Large    = 1 << 28                    // 2**28
-	)
-	// special cases
-	if a.IsNaN() || a.IsInf(0) {
+	ix := a.Bits() &^ signMask32
+	if ix < 0x39800000 || ix >= uvinf32 {
+		// |a| < 2**-12: asinh(a) = a - a**3/6 + ... rounds to a.
+		// asinh(±Inf) = ±Inf, asinh(NaN) = NaN
 		return a
 	}
-	sign := false
-	if a < 0 {
-		a = -a
-		sign = true
-	}
-	var temp Float32
+
+	x := float64(math.Float32frombits(ix))
+	x2 := x * x
+	var r float64
 	switch {
-	case a > Large:
-		temp = a.Log() + Ln2 // |a| > 2**28
-	case a > 2:
-		temp = (2*a + 1./((a*a+1).Sqrt()+a)).Log() // 2**28 > |a| > 2.0
-	case a < NearZero:
-		temp = a // |a| < 2**-28
+	case x < 0.015:
+		// asinh(x) = log(1+u), where u = x + x**2/(1+sqrt(1+x**2)) < 1/64.
+		r = log1pKernel(x + x2/(1+math.Sqrt(1+x2)))
+	case x < 0.25:
+		// asinh(x) = log(1+u) = log(v) + log(1 + d/v),
+		// where v = 1+u rounded to float64, and d = 1+u - v is exact.
+		u := x + x2/(1+math.Sqrt(1+x2))
+		v := 1 + u
+		d := (1 - v) + u
+		k, l := logKernel64(v)
+		r = k*math.Ln2 + l + d/v
 	default:
-		temp = (a + a*a/(1+(1+a*a).Sqrt())).Log1p() // 2.0 > |a| > 2**-28
+		// asinh(x) = log(x + sqrt(x**2+1)), where the result is greater than 0.24.
+		k, l := logKernel64(x + math.Sqrt(x2+1))
+		r = k*math.Ln2 + l
 	}
-	if sign {
-		temp = -temp
+	if a < 0 {
+		r = -r
 	}
-	return temp
+	return Float32(r)
 }
 
 // Acosh returns the inverse hyperbolic cosine of a.
