@@ -197,21 +197,25 @@ func tanKernel32(x, z float64) (p, q float64) {
 	return
 }
 
+// trigReduceSmall reduces Pi/4 <= x < 2**20 to r in [-Pi/4, Pi/4] such that
+// x = n*Pi/2 + r (mod 2*Pi) with Cody-Waite reduction.
+func trigReduceSmall(x float64) (n uint64, r float64) {
+	// pio2_1 has 31 significant bits, so n*pio2_1 and x-n*pio2_1 are exact for n < 2**20
+	// even if the multiplication is not fused.
+	const (
+		twoOverPi = 0x1.45f306dc9c883p-1
+		pio2_1    = 0x1.921fb544p+0            // first 31 bits of Pi/2
+		pio2_1t   = 6.07710050650619224932e-11 // Pi/2 - pio2_1
+	)
+	fn := float64(int64(x*twoOverPi + 0.5))
+	return uint64(fn), (x - fn*pio2_1) - fn*pio2_1t
+}
+
 // trigReduce32 reduces |x| >= Pi/4 to r in [-Pi/4, Pi/4] such that
 // |x| = n*Pi/2 + r (mod 2*Pi). ix is the bits of |x|, which must be finite.
 func trigReduce32(ix uint32) (n uint64, r float64) {
 	if ix < 0x49800000 { // |x| < 2**20
-		// Cody-Waite reduction.
-		// pio2_1 has 31 significant bits, so n*pio2_1 and x-n*pio2_1 are exact for n < 2**20
-		// even if the multiplication is not fused.
-		const (
-			twoOverPi = 0x1.45f306dc9c883p-1
-			pio2_1    = 0x1.921fb544p+0            // first 31 bits of Pi/2
-			pio2_1t   = 6.07710050650619224932e-11 // Pi/2 - pio2_1
-		)
-		x := float64(math.Float32frombits(ix))
-		fn := float64(int64(x*twoOverPi + 0.5))
-		return uint64(fn), (x - fn*pio2_1) - fn*pio2_1t
+		return trigReduceSmall(float64(math.Float32frombits(ix)))
 	}
 
 	// Payne-Hanek reduction.
