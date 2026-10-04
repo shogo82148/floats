@@ -47,85 +47,18 @@ func (a Float128) Expm1() Float128 {
 	m1 := a[0]&fracMask128[0] | 1<<(shift128-64)
 	m0 := a[1]
 
-	// reduce: a = n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
-	var n uint64
-	if exp >= -8 {
-		// n = round(|a| × 64/ln(2)), computed in float64.
-		// Its error doesn't matter as long as |r| < 2**-7.
-		const InvLn2By64 = 64 / math.Ln2
-		top := float64(m1<<15 | m0>>49) // the top 64 bits of m
-		scale := math.Float64frombits(uint64(exp-63+1023) << 52)
-		n = uint64(top*scale*InvLn2By64 + 0.5)
-	}
-
+	n := expN128(exp, m1, m0)
 	if n == 0 {
 		// |a| < ln(2)/128. expm1(a) = a × (e**a - 1)/a.
 		// a×2**134 in fixed point, truncated.
-		var x1, x0 uint64
-		if s := exp + 22; s >= 0 {
-			x1, x0 = m1<<s|m0>>(64-s), m0<<s
-		} else {
-			x1, x0 = rsh128(m1, m0, uint(-s))
-		}
+		x1, x0 := expFix128(exp, m1, m0)
 		g1, g0 := expm1Poly128(sign != 0, x1, x0)
 		p3, p2, p1, p0 := mul128x128(m1, m0, g1, g0)
 		return fixToFloat128(sign, p3, p2, p1, p0 != 0, exp-112-127+64)
 	}
 
-	// r = |a| - n×ln(2)/64 in fixed point with 134 fractional bits.
-	// |a|×2**134 and n×ln(2)/64×2**134 may not fit in 128 bits,
-	// but their difference does, so they are computed modulo 2**128.
-	s := uint(exp + 22) // 14 <= s <= 35
-	x1, x0 := m1<<s|m0>>(64-s), m0<<s
-	l := &expm1Ln2By64Fix128
-	h0, w0 := bits.Mul64(n, l[2])
-	h1, w1 := bits.Mul64(n, l[1])
-	w2 := n * l[0]
+	k, v2, v1, v0 := expKernel128(sign, exp, m1, m0, n)
 	var c uint64
-	w1, c = bits.Add64(w1, h0, 0)
-	w2 += h1 + c
-	_, c = bits.Add64(w0, 1<<63, 0) // round
-	w1, c = bits.Add64(w1, 0, c)
-	w2 += c
-	r0, c := bits.Sub64(x0, w1, 0)
-	r1, _ := bits.Sub64(x1, w2, c)
-
-	// make r positive, and apply the sign of a.
-	rneg := r1>>63 != 0
-	if rneg {
-		r1, r0 = neg128(r1, r0)
-	}
-	if sign != 0 {
-		rneg = !rneg
-	}
-	k := int(n >> 6)
-	j := n & 63
-	if sign != 0 {
-		// n = -n
-		k = -int((n + 63) >> 6)
-		j = -n & 63
-	}
-
-	// e**a = 2**k × 2**(j/64) × e**r
-	//      = 2**k × (t + t×p), where t = 2**(j/64), p = e**r - 1 = r × g.
-	g1, g0 := expm1Poly128(rneg, r1, r0)
-	p3, p2, p1, _ := mul128x128(r1, r0, g1, g0)
-	p1, p0 := p3<<1|p2>>63, p2<<1|p1>>63 // p in fixed point with 134 fractional bits
-
-	t := &expm1Table128[j]
-	q3, q2, q1, _ := mul128x128(t[0], t[1], p1, p0)
-	// t×p in fixed point with 191 fractional bits
-	v2, v1, v0 := q3>>6, q3<<58|q2>>6, q2<<58|q1>>6
-	if rneg {
-		v0, c = bits.Sub64(t[2], v0, 0)
-		v1, c = bits.Sub64(t[1], v1, c)
-		v2, _ = bits.Sub64(t[0], v2, c)
-	} else {
-		v0, c = bits.Add64(t[2], v0, 0)
-		v1, c = bits.Add64(t[1], v1, c)
-		v2, _ = bits.Add64(t[0], v2, c)
-	}
-
 	if k >= 0 {
 		// e**a - 1 = 2**k × (v - 2**-k)
 		if k <= 191 {
@@ -151,6 +84,90 @@ func (a Float128) Expm1() Float128 {
 	v1, c = bits.Sub64(0, v1, c)
 	v2, _ = bits.Sub64(1<<63, v2, c)
 	return fixToFloat128(signMask128[0], v2, v1, v0, false, -191)
+}
+
+// expN128 returns n = round(|a| × 64/ln(2)) for a = ±m × 2**(exp-112),
+// where m = (m1:m0) is a 113-bit integer and exp <= 14.
+// It returns 0 if exp < -8, that is |a| < 2**-7.
+// n is computed in float64. Its error doesn't matter as long as |a - n × ln(2)/64| < 2**-7.
+func expN128(exp int, m1, m0 uint64) uint64 {
+	if exp < -8 {
+		return 0
+	}
+	const InvLn2By64 = 64 / math.Ln2
+	top := float64(m1<<15 | m0>>49) // the top 64 bits of m
+	scale := math.Float64frombits(uint64(exp-63+1023) << 52)
+	return uint64(top*scale*InvLn2By64 + 0.5)
+}
+
+// expFix128 returns |a|×2**134 modulo 2**128, truncated, for a = ±m × 2**(exp-112).
+func expFix128(exp int, m1, m0 uint64) (x1, x0 uint64) {
+	s := exp + 22
+	if s < 0 {
+		return rsh128(m1, m0, uint(-s))
+	}
+	return m1<<s | m0>>(64-s), m0 << s
+}
+
+// expKernel128 returns e**a = 2**k × (v2:v1:v0) × 2**-191 for a = ±m × 2**(exp-112),
+// where sign is the sign bit of a, m = (m1:m0) is a 113-bit integer,
+// and n = round(|a| × 64/ln(2)) is computed by expN128.
+// (v2:v1:v0) × 2**-191 is in [0.99, 2), and its absolute error is about 2**-132.
+func expKernel128(sign uint64, exp int, m1, m0, n uint64) (k int, v2, v1, v0 uint64) {
+	// reduce: a = ±n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
+	// r = |a| - n×ln(2)/64 in fixed point with 134 fractional bits.
+	// |a|×2**134 and n×ln(2)/64×2**134 may not fit in 128 bits,
+	// but their difference does, so they are computed modulo 2**128.
+	x1, x0 := expFix128(exp, m1, m0)
+	l := &expm1Ln2By64Fix128
+	h0, w0 := bits.Mul64(n, l[2])
+	h1, w1 := bits.Mul64(n, l[1])
+	w2 := n * l[0]
+	var c uint64
+	w1, c = bits.Add64(w1, h0, 0)
+	w2 += h1 + c
+	_, c = bits.Add64(w0, 1<<63, 0) // round
+	w1, c = bits.Add64(w1, 0, c)
+	w2 += c
+	r0, c := bits.Sub64(x0, w1, 0)
+	r1, _ := bits.Sub64(x1, w2, c)
+
+	// make r positive, and apply the sign of a.
+	rneg := r1>>63 != 0
+	if rneg {
+		r1, r0 = neg128(r1, r0)
+	}
+	if sign != 0 {
+		rneg = !rneg
+	}
+	k = int(n >> 6)
+	j := n & 63
+	if sign != 0 {
+		// n = -n
+		k = -int((n + 63) >> 6)
+		j = -n & 63
+	}
+
+	// e**a = 2**k × 2**(j/64) × e**r
+	//      = 2**k × (t + t×p), where t = 2**(j/64), p = e**r - 1 = r × g.
+	g1, g0 := expm1Poly128(rneg, r1, r0)
+	p3, p2, p1, _ := mul128x128(r1, r0, g1, g0)
+	p1, p0 := p3<<1|p2>>63, p2<<1|p1>>63 // p in fixed point with 134 fractional bits
+
+	t := &expm1Table128[j]
+	q3, q2, q1, _ := mul128x128(t[0], t[1], p1, p0)
+	// t×p in fixed point with 191 fractional bits
+	v2, v1, v0 = q3>>6, q3<<58|q2>>6, q2<<58|q1>>6
+	if rneg {
+		v0, c = bits.Sub64(t[2], v0, 0)
+		v1, c = bits.Sub64(t[1], v1, c)
+		v2, _ = bits.Sub64(t[0], v2, c)
+	} else {
+		v0, c = bits.Add64(t[2], v0, 0)
+		v1, c = bits.Add64(t[1], v1, c)
+		v2, _ = bits.Add64(t[0], v2, c)
+	}
+	return
 }
 
 // expm1Poly128 returns g = (e**r - 1)/r in fixed point with 127 fractional bits.
@@ -217,7 +234,7 @@ func rsh192(x2, x1, x0 uint64, s uint) (uint64, uint64, uint64) {
 
 // fixToFloat128 returns ±(v2:v1:v0) × 2**exp rounded to nearest even.
 // sign is the sign bit, and sticky reports whether there are nonzero bits below v0.
-// v2 must not be zero, and the result must not be subnormal.
+// v2 must not be zero.
 func fixToFloat128(sign, v2, v1, v0 uint64, sticky bool, exp int) Float128 {
 	// normalize so that the most significant bit of v2 is bit 63.
 	lz := uint(bits.LeadingZeros64(v2))
@@ -225,6 +242,20 @@ func fixToFloat128(sign, v2, v1, v0 uint64, sticky bool, exp int) Float128 {
 		v2, v1, v0 = v2<<lz|v1>>(64-lz), v1<<lz|v0>>(64-lz), v0<<lz
 	}
 	exp += 191 - int(lz)
+
+	subnormal := exp < 1-bias128
+	if subnormal {
+		// align to the exponent of the smallest normal number.
+		s := uint(1 - bias128 - exp)
+		for ; s >= 64; s -= 64 {
+			sticky = sticky || v0 != 0
+			v2, v1, v0 = 0, v2, v1
+		}
+		if s > 0 {
+			sticky = sticky || v0<<(64-s) != 0
+			v2, v1, v0 = v2>>s, v1>>s|v2<<(64-s), v0>>s|v1<<(64-s)
+		}
+	}
 
 	// take the top 113 bits.
 	m1, m0 := v2>>15, v2<<49|v1>>15
@@ -238,6 +269,11 @@ func fixToFloat128(sign, v2, v1, v0 uint64, sticky bool, exp int) Float128 {
 			// m = 2**113. The fraction bits are already zero.
 			exp++
 		}
+	}
+
+	if subnormal {
+		// If m is rounded up to 2**112, it becomes the smallest normal number.
+		return Float128{sign | m1, m0}
 	}
 
 	biased := exp + bias128
