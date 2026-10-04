@@ -149,3 +149,26 @@ func BenchmarkFloat16_Tanh(b *testing.B) {
 		runtime.KeepAlive(x.Tanh())
 	}
 }
+
+// TestFloat16_SinhCoshTanhAll checks Sinh, Cosh, and Tanh for all finite Float16 values.
+// For every finite Float16 value, the exact sinh, cosh, and tanh are at least 2**-15 ulp away
+// from the midpoint of two adjacent Float16 values (checked with mpmath),
+// so math.Sinh, math.Cosh, and math.Tanh rounded to Float16 are correctly rounded.
+func TestFloat16_SinhCoshTanhAll(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		if x.IsNaN() || x.IsInf(0) {
+			continue
+		}
+		f := x.Float64().BuiltIn()
+		if got, want := x.Sinh(), NewFloat16(math.Sinh(f)); !eq16(got, want) {
+			t.Errorf("Sinh(%v) = %v; want %v", x, got, want)
+		}
+		if got, want := x.Cosh(), NewFloat16(math.Cosh(f)); !eq16(got, want) {
+			t.Errorf("Cosh(%v) = %v; want %v", x, got, want)
+		}
+		if got, want := x.Tanh(), NewFloat16(math.Tanh(f)); !eq16(got, want) {
+			t.Errorf("Tanh(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
