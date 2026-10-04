@@ -133,3 +133,38 @@ func BenchmarkFloat128_Expm1(b *testing.B) {
 		}
 	})
 }
+
+func TestFixToFloat128(t *testing.T) {
+	const ones = 0xffff_ffff_ffff_ffff
+	tests := []struct {
+		v2, v1, v0 uint64
+		sticky     bool
+		exp        int
+		want       Float128
+	}{
+		// normal
+		{1 << 63, 0, 0, false, -191, Float128(uvone128)},
+		{1 << 63, 1 << 14, 0, false, -191, Float128(uvone128)},                                                       // tie, round to even
+		{1 << 63, 1 << 14, 0, true, -191, Float128{0x3fff_0000_0000_0000, 1}},                                        // above the tie
+		{1 << 63, 3 << 14, 0, false, -191, Float128{0x3fff_0000_0000_0000, 2}},                                       // tie, round to even
+		{ones, ones, ones, false, -191, Float128{0x4000_0000_0000_0000, 0}},                                          // carry to the exponent
+		{ones, ones, ones, false, 16384 - 192, Float128{0x7fff_0000_0000_0000, 0}},                                   // overflow
+		{ones, 0xffff_ffff_ffff_8000, 0, false, 16383 - 191, Float128{0x7ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}}, // max finite
+
+		// subnormal
+		{ones, ones, ones, false, -16382 - 192, Float128{0x0001_0000_0000_0000, 0}}, // rounded up to the smallest normal number
+		{1 << 63, 0, 0, false, -16494 - 191, Float128{0, 1}},
+		{1 << 63, 0, 0, false, -16495 - 191, Float128{0, 0}}, // tie, round to even
+		{1 << 63, 0, 1, false, -16495 - 191, Float128{0, 1}},
+		{1 << 63, 0, 0, true, -16495 - 191, Float128{0, 1}},
+		{1 << 63, 1, 0, false, -16495 - 191, Float128{0, 1}},
+		{3 << 62, 0, 0, false, -16494 - 191, Float128{0, 2}}, // 1.5 ulp, round to even
+		{1 << 63, 0, 0, false, -16496 - 191, Float128{0, 0}},
+	}
+	for _, tt := range tests {
+		got := fixToFloat128(0, tt.v2, tt.v1, tt.v0, tt.sticky, tt.exp)
+		if got != tt.want {
+			t.Errorf("fixToFloat128(%#x, %#x, %#x, %v, %d) = %#x; want %#x", tt.v2, tt.v1, tt.v0, tt.sticky, tt.exp, got, tt.want)
+		}
+	}
+}
