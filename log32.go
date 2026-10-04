@@ -79,8 +79,27 @@ func logKernel32(ix uint32) (k, l float64) {
 	// so log(c) and log(1+r) have the same sign, and c = 1 near 1.
 	i := (iz >> 17) & 63
 	r := z*log32InvC[i] - 1
+	return float64(ke), log32LogC[i] + log1pKernel(r)
+}
 
-	// log(1+r) for -1/96 < r < 1/64; the relative error is less than 2**-50.
+// logKernel64 is the same as logKernel32, but x is a positive normal float64 value.
+func logKernel64(x float64) (k, l float64) {
+	// x = 2**k * z, where 0.75 <= z < 1.5.
+	ix := math.Float64bits(x)
+	tmp := ix - 0x3fe8000000000000
+	ke := int64(tmp) >> 52
+	iz := ix - tmp&0xfff0000000000000
+	z := math.Float64frombits(iz)
+
+	// log(z) = log(c) + log(1+r), where r = z/c - 1.
+	i := (iz >> 46) & 63
+	r := z*log32InvC[i] - 1
+	return float64(ke), log32LogC[i] + log1pKernel(r)
+}
+
+// log1pKernel returns log(1+r) for -1/96 < r < 1/64.
+// The relative error is less than 2**-50.
+func log1pKernel(r float64) float64 {
 	const (
 		c3 = 0x1.555555554a969p-2
 		c4 = -0x1.ffffffeb1d4abp-3
@@ -89,8 +108,7 @@ func logKernel32(ix uint32) (k, l float64) {
 		c7 = 0x1.214efe25e612ep-3
 	)
 	r2 := r * r
-	p := r - 0.5*r2 + r2*r*(c3+r*(c4+r*(c5+r*(c6+r*c7))))
-	return float64(ke), log32LogC[i] + p
+	return r - 0.5*r2 + r2*r*(c3+r*(c4+r*(c5+r*(c6+r*c7))))
 }
 
 // log32InvC[i] = 1/c and log32LogC[i] = log(c), where
