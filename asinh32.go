@@ -51,22 +51,37 @@ func (a Float32) Asinh() Float32 {
 //	x.Acosh() = NaN if x < 1
 //	NaN.Acosh() = NaN
 func (a Float32) Acosh() Float32 {
-	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/acosh.go#L40-L53
-	const Ln2 = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
-	const Large = 1 << 28                  // 2**28
-	// first case is special case
-	switch {
-	case a < 1 || a.IsNaN():
+	ix := a.Bits()
+	if ix-uvone32 >= uvinf32-uvone32 { // a < 1, +Inf, or NaN
+		if a > 1 {
+			// acosh(+Inf) = +Inf
+			return a
+		}
+		// a < 1 or NaN
 		return NewFloat32NaN()
-	case a == 1:
-		return 0
-	case a >= Large:
-		return a.Log() + Ln2 // a > 2**28
-	case a > 2:
-		return (2*a - 1./(a+(a*a-1).Sqrt())).Log() // 2**28 > a > 2
 	}
-	t := a - 1
-	return (t + (2*t + t*t).Sqrt()).Log1p() // 2 >= a > 1
+
+	x := float64(a)
+	t := x - 1 // exact
+	var r float64
+	switch {
+	case t < 1e-4:
+		// acosh(x) = log(1+u), where u = t + sqrt(t*(2+t)) < 1/64.
+		r = log1pKernel(t + math.Sqrt(t*(2+t)))
+	case t < 0.03:
+		// acosh(x) = log(1+u) = log(v) + log(1 + d/v),
+		// where v = 1+u rounded to float64, and d = 1+u - v is exact.
+		u := t + math.Sqrt(t*(2+t))
+		v := 1 + u
+		d := (1 - v) + u
+		k, l := logKernel64(v)
+		r = k*math.Ln2 + l + d/v
+	default:
+		// acosh(x) = log(x + sqrt(x**2-1)), where the result is greater than 0.24.
+		k, l := logKernel64(x + math.Sqrt(x*x-1))
+		r = k*math.Ln2 + l
+	}
+	return Float32(r)
 }
 
 // Atanh returns the inverse hyperbolic tangent of a.
@@ -79,34 +94,47 @@ func (a Float32) Acosh() Float32 {
 //	x.Atanh() = NaN if x < -1 or x > 1
 //	NaN.Atanh() = NaN
 func (a Float32) Atanh() Float32 {
-	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/atanh.go#L45-L73
-	const NearZero = 1.0 / (1 << 28) // 2**-28
-	// special cases
-	switch {
-	case a < -1 || a > 1 || a.IsNaN():
-		return NewFloat32NaN()
-	case a == 1:
-		return NewFloat32Inf(1)
-	case a == -1:
-		return NewFloat32Inf(-1)
+	ix := a.Bits() &^ signMask32
+	if ix < 0x39800000 {
+		// |a| < 2**-12: atanh(a) = a + a**3/3 + ... rounds to a.
+		return a
 	}
-	sign := false
-	if a < 0 {
-		a = -a
-		sign = true
+	if ix >= uvone32 {
+		switch {
+		case a == 1:
+			return NewFloat32Inf(1)
+		case a == -1:
+			return NewFloat32Inf(-1)
+		default:
+			// |a| > 1 or NaN
+			return NewFloat32NaN()
+		}
 	}
-	var temp Float32
+
+	// atanh(x) = log((1+x)/(1-x))/2 = log(1+w)/2, where w = 2x/(1-x).
+	// 1-x is exact.
+	x := float64(math.Float32frombits(ix))
+	var r float64
 	switch {
-	case a < NearZero:
-		temp = a
-	case a < 0.5:
-		temp = a + a
-		temp = 0.5 * (temp + temp*a/(1-a)).Log1p()
+	case x < 0.0075:
+		// w < 1/64
+		r = log1pKernel(2 * x / (1 - x))
+	case x < 0.25:
+		// log(1+w) = log(v) + log(1 + d/v),
+		// where v = 1+w rounded to float64, and d = 1+w - v is exact.
+		w := 2 * x / (1 - x)
+		v := 1 + w
+		d := (1 - v) + w
+		k, l := logKernel64(v)
+		r = k*math.Ln2 + l + d/v
 	default:
-		temp = 0.5 * ((a + a) / (1 - a)).Log1p()
+		// The result is greater than 0.25.
+		k, l := logKernel64((1 + x) / (1 - x))
+		r = k*math.Ln2 + l
 	}
-	if sign {
-		temp = -temp
+	r *= 0.5
+	if a < 0 {
+		r = -r
 	}
-	return temp
+	return Float32(r)
 }
