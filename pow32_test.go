@@ -141,6 +141,12 @@ func TestFloat32_Pow(t *testing.T) {
 		{NewFloat32FromBits(0x3f800800), NewFloat32FromBits(0x40000000), NewFloat32FromBits(0x3f801000)}, // (1 + 2**-12)**2 = 1 + 2**-11 + 2**-24
 		{NewFloat32FromBits(0x27400000), NewFloat32FromBits(0x40400000), NewFloat32FromBits(0x0000000e)}, // (3 * 2**-50)**3 = 13.5 * 2**-149
 
+		// exact results on the midpoint with non-integer y
+		{NewFloat32FromBits(0x47810080), NewFloat32FromBits(0x3fc00000), NewFloat32FromBits(0x4b818180)}, // (257**2)**1.5 = 257**3
+		{NewFloat32FromBits(0x4664c400), NewFloat32FromBits(0x3fe00000), NewFloat32FromBits(0x4b94ace2)}, // (11**4)**(7/4) = 11**7
+		{NewFloat32FromBits(0x4264c400), NewFloat32FromBits(0x3fe00000), NewFloat32FromBits(0x4494ace2)}, // (11**4 * 2**-8)**(7/4) = 11**7 * 2**-14
+		{NewFloat32FromBits(0x0f100000), NewFloat32FromBits(0x3fc00000), NewFloat32FromBits(0x0000000e)}, // (9 * 2**-100)**1.5 = 13.5 * 2**-149
+
 		// 2**-150 is the midpoint of 0 and the smallest subnormal.
 		{exact32(2), exact32(-150), exact32(0)},
 		{exact32(0.5), exact32(150), exact32(0)},
