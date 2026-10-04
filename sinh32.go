@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 // Sinh returns the hyperbolic sine of a.
 //
 // Special cases are:
@@ -8,43 +10,27 @@ package floats
 //	±Inf.Sinh() = ±Inf
 //	NaN.Sinh() = NaN
 func (a Float32) Sinh() Float32 {
-	// The coefficients are #2029 from Hart & Cheney. (20.36D)
-	// copy from https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/sinhf.go#L12-L20
-	const (
-		P0 = -0.6307673640497716991184787251e+6
-		P1 = -0.8991272022039509355398013511e+5
-		P2 = -0.2894211355989563807284660366e+4
-		P3 = -0.2630563213397497062819489e+2
-		Q0 = -0.6307673640497716991212077277e+6
-		Q1 = 0.1521517378790019070696485176e+5
-		Q2 = -0.173678953558233699533450911e+3
-	)
+	ix := a.Bits() &^ signMask32
+	if ix < 0x39800000 { // |a| < 2**-12
+		// sinh(a) = a + a**3/6 + ... rounds to a.
+		return a
+	}
+	if ix >= 0x42b30000 { // |a| >= 89.5
+		if ix > uvinf32 {
+			// sinh(NaN) = NaN
+			return NewFloat32NaN()
+		}
+		// sinh(a) overflows.
+		return NewFloat32FromBits(a.Bits()&signMask32 | uvinf32)
+	}
 
-	sign := false
+	// sinh(x) = (e**x - e**-x)/2 = (E + E/(E+1))/2 where E = e**x - 1
+	e := expm1Small(float64(math.Float32frombits(ix)))
+	s := 0.5 * (e + e/(e+1))
 	if a < 0 {
-		a = -a
-		sign = true
+		s = -s
 	}
-
-	var temp Float32
-	switch {
-	case a > 21:
-		temp = a.Exp() * 0.5
-
-	case a > 0.5:
-		ex := a.Exp()
-		temp = (ex - 1/ex) * 0.5
-
-	default:
-		sq := a * a
-		temp = (((P3*sq+P2)*sq+P1)*sq + P0) * a
-		temp = temp / ((((sq+Q2)*sq)+Q1)*sq + Q0)
-	}
-
-	if sign {
-		temp = -temp
-	}
-	return temp
+	return Float32(s)
 }
 
 // Cosh returns the hyperbolic cosine of a.
@@ -55,12 +41,22 @@ func (a Float32) Sinh() Float32 {
 //	±Inf.Cosh() = +Inf
 //	NaN.Cosh() = NaN
 func (a Float32) Cosh() Float32 {
-	a = a.Abs()
-	if a > 21 {
-		return a.Exp() * 0.5
+	ix := a.Bits() &^ signMask32
+	if ix < 0x39800000 { // |a| < 2**-12
+		// cosh(a) = 1 + a**2/2 + ... rounds to 1.
+		return 1
 	}
-	ex := a.Exp()
-	return (ex + 1/ex) * 0.5
+	if ix >= 0x42b30000 { // |a| >= 89.5
+		if ix > uvinf32 {
+			// cosh(NaN) = NaN
+			return NewFloat32NaN()
+		}
+		// cosh(a) overflows.
+		return NewFloat32Inf(1)
+	}
+
+	e := expm1Small(float64(math.Float32frombits(ix))) + 1
+	return Float32(0.5 * (e + 1/e))
 }
 
 // Tanh returns the hyperbolic tangent of a.
@@ -71,27 +67,52 @@ func (a Float32) Cosh() Float32 {
 //	±Inf.Tanh() = ±1
 //	NaN.Tanh() = NaN
 func (a Float32) Tanh() Float32 {
-	// https://github.com/chewxy/math32/blob/912ef0b2e4151df0148d7645c92a7b5e22f887f5/tanh.go#L61-L84
-	const MAXLOG = 88.02969187150841
-	z := a.Abs()
-	switch {
-	case z > 0.5*MAXLOG:
+	ix := a.Bits() &^ signMask32
+	if ix < 0x39800000 { // |a| < 2**-12
+		// tanh(a) = a - a**3/3 + ... rounds to a.
+		return a
+	}
+	if ix >= 0x41200000 { // |a| >= 10
+		if ix > uvinf32 {
+			// tanh(NaN) = NaN
+			return NewFloat32NaN()
+		}
+		// tanh(a) rounds to ±1.
 		if a < 0 {
 			return -1
 		}
 		return 1
-	case z >= 0.625:
-		s := z.Add(z).Exp()
-		z = 1 - 2/(s+1)
-		if a < 0 {
-			z = -z
-		}
-	default:
-		if a == 0 {
-			return a
-		}
-		s := a * a
-		z = ((((-5.70498872745e-3*s+2.06390887954e-2)*s-5.37397155531e-2)*s+1.33314422036e-1)*s-3.33332819422e-1)*s*a + a
 	}
-	return z
+
+	// tanh(x) = (e**2x - 1)/(e**2x + 1) = E/(E+2) where E = e**2x - 1
+	e := expm1Small(2 * float64(math.Float32frombits(ix)))
+	t := e / (e + 2)
+	if a < 0 {
+		t = -t
+	}
+	return Float32(t)
+}
+
+// expm1Small returns e**x - 1 for 0 <= x <= 90.
+// The relative error is less than 2**-48.
+func expm1Small(x float64) float64 {
+	const (
+		invLn2N = 0x1.71547652b82fep+5  // 32/ln(2)
+		ln2NHi  = 0x1.62e42fefa2000p-6  // ln(2)/32 with the last 13 bits zero, so k*ln2NHi is exact for |k| < 2**13
+		ln2NLo  = 0x1.9ef35793c7673p-46 // ln(2)/32 - ln2NHi
+		shift   = 0x1.8p52
+	)
+
+	// x = k*ln(2)/32 + r, |r| <= ln(2)/64
+	t := x*invLn2N + shift
+	k := int64(math.Float64bits(t) - math.Float64bits(shift))
+	kf := t - shift
+	r := (x - kf*ln2NHi) - kf*ln2NLo
+
+	// e**r - 1 by the Taylor series; the relative error is about r**6/5040 < 2**-51.
+	p := r + r*r*(1.0/2+r*(1.0/6+r*(1.0/24+r*(1.0/120+r*(1.0/720)))))
+
+	// e**x - 1 = 2**(k/32) * (e**r - 1) + (2**(k/32) - 1)
+	scale := math.Float64frombits(math.Float64bits(exp2Table[k&31]) + uint64(k>>5)<<52)
+	return scale*p + (scale - 1)
 }
