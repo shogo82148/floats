@@ -280,6 +280,24 @@ var cosCoeffs256 = [...]Float256{
 	{0x3fff_a555_5555_5555, 0x5555_5555_5555_5555, 0x5555_5555_5555_5555, 0x5555_5555_5555_5555}, // +1/4!
 }
 
+// sinPoly256 returns (sin(x)/x - 1) / x^2 for z = x^2.
+func sinPoly256(z Float256) Float256 {
+	r := sinCoeffs256[0]
+	for _, c := range sinCoeffs256[1:] {
+		r = FMA256(r, z, c)
+	}
+	return r
+}
+
+// cosPoly256 returns (cos(x) - 1 + x^2/2) / x^4 for z = x^2.
+func cosPoly256(z Float256) Float256 {
+	r := cosCoeffs256[0]
+	for _, c := range cosCoeffs256[1:] {
+		r = FMA256(r, z, c)
+	}
+	return r
+}
+
 // kernelSin256 returns sin(x + y) for |x| <= Pi/4 and |y| <= ulp(x).
 func kernelSin256(x, y Float256) Float256 {
 	// -1/2
@@ -287,18 +305,50 @@ func kernelSin256(x, y Float256) Float256 {
 
 	z := x.Mul(x)
 	v := z.Mul(x)
-	r := sinCoeffs256[0]
-	for _, c := range sinCoeffs256[1:] {
-		r = FMA256(r, z, c)
-	}
+	r := sinPoly256(z)
 
 	// sin(x + y) ≈ sin(x) + cos(x)*y ≈ x + x^3*r + (y - y*x^2/2)
 	t := FMA256(y.Mul(z), NegHalf, y)
 	return x.Add(FMA256(v, r, t))
 }
 
+// kernelSinExt256 is the same as kernelSin256, but returns the result as hi + lo
+// with more precision. lo is a correction term with |lo| <= ulp(hi).
+func kernelSinExt256(x, y Float256) (hi, lo Float256) {
+	// -1/2
+	var NegHalf = Float256{0xbfff_e000_0000_0000, 0, 0, 0}
+
+	z := x.Mul(x)
+	zl := FMA256(x, x, z.Neg()) // x*x = z + zl exactly
+	v := x.Mul(z)
+	vl := FMA256(x, zl, FMA256(x, z, v.Neg())) // x^3 ≈ v + vl
+	r := sinPoly256(z)
+
+	// sin(x + y) ≈ sin(x) + cos(x)*y ≈ x + x^3*r + (y - y*x^2/2)
+	t := FMA256(y.Mul(z), NegHalf, y)
+	t = FMA256(v, r, FMA256(vl, r, t))
+	hi = x.Add(t)
+	lo = x.Sub(hi).Add(t) // |x| >= |t|, so x - hi is exact
+	return
+}
+
 // kernelCos256 returns cos(x + y) for |x| <= Pi/4 and |y| <= ulp(x).
 func kernelCos256(x, y Float256) Float256 {
+	w, t := kernelCosParts256(x, y)
+	return w.Add(t)
+}
+
+// kernelCosExt256 is the same as kernelCos256, but returns the result as hi + lo
+// with more precision. lo is a correction term with |lo| <= ulp(hi).
+func kernelCosExt256(x, y Float256) (hi, lo Float256) {
+	w, t := kernelCosParts256(x, y)
+	hi = w.Add(t)
+	lo = w.Sub(hi).Add(t) // |w| >= |t|, so w - hi is exact
+	return
+}
+
+// kernelCosParts256 returns cos(x + y) as w + t, where |w| >= |t|.
+func kernelCosParts256(x, y Float256) (w, t Float256) {
 	var (
 		One     = Float256(uvone256)
 		Half    = Float256{0x3fff_e000_0000_0000, 0, 0, 0}
@@ -307,18 +357,16 @@ func kernelCos256(x, y Float256) Float256 {
 
 	z := x.Mul(x)
 	zl := FMA256(x, x, z.Neg()) // x*x = z + zl exactly
-	r := cosCoeffs256[0]
-	for _, c := range cosCoeffs256[1:] {
-		r = FMA256(r, z, c)
-	}
+	r := cosPoly256(z)
 
 	// cos(x + y) ≈ cos(x) - sin(x)*y ≈ 1 - (z + zl)/2 + z^2*r - x*y
 	hz := z.Mul(Half)
-	w := One.Sub(hz)
+	w = One.Sub(hz)
 	c := One.Sub(w).Sub(hz) // the rounding error of w, computed exactly
-	t := FMA256(x, y.Neg(), zl.Mul(NegHalf))
+	t = FMA256(x, y.Neg(), zl.Mul(NegHalf))
 	t = FMA256(z.Mul(z), r, t)
-	return w.Add(c.Add(t))
+	t = c.Add(t)
+	return
 }
 
 // Sin returns the sine of the radian argument a.
@@ -454,6 +502,37 @@ func (a Float256) Sincos() (sin, cos Float256) {
 //	±Inf.Tan() = NaN
 //	NaN.Tan() = NaN
 func (a Float256) Tan() Float256 {
-	sin, cos := a.Sincos()
-	return sin.Quo(cos)
+	// special cases
+	switch {
+	case a.IsZero():
+		return a
+	case a.IsNaN() || a.IsInf(0):
+		return NewFloat256NaN()
+	}
+
+	// make argument positive but save the sign
+	sign := a.Signbit()
+	a = a.Abs()
+
+	j, hi, lo := reduce256(a)
+
+	// tan(x) = sin(x) / cos(x) for j = 0 (mod 4),
+	// tan(x) = -cos(x) / sin(x) for j = 2 (mod 4).
+	sh, sl := kernelSinExt256(hi, lo)
+	ch, cl := kernelCosExt256(hi, lo)
+	nh, nl, dh, dl := sh, sl, ch, cl
+	if j&2 != 0 {
+		nh, nl, dh, dl = ch, cl, sh, sl
+		sign = !sign
+	}
+
+	// (nh + nl) / (dh + dl) ≈ q + (nh - q*dh + nl - q*dl) / dh
+	q := nh.Quo(dh)
+	r := FMA256(q.Neg(), dh, nh) // the remainder nh - q*dh, computed exactly
+	r = FMA256(q.Neg(), dl, r.Add(nl))
+	y := q.Add(r.Quo(dh))
+	if sign {
+		y = y.Neg()
+	}
+	return y
 }
