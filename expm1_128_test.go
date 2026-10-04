@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"math"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -120,17 +119,15 @@ func TestFloat128_Expm1Accuracy(t *testing.T) {
 }
 
 func BenchmarkFloat128_Expm1(b *testing.B) {
-	b.Run("small", func(b *testing.B) {
-		x := exact128(0x1p-10)
-		for b.Loop() {
-			runtime.KeepAlive(x.Expm1())
-		}
-	})
-	b.Run("large", func(b *testing.B) {
-		x := exact128(1.5)
-		for b.Loop() {
-			runtime.KeepAlive(x.Expm1())
-		}
+	benchFloat128(b, Float128.Expm1, []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(0x1p-120)},  // returns x
+		{"small", exact128(0x1p-10)},  // |x| < ln(2)/128
+		{"medium", exact128(1.5)},     // |x| < 16
+		{"negative", exact128(-10.3)}, // the result is close to -1
+		{"large", exact128(1000.7)},   // the reduction needs many bits of ln(2)
 	})
 }
 

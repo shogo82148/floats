@@ -190,16 +190,46 @@ func testFloat128Accuracy(t *testing.T, name, fname string, fn func(Float128) Fl
 	}
 }
 
-func BenchmarkFloat128_Exp(b *testing.B) {
-	x := exact128(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Exp())
+// benchFloat128 runs fn for each input as a sub-benchmark.
+func benchFloat128(b *testing.B, fn func(Float128) Float128, inputs []struct {
+	name string
+	x    Float128
+}) {
+	for _, in := range inputs {
+		b.Run(in.name, func(b *testing.B) {
+			x := in.x
+			for b.Loop() {
+				runtime.KeepAlive(fn(x))
+			}
+		})
 	}
 }
 
+func BenchmarkFloat128_Exp(b *testing.B) {
+	benchFloat128(b, Float128.Exp, []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(0x1p-120)},      // rounds to 1
+		{"small", exact128(0x1p-10)},      // |x| < ln(2)/128
+		{"medium", exact128(1.5)},         // |x| < 16
+		{"negative", exact128(-10.3)},     // the result is less than 1
+		{"large", exact128(1000.7)},       // the reduction needs many bits of ln(2)
+		{"subnormal", exact128(-11400.3)}, // the result is subnormal
+	})
+}
+
 func BenchmarkFloat128_Exp2(b *testing.B) {
-	x := exact128(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Exp2())
-	}
+	benchFloat128(b, Float128.Exp2, []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(0x1p-120)},      // rounds to 1
+		{"small", exact128(0x1p-10)},      // |x| < 1/128
+		{"medium", exact128(1.5)},         // |x| < 16
+		{"negative", exact128(-10.3)},     // the result is less than 1
+		{"large", exact128(1000.7)},       // large exponent
+		{"subnormal", exact128(-16400.3)}, // the result is subnormal
+		{"integer", exact128(10)},         // the result is exact
+	})
 }
