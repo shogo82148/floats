@@ -24,6 +24,13 @@ jobs:
           - go: "1.26"
             os: ubuntu-26.04
             arch: "amd64"
+          # old go version
+          - go: "1.25"
+            os: ubuntu-26.04
+            arch: "amd64"
+          - go: "1.24"
+            os: ubuntu-26.04
+            arch: "amd64"
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
