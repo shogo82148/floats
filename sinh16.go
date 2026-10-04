@@ -100,7 +100,7 @@ var exp2Table = [32]float64{
 	0x1.d5818dcfba487p+0, 0x1.dfc97337b9b5fp+0, 0x1.ea4afa2a490dap+0, 0x1.f50765b6e4540p+0,
 }
 
-// exp16 returns e**x for |x| <= 16.
+// exp16 returns e**x for |x| <= 32.
 // The relative error is less than 2**-48.
 func exp16(x float64) float64 {
 	const (
