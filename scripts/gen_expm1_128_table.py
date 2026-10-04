@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_128_table.go, the fixed-point constants used by Float128 Expm1.
+# Generates expm1_128_table.go, the fixed-point constants used by Float128 Exp, Exp2, and Expm1.
 #
 # Usage: python3 scripts/gen_expm1_128_table.py > expm1_128_table.go
 
@@ -22,6 +22,9 @@ print("package floats")
 print()
 print("// expm1Ln2By64Fix128 is ln(2)/64 * 2**198 mod 2**192.")
 print(f"var expm1Ln2By64Fix128 = [3]uint64{{{limbs(fix(mpmath.log(2) / 64, 198) % 2**192, 3)}}}")
+print()
+print("// expm1Ln2Fix128 is ln(2) * 2**128.")
+print(f"var expm1Ln2Fix128 = [2]uint64{{{limbs(fix(mpmath.log(2), 128), 2)}}}")
 print()
 print("// expm1Table128[j] is 2**(j/64) in fixed point with 191 fractional bits.")
 print("var expm1Table128 = [64][3]uint64{")

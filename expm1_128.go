@@ -132,6 +132,14 @@ func expKernel128(sign uint64, exp int, m1, m0, n uint64) (k int, v2, v1, v0 uin
 	r0, c := bits.Sub64(x0, w1, 0)
 	r1, _ := bits.Sub64(x1, w2, c)
 
+	return expScale128(sign, n, r1, r0)
+}
+
+// expScale128 returns e**a = 2**k × (v2:v1:v0) × 2**-191
+// for a = ±(n × ln(2)/64 + r), where sign is the sign bit of a,
+// and r = (r1:r0) × 2**-134 is a signed 128-bit fixed point number with |r| < 2**-7.
+// (v2:v1:v0) × 2**-191 is in [0.99, 2), and its absolute error is about 2**-132.
+func expScale128(sign, n, r1, r0 uint64) (k int, v2, v1, v0 uint64) {
 	// make r positive, and apply the sign of a.
 	rneg := r1>>63 != 0
 	if rneg {
@@ -154,6 +162,7 @@ func expKernel128(sign uint64, exp int, m1, m0, n uint64) (k int, v2, v1, v0 uin
 	p3, p2, p1, _ := mul128x128(r1, r0, g1, g0)
 	p1, p0 := p3<<1|p2>>63, p2<<1|p1>>63 // p in fixed point with 134 fractional bits
 
+	var c uint64
 	t := &expm1Table128[j]
 	q3, q2, q1, _ := mul128x128(t[0], t[1], p1, p0)
 	// t×p in fixed point with 191 fractional bits
