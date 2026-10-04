@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Generates testdata/sin128.txt and testdata/sin256.txt.
 # Each line contains the bits of x, the correctly rounded sin(x),
-# and the correctly rounded cos(x) in hexadecimal.
+# cos(x), and tan(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_sin_testdata.py
 
@@ -72,7 +72,8 @@ def gen(name, P, EB, seed):
             with mpmath.workprec(e + 4 * P + 64):
                 s = round_bits(mpmath.sin(x))
                 c = round_bits(mpmath.cos(x))
-            f.write(f"{v:0{width}x} {s:0{width}x} {c:0{width}x}\n")
+                t = round_bits(mpmath.tan(x))
+            f.write(f"{v:0{width}x} {s:0{width}x} {c:0{width}x} {t:0{width}x}\n")
 
 
 gen("sin128", 112, 15, 128)

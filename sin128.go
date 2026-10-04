@@ -53,6 +53,24 @@ var cosCoeffs128 = [...]Float128{
 	{0x3ffa_5555_5555_5555, 0x5555_5555_5555_5555}, // +1/4!
 }
 
+// sinPoly128 returns (sin(x)/x - 1) / x^2 for z = x^2.
+func sinPoly128(z Float128) Float128 {
+	r := sinCoeffs128[0]
+	for _, c := range sinCoeffs128[1:] {
+		r = FMA128(r, z, c)
+	}
+	return r
+}
+
+// cosPoly128 returns (cos(x) - 1 + x^2/2) / x^4 for z = x^2.
+func cosPoly128(z Float128) Float128 {
+	r := cosCoeffs128[0]
+	for _, c := range cosCoeffs128[1:] {
+		r = FMA128(r, z, c)
+	}
+	return r
+}
+
 // kernelSin128 returns sin(x + y) for |x| <= Pi/4 and |y| <= ulp(x).
 func kernelSin128(x, y Float128) Float128 {
 	// -1/2
@@ -60,18 +78,50 @@ func kernelSin128(x, y Float128) Float128 {
 
 	z := x.Mul(x)
 	v := z.Mul(x)
-	r := sinCoeffs128[0]
-	for _, c := range sinCoeffs128[1:] {
-		r = FMA128(r, z, c)
-	}
+	r := sinPoly128(z)
 
 	// sin(x + y) ≈ sin(x) + cos(x)*y ≈ x + x^3*r + (y - y*x^2/2)
 	t := FMA128(y.Mul(z), NegHalf, y)
 	return x.Add(FMA128(v, r, t))
 }
 
+// kernelSinExt128 is the same as kernelSin128, but returns the result as hi + lo
+// with more precision. lo is a correction term with |lo| <= ulp(hi).
+func kernelSinExt128(x, y Float128) (hi, lo Float128) {
+	// -1/2
+	var NegHalf = Float128{0xbffe_0000_0000_0000, 0}
+
+	z := x.Mul(x)
+	zl := FMA128(x, x, z.Neg()) // x*x = z + zl exactly
+	v := x.Mul(z)
+	vl := FMA128(x, zl, FMA128(x, z, v.Neg())) // x^3 ≈ v + vl
+	r := sinPoly128(z)
+
+	// sin(x + y) ≈ sin(x) + cos(x)*y ≈ x + x^3*r + (y - y*x^2/2)
+	t := FMA128(y.Mul(z), NegHalf, y)
+	t = FMA128(v, r, FMA128(vl, r, t))
+	hi = x.Add(t)
+	lo = x.Sub(hi).Add(t) // |x| >= |t|, so x - hi is exact
+	return
+}
+
 // kernelCos128 returns cos(x + y) for |x| <= Pi/4 and |y| <= ulp(x).
 func kernelCos128(x, y Float128) Float128 {
+	w, t := kernelCosParts128(x, y)
+	return w.Add(t)
+}
+
+// kernelCosExt128 is the same as kernelCos128, but returns the result as hi + lo
+// with more precision. lo is a correction term with |lo| <= ulp(hi).
+func kernelCosExt128(x, y Float128) (hi, lo Float128) {
+	w, t := kernelCosParts128(x, y)
+	hi = w.Add(t)
+	lo = w.Sub(hi).Add(t) // |w| >= |t|, so w - hi is exact
+	return
+}
+
+// kernelCosParts128 returns cos(x + y) as w + t, where |w| >= |t|.
+func kernelCosParts128(x, y Float128) (w, t Float128) {
 	var (
 		One     = Float128(uvone128)
 		Half    = Float128{0x3ffe_0000_0000_0000, 0}
@@ -80,18 +130,16 @@ func kernelCos128(x, y Float128) Float128 {
 
 	z := x.Mul(x)
 	zl := FMA128(x, x, z.Neg()) // x*x = z + zl exactly
-	r := cosCoeffs128[0]
-	for _, c := range cosCoeffs128[1:] {
-		r = FMA128(r, z, c)
-	}
+	r := cosPoly128(z)
 
 	// cos(x + y) ≈ cos(x) - sin(x)*y ≈ 1 - (z + zl)/2 + z^2*r - x*y
 	hz := z.Mul(Half)
-	w := One.Sub(hz)
+	w = One.Sub(hz)
 	c := One.Sub(w).Sub(hz) // the rounding error of w, computed exactly
-	t := FMA128(x, y.Neg(), zl.Mul(NegHalf))
+	t = FMA128(x, y.Neg(), zl.Mul(NegHalf))
 	t = FMA128(z.Mul(z), r, t)
-	return w.Add(c.Add(t))
+	t = c.Add(t)
+	return
 }
 
 // Sin returns the sine of the radian argument a.
@@ -227,6 +275,37 @@ func (a Float128) Sincos() (sin, cos Float128) {
 //	±Inf.Tan() = NaN
 //	NaN.Tan() = NaN
 func (a Float128) Tan() Float128 {
-	sin, cos := a.Sincos()
-	return sin.Quo(cos)
+	// special cases
+	switch {
+	case a.IsZero():
+		return a
+	case a.IsNaN() || a.IsInf(0):
+		return NewFloat128NaN()
+	}
+
+	// make argument positive but save the sign
+	sign := a.Signbit()
+	a = a.Abs()
+
+	j, hi, lo := reduce128(a)
+
+	// tan(x) = sin(x) / cos(x) for j = 0 (mod 4),
+	// tan(x) = -cos(x) / sin(x) for j = 2 (mod 4).
+	sh, sl := kernelSinExt128(hi, lo)
+	ch, cl := kernelCosExt128(hi, lo)
+	nh, nl, dh, dl := sh, sl, ch, cl
+	if j&2 != 0 {
+		nh, nl, dh, dl = ch, cl, sh, sl
+		sign = !sign
+	}
+
+	// (nh + nl) / (dh + dl) ≈ q + (nh - q*dh + nl - q*dl) / dh
+	q := nh.Quo(dh)
+	r := FMA128(q.Neg(), dh, nh) // the remainder nh - q*dh, computed exactly
+	r = FMA128(q.Neg(), dl, r.Add(nl))
+	y := q.Add(r.Quo(dh))
+	if sign {
+		y = y.Neg()
+	}
+	return y
 }
