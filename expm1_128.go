@@ -211,9 +211,7 @@ func rsh192(x2, x1, x0 uint64, s uint) (uint64, uint64, uint64) {
 		x2, x1, x0 = 0, x2, x1
 		s -= 64
 	}
-	if s == 0 {
-		return x2, x1, x0
-	}
+	// x << 64 is zero in Go, so s == 0 needs no special case.
 	return x2 >> s, x1>>s | x2<<(64-s), x0>>s | x1<<(64-s)
 }
 
