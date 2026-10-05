@@ -1,6 +1,10 @@
 package floats
 
-import "math/bits"
+import (
+	"math/bits"
+
+	"github.com/shogo82148/ints"
+)
 
 // Sinh returns the hyperbolic sine of a.
 //
@@ -168,7 +172,8 @@ func (a Float128) Cosh() Float128 {
 	k, rneg, s1, s0, c1, c0, u, w2, w1, w0 := sinhKernel128(exp, m1, m0, n)
 
 	// cosh(|a|) = (e**|a| + e**-|a|)/2 = (u + w)/2 × (1 + c) + (u - w)/2 × (±s).
-	// They are in fixed point with 191 fractional bits, relative to 2**k.
+	// They are in fixed point with 191 fractional bits, relative to 2**k,
+	// which cancels out in the division.
 	e0, c := bits.Add64(u[2], w0, 0)
 	e1, c := bits.Add64(u[1], w1, c)
 	e2, c := bits.Add64(u[0], w2, c)
@@ -207,41 +212,120 @@ func (a Float128) Cosh() Float128 {
 //	±Inf.Tanh() = ±1
 //	NaN.Tanh() = NaN
 func (a Float128) Tanh() Float128 {
-	var (
-		// Overflow = ln(max float128 + 0.5ulp)/2 = ln(2¹⁶³⁸³×(2-2⁻¹¹³))/2
-		// ~ 5678.2617031470719747459655389853825
-		Overflow = Float128{0x400b_62e4_2fef_a39e, 0xf357_93c7_6730_07e6}
+	sign := a[0] & signMask128[0]
+	exp := int((a[0]>>(shift128-64))&mask128) - bias128
 
-		// One = 1.0
-		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// Two = 2.0
-		Two = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// NearZero = 0.625
-		NearZero = Float128{0x3ffe_4000_0000_0000, 0x0000_0000_0000_0000}
-	)
-	z := a.Abs()
 	switch {
-	case z.Gt(Overflow):
-		if a.Signbit() {
-			return One.Neg()
-		}
-		return One
-	case z.Ge(NearZero):
-		s := z.Add(z).Exp()
-		z = One.Sub(Two.Quo(s.Add(One)))
-		if a.Signbit() {
-			z = z.Neg()
-		}
-	case z.IsZero():
+	case exp < -57:
+		// tanh(a) = a - a**3/3 + ... ~ a when |a| < 2**-57,
+		// including ±0 and subnormal values.
 		return a
-	default:
-		// TODO: optimize using minimax approximation
-		z = z.Sinh().Quo(z.Cosh())
-		if a.Signbit() {
-			z = z.Neg()
+	case exp >= 6:
+		// 1 - tanh(|a|) ~ 2e**-2|a| < 2**-114 when |a| > 115×ln(2)/2 ~ 39.9,
+		// so tanh(a) rounds to ±1.
+		if a.IsNaN() {
+			return a
 		}
+		return Float128{sign | uvone128[0], uvone128[1]}
 	}
-	return z
+
+	// a = ±m × 2**(exp-112), where m is a 113-bit integer.
+	m1 := a[0]&fracMask128[0] | 1<<(shift128-64)
+	m0 := a[1]
+
+	n := expN128(exp, m1, m0)
+	if n == 0 {
+		// |a| < ln(2)/128. tanh(a) = a × tanh(a)/a.
+		// a×2**134 in fixed point, truncated.
+		x1, x0 := expFix128(exp, m1, m0)
+		z3, z2, _, _ := mul128x128(x1, x0, x1, x0) // a**2 × 2**140
+		g1, g0 := tanhPoly128(z3, z2)
+		p3, p2, p1, p0 := mul128x128(m1, m0, g1, g0)
+		return fixToFloat128(sign, p3, p2, p1, p0 != 0, exp-112-127+64)
+	}
+
+	// e**2|a| = 2**k × v, where v = (v2:v1:v0) × 2**-191 is in [0.99, 2).
+	// 2|a| = m × 2**(exp+1-112), and k >= 0 because |a| >= ln(2)/128.
+	k, v2, v1, v0 := expKernel128(0, exp+1, m1, m0, expN128(exp+1, m1, m0))
+	if k == 0 {
+		// e**2|a| < 2, so tanh(|a|) < 1/3.
+		// tanh(|a|) = (e**2|a| - 1) / (e**2|a| + 1) = (v - 1) / (2 × (v + 1)/2).
+		// v - 1 > 0 because e**2|a| >= e**(ln(2)/64).
+		q1, q0, e, inexact := quo192(v2-1<<63, v1, v0, v2>>1+1<<62, v2<<63|v1>>1, v1<<63|v0>>1)
+		return fixToFloat128(sign, q1, q0, 0, inexact, e-1-128-64)
+	}
+
+	// tanh(|a|) = 1 - ε, where ε = 2 / (e**2|a| + 1) = 2**-k / h, and h = (v + 2**-k)/2.
+	// ε is computed with a small relative error,
+	// so that 1 - ε rounds correctly even when it is very close to a midpoint.
+	// h is in [0.49, 1.25) in fixed point with 191 fractional bits. k <= 184 because |a| < 64.
+	h2, h1, h0 := v2>>1, v2<<63|v1>>1, v1<<63|v0>>1
+	var c uint64
+	switch b := uint(190 - k); {
+	case b >= 128:
+		h2 += 1 << (b - 128)
+	case b >= 64:
+		h1, c = bits.Add64(h1, 1<<(b-64), 0)
+		h2 += c
+	default:
+		h0, c = bits.Add64(h0, 1<<b, 0)
+		h1, c = bits.Add64(h1, 0, c)
+		h2 += c
+	}
+	// h = (d1:d0) × 2**(-127-ld), normalized and truncated to 128 bits.
+	ld := uint(bits.LeadingZeros64(h2))
+	d1, d0 := h2<<ld|h1>>(64-ld), h1<<ld|h0>>(64-ld)
+	// q = 2**254/d = 2**(-127-ld)/h, so ε = q × 2**(ld-k-127).
+	q, inexact := quo256by128(ints.Uint128{1 << 62, 0}, ints.Uint128{d1, d0})
+
+	// ε in fixed point with 191 fractional bits, rounded up,
+	// so that the result 1 - ε is truncated and the sticky bit is valid.
+	// The division is exact only if d and q are powers of two,
+	// and then no nonzero bits are shifted out because sh <= 184,
+	// so the shifted ε is exact if and only if the division is exact.
+	sticky := inexact
+	e2, e1, e0 := rsh192(q[0], q[1], 0, uint(k)-ld)
+	if sticky {
+		e0, c = bits.Add64(e0, 1, 0)
+		e1, c = bits.Add64(e1, 0, c)
+		e2 += c
+	}
+	r0, c := bits.Sub64(0, e0, 0)
+	r1, c := bits.Sub64(0, e1, c)
+	r2, _ := bits.Sub64(1<<63, e2, c)
+	return fixToFloat128(sign, r2, r1, r0, sticky, -191)
+}
+
+// quo192 returns y/x = (q1:q0) × 2**(e-128) for positive 192-bit fixed point numbers
+// y = (y2:y1:y0) and x = (x2:x1:x0) with the same scale.
+// y2 and x2 must not be zero. inexact reports whether the quotient of the normalized 128-bit
+// operands is not exact; the bits below them are ignored.
+func quo192(y2, y1, y0, x2, x1, x0 uint64) (q1, q0 uint64, e int, inexact bool) {
+	// normalize x and y so that their most significant bits are set.
+	lx := uint(bits.LeadingZeros64(x2))
+	x2, x1 = x2<<lx|x1>>(64-lx), x1<<lx|x0>>(64-lx)
+	ly := uint(bits.LeadingZeros64(y2))
+	y2, y1 = y2<<ly|y1>>(64-ly), y1<<ly|y0>>(64-ly)
+	e = int(lx) - int(ly)
+	if y2 > x2 || (y2 == x2 && y1 >= x1) {
+		y2, y1 = y2>>1, y2<<63|y1>>1
+		e++
+	}
+	q, inexact := quo256by128(ints.Uint128{y2, y1}, ints.Uint128{x2, x1})
+	return q[0], q[1], e, inexact
+}
+
+// tanhPoly128 returns tanh(r)/r in fixed point with 127 fractional bits,
+// where z = r**2 = (z1:z0) × 2**-140 and |r| < 2**-7.
+func tanhPoly128(z1, z0 uint64) (g1, g0 uint64) {
+	g1, g0 = tanhCoeffs128[0][0], tanhCoeffs128[0][1]
+	for _, c := range tanhCoeffs128[1:] {
+		// g = c - g×z. The coefficients alternate in sign, and g×z < c.
+		p3, p2, _, _ := mul128x128(g1, g0, z1, z0)
+		t1, t0 := p3>>12, p3<<52|p2>>12
+		var b uint64
+		g0, b = bits.Sub64(c[1], t0, 0)
+		g1, _ = bits.Sub64(c[0], t1, b)
+	}
+	return
 }

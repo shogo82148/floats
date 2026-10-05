@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_128_table.go, the fixed-point constants used by Float128 Exp, Exp2, Expm1, and Sinh.
+# Generates expm1_128_table.go, the fixed-point constants used by Float128 Exp, Exp2, Expm1, Sinh, Cosh, and Tanh.
 #
 # Usage: python3 scripts/gen_expm1_128_table.py > expm1_128_table.go
 
@@ -54,4 +54,14 @@ print("// in the order of Horner's method: 1/(2i+2)! for i = 5, 4, ..., 0.")
 print("var coshCoeffs128 = [...][2]uint64{")
 for i in range(5, -1, -1):
     print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 2), 127), 2)}}}, // 1/{2 * i + 2}!")
+print("}")
+print()
+print("// tanhCoeffs128 are the absolute values of the coefficients of")
+print("// tanh(r)/r = 1 - z/3 + 2z**2/15 - ..., where z = r**2,")
+print("// in fixed point with 127 fractional bits, in the order of Horner's method: i = 8, 7, ..., 0.")
+print("// The sign of the coefficient of z**i is (-1)**i.")
+print("var tanhCoeffs128 = [...][2]uint64{")
+t = mpmath.taylor(mpmath.tanh, 0, 17)
+for i in range(8, -1, -1):
+    print(f"\t{{{limbs(fix(abs(t[2 * i + 1]), 127), 2)}}}, // z**{i}")
 print("}")

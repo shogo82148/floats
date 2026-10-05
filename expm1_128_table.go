@@ -118,3 +118,19 @@ var coshCoeffs128 = [...][2]uint64{
 	{0x0555555555555555, 0x5555555555555555}, // 1/4!
 	{0x4000000000000000, 0x0000000000000000}, // 1/2!
 }
+
+// tanhCoeffs128 are the absolute values of the coefficients of
+// tanh(r)/r = 1 - z/3 + 2z**2/15 - ..., where z = r**2,
+// in fixed point with 127 fractional bits, in the order of Horner's method: i = 8, 7, ..., 0.
+// The sign of the coefficient of z**i is (-1)**i.
+var tanhCoeffs128 = [...][2]uint64{
+	{0x0013558248036744, 0x52236558fc7c8c50}, // z**8
+	{0x002fb46c8a56ebc5, 0x6d43b26bd1689866}, // z**7
+	{0x0075b4f43855f77e, 0xd7f303697268f330}, // z**6
+	{0x01226e355e6c23c8, 0xf5b51c3974fb201e}, // z**5
+	{0x02cc9e9105821f3e, 0x65ad77493bb02cca}, // z**4
+	{0x06e86e86e86e86e8, 0x6e86e86e86e86e87}, // z**3
+	{0x1111111111111111, 0x1111111111111111}, // z**2
+	{0x2aaaaaaaaaaaaaaa, 0xaaaaaaaaaaaaaaab}, // z**1
+	{0x8000000000000000, 0x0000000000000000}, // z**0
+}
