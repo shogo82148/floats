@@ -2,6 +2,8 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
+	"runtime"
 	"testing"
 )
 
@@ -37,6 +39,20 @@ func TestFloat32_Asin(t *testing.T) {
 		{exact32(math.NaN()), exact32(math.NaN())},
 		{exact32(2), exact32(math.NaN())},
 		{exact32(-2), exact32(math.NaN())},
+		{exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{NewFloat32FromBits(0x3f800001), exact32(math.NaN())},
+
+		// tiny arguments
+		{NewFloat32FromBits(0x00000001), NewFloat32FromBits(0x00000001)},
+		{NewFloat32FromBits(0x397fffff), NewFloat32FromBits(0x397fffff)},
+		{NewFloat32FromBits(0x39800000), NewFloat32FromBits(0x39800000)},
+
+		// the boundary of the algorithms, and the endpoints
+		{exact32(0.5), NewFloat32(math.Asin(0.5))},
+		{NewFloat32FromBits(0x3f000001), NewFloat32(math.Asin(float64(NewFloat32FromBits(0x3f000001))))},
+		{exact32(1), NewFloat32(math.Pi / 2)},
+		{exact32(-1), NewFloat32(-math.Pi / 2)},
 	}
 
 	for _, tt := range strictTests {
@@ -44,6 +60,45 @@ func TestFloat32_Asin(t *testing.T) {
 		if !eq32(got, tt.want) {
 			t.Errorf("Asin(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+// TestFloat32_AsinRandom compares Asin with math.Asin on random inputs.
+// Checking all Float32 values, the results are identical to math.Asin rounded to Float32.
+func TestFloat32_AsinRandom(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 2))
+	gens := []struct {
+		name string
+		gen  func() Float32
+	}{
+		{"bits", func() Float32 { return NewFloat32FromBits(r.Uint32()) }},
+		{"exponent", func() Float32 {
+			// uniformly distributed exponent in [-14, -1]
+			return NewFloat32FromBits(r.Uint32()&(signMask32|fracMask32) | uint32(r.IntN(14)+bias32-14)<<shift32)
+		}},
+		{"near1", func() Float32 {
+			return NewFloat32FromBits(0x3f800000 - r.Uint32N(1<<20))
+		}},
+	}
+	for _, g := range gens {
+		for range 300000 {
+			x := g.gen()
+			got := x.Asin()
+			want := NewFloat32(math.Asin(float64(x)))
+			if !eq32(got, want) {
+				t.Fatalf("%s: Asin(%v) = %v; want %v", g.name, x, got, want)
+			}
+		}
+	}
+}
+
+func BenchmarkFloat32_Asin(b *testing.B) {
+	for _, x := range []Float32{0.25, 0.75} {
+		b.Run(x.String(), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Asin())
+			}
+		})
 	}
 }
 
