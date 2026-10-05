@@ -140,7 +140,12 @@ func (a Float128) Log() Float128 {
 	case a.IsZero():
 		return NewFloat128Inf(-1)
 	}
+	hi, lo := a.logDD()
+	return hi.Add(lo)
+}
 
+// logDD returns log(a) as a double-Float128 (hi+lo) for a finite a > 0.
+func (a Float128) logDD() (hi, lo Float128) {
 	var (
 		// Ln2Hi = ln(2) ~ 0.6931471805599453094172321214581765
 		// Ln2Lo = ln(2) - Ln2Hi ~ 8.928835774481220748938623512047474e-35
@@ -199,11 +204,11 @@ func (a Float128) Log() Float128 {
 	// with log(c) below (e.g. a just under a power of 2, so c is close to 2).
 	eHi, eLo := twoProduct128(k, Ln2Hi)
 	eLo = eLo.Add(k.Mul(Ln2Lo))
-	hi, lo := ddAdd128(eHi, eLo, logCHi, logCLo)
+	hi, lo = ddAdd128(eHi, eLo, logCHi, logCLo)
 
 	if rmag == ([4]uint64{}) {
 		// m is exactly c×2**112; log(1+r) = 0.
-		return hi.Add(lo)
+		return hi, lo
 	}
 
 	lz, rnorm := logNormalizeTo192(rmag) // rmag is never all zero here, so lz <= 231.
@@ -259,8 +264,7 @@ func (a Float128) Log() Float128 {
 		log1rHi, log1rLo = log1rHi.Neg(), log1rLo.Neg()
 	}
 
-	hi, lo = ddAdd128(hi, lo, log1rHi, log1rLo)
-	return hi.Add(lo)
+	return ddAdd128(hi, lo, log1rHi, log1rLo)
 }
 
 // place128In384 returns (m1:m0) positioned in a 384-bit (6-word) value such that
@@ -343,20 +347,29 @@ func (a Float128) Log10() Float128 {
 // Log2 returns the binary logarithm of a.
 // The special cases are the same as for [Log].
 func (a Float128) Log2() Float128 {
-	var (
-		// Half = 0.5
-		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+	// special cases
+	switch {
+	case a.IsNaN() || a.IsInf(1):
+		return a
+	case a.Lt(Float128{}): // a < 0
+		return NewFloat128NaN()
+	case a.IsZero():
+		return NewFloat128Inf(-1)
+	}
 
-		// Ln2Inv = 1/ln(2)
-		// ~ 1.442695040888963407359924681001892
-		Ln2Inv = Float128{0x3fff_7154_7652_b82f, 0xe177_7d0f_fda0_d23a}
+	var (
+		// Ln2InvHi = 1/ln(2) ~ 1.442695040888963407359924681001892
+		// Ln2InvLo = 1/ln(2) - Ln2InvHi ~ 1.6 × 2**-113
+		Ln2InvHi = Float128{0x3fff_7154_7652_b82f, 0xe177_7d0f_fda0_d23a}
+		Ln2InvLo = Float128{0x3f8d_f447_5abb_d546, 0xeb4a_d2c4_5928_b367}
 	)
 
-	frac, exp := a.Frexp()
-	// Make sure exact powers of two give an exact answer.
-	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
-	if frac.Eq(Half) {
-		return NewFloat128(float64(exp - 1))
-	}
-	return frac.Log().Mul(Ln2Inv).Add(NewFloat128(float64(exp)))
+	// log2(a) = log(a)/ln(2), where log(a) is a double-Float128 that keeps the relative precision
+	// even if a is close to a power of two. Exact powers of two are exact:
+	// the error of the product is far below half an ulp of the integer result.
+	hi, lo := a.logDD()
+	p, e := twoProduct128(hi, Ln2InvHi)
+	e = e.Add(hi.Mul(Ln2InvLo)).Add(lo.Mul(Ln2InvHi))
+	p, e = twoSum128(p, e)
+	return p.Add(e)
 }
