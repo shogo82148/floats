@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# Generates testdata/log{128,256}.txt or testdata/log2_{128,256}.txt.
-# Each line contains the bits of x and the correctly rounded log(x) or log2(x) in hexadecimal.
+# Generates testdata/log{128,256}.txt, testdata/log2_{128,256}.txt, or testdata/log10_{128,256}.txt.
+# Each line contains the bits of x and the correctly rounded log(x), log2(x), or log10(x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_log_testdata.py [128|256] [log|log2]
+# Usage: python3 scripts/gen_log_testdata.py [128|256] [log|log2|log10]
 
 import random
 import sys
 import mpmath
 
 BITS = int(sys.argv[1]) if len(sys.argv) > 1 else 128
-BASE2 = len(sys.argv) > 2 and sys.argv[2] == "log2"
+FUNC = sys.argv[2] if len(sys.argv) > 2 else "log"
 P, EB = {128: (112, 15), 256: (236, 19)}[BITS]
 B = (1 << (EB - 1)) - 1
 width = (P + EB + 1) // 4
@@ -89,18 +89,32 @@ for k in range(-20, 21):
 # near the smallest normal/largest subnormal boundary
 inputs += [enc(1 << P, 1 - B, 0), (1 << P) - 1, enc((1 << P) + 1, 1 - B, 0)]
 
-if BASE2:
+if FUNC == "log2":
     # exact powers of two, whose log2 is exact
     for k in range(-30, 31):
         inputs.append(enc(1 << P, k, 0))
     for _ in range(20):
         inputs.append(enc(1 << P, rnd.randint(-(B - 1), B), 0))
 
-name = f"testdata/log2_{BITS}.txt" if BASE2 else f"testdata/log{BITS}.txt"
+if FUNC == "log10":
+    # powers of ten, whose log10 is an integer (the powers up to 10**48 are exact)
+    for k in range(0, 49):
+        with mpmath.workprec(4 * P + 64):
+            inputs.append(round_bits(mpmath.mpf(10) ** k))
+    for k in range(-40, 0):
+        with mpmath.workprec(4 * P + 64):
+            inputs.append(round_bits(mpmath.mpf(10) ** k))
+
+LOG = {
+    "log": mpmath.log,
+    "log2": lambda x: mpmath.log(x, 2),
+    "log10": mpmath.log10,
+}[FUNC]
+name = f"testdata/{FUNC}_{BITS}.txt" if FUNC != "log" else f"testdata/log{BITS}.txt"
 with open(name, "w") as f:
     for v in inputs:
         with mpmath.workprec(4 * P + 64):
             x = dec(v)
         with mpmath.workprec(4 * P + 64):
-            y = round_bits(mpmath.log(x, 2) if BASE2 else mpmath.log(x))
+            y = round_bits(LOG(x))
         f.write(f"{v:0{width}x} {y:0{width}x}\n")

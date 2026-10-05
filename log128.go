@@ -339,9 +339,30 @@ func logNormalizeTo192From384(x [6]uint64) (lz int, out [3]uint64) {
 // Log10 returns the decimal logarithm of a.
 // The special cases are the same as for [Log].
 func (a Float128) Log10() Float128 {
-	// // 1/ln(10) ~ 0.4342944819032518276511289189166051
-	var Ln10Inv = Float128{0x3ffd_bcb7_b152_6e50, 0xe32a_6ab7_555f_5a68}
-	return a.Log().Mul(Ln10Inv)
+	// special cases
+	switch {
+	case a.IsNaN() || a.IsInf(1):
+		return a
+	case a.Lt(Float128{}): // a < 0
+		return NewFloat128NaN()
+	case a.IsZero():
+		return NewFloat128Inf(-1)
+	}
+
+	var (
+		// Ln10InvHi = 1/ln(10) ~ 0.4342944819032518276511289189166051
+		// Ln10InvLo = 1/ln(10) - Ln10InvHi ~ -1.3468 × 10**-35
+		Ln10InvHi = Float128{0x3ffd_bcb7_b152_6e50, 0xe32a_6ab7_555f_5a68}
+		Ln10InvLo = Float128{0xbf8b_1e6e_08e5_cfed, 0xd1b2_efee_2e06_95d8}
+	)
+
+	// log10(a) = log(a)/ln(10), where log(a) is a double-Float128 that keeps the relative precision
+	// even if a is close to a power of two.
+	hi, lo := a.logDD()
+	p, e := twoProduct128(hi, Ln10InvHi)
+	e = e.Add(hi.Mul(Ln10InvLo)).Add(lo.Mul(Ln10InvHi))
+	p, e = twoSum128(p, e)
+	return p.Add(e)
 }
 
 // Log2 returns the binary logarithm of a.
