@@ -111,6 +111,28 @@ func TestFloat16_Acos(t *testing.T) {
 	}
 }
 
+func TestFloat16_Acos_exhaustive(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		got := x.Acos()
+		want := NewFloat16(math.Acos(x.Float64().BuiltIn()))
+		if !eq16(got, want) {
+			t.Errorf("Acos(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Acos(b *testing.B) {
+	for _, v := range []float64{0.25, 0.75, -0.75} {
+		x := exact16(v)
+		b.Run(fmt.Sprint(v), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Acos())
+			}
+		})
+	}
+}
+
 func TestFloat16_Atan(t *testing.T) {
 	tests := []struct {
 		x    Float16
