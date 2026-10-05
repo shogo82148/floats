@@ -2,7 +2,7 @@ package floats
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -77,17 +77,17 @@ func TestFloat128_AsinhAccuracy(t *testing.T) {
 // The error of the Float256 result is about 2**-130 times smaller than the ulp of Float128,
 // so they must be the same except for extremely rare cases.
 func TestFloat128_AsinhFloat256(t *testing.T) {
-	rnd := rand.New(rand.NewSource(1))
+	rnd := rand.New(rand.NewPCG(1, 2))
 	one := Float256(uvone256)
 	for i := 0; i < 20000; i++ {
 		var exp int
 		switch i % 4 {
 		case 0:
-			exp = rnd.Intn(16000) - 8000
+			exp = rnd.IntN(16000) - 8000
 		case 1:
-			exp = rnd.Intn(130) - 70
+			exp = rnd.IntN(130) - 70
 		default:
-			exp = rnd.Intn(30) - 5 + 55*(i/4%2) // around 1 and 2**60
+			exp = rnd.IntN(30) - 5 + 55*(i/4%2) // around 1 and 2**60
 		}
 		x := Float128{rnd.Uint64(), rnd.Uint64()}
 		x[0] = x[0]&^(0x7fff<<48) | uint64(exp+16383)<<48
