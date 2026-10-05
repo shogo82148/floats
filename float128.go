@@ -227,11 +227,9 @@ func (a Float128) Mul(b Float128) Float128 {
 	base := expA + expB + 1
 
 	// the exponent of the result
-	exp := base + frac.BitLen() - (shift128 + 1 + extra)
-	if exp < 1-bias128 {
+	exp := max(base+frac.BitLen()-(shift128+1+extra),
 		// the result is subnormal
-		exp = 1 - bias128
-	}
+		1-bias128)
 	if exp >= mask128-bias128 {
 		// overflow
 		return Float128{sign | uvinf128[0], uvinf128[1]}
@@ -404,11 +402,9 @@ func (a Float128) Add(b Float128) Float128 {
 	}
 
 	// the exponent of the result
-	exp := expA + frac.BitLen() - (shift128 + 1 + extra)
-	if exp < 1-bias128 {
+	exp := max(expA+frac.BitLen()-(shift128+1+extra),
 		// the result is subnormal
-		exp = 1 - bias128
-	}
+		1-bias128)
 	if exp >= mask128-bias128 {
 		// overflow
 		return Float128{signA | uvinf128[0], uvinf128[1]}

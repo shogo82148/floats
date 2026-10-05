@@ -241,11 +241,9 @@ func (a Float256) Mul(b Float256) Float256 {
 	base := expA + expB + 1
 
 	// the exponent of the result
-	exp := base + frac.BitLen() - (shift256 + 1 + extra)
-	if exp < 1-bias256 {
+	exp := max(base+frac.BitLen()-(shift256+1+extra),
 		// the result is subnormal
-		exp = 1 - bias256
-	}
+		1-bias256)
 	if exp >= mask256-bias256 {
 		// overflow
 		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
@@ -428,11 +426,9 @@ func (a Float256) Add(b Float256) Float256 {
 	}
 
 	// the exponent of the result
-	exp := expA + frac.BitLen() - (shift256 + 1 + extra)
-	if exp < 1-bias256 {
+	exp := max(expA+frac.BitLen()-(shift256+1+extra),
 		// the result is subnormal
-		exp = 1 - bias256
-	}
+		1-bias256)
 	if exp >= mask256-bias256 {
 		// overflow
 		return Float256{signA | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}

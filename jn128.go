@@ -77,10 +77,7 @@ func jnMiller128(n int, x Float128) Float128 {
 	)
 
 	xCeil := x.Ceil().Int64()
-	m := xCeil
-	if int64(n) > m {
-		m = int64(n)
-	}
+	m := max(int64(n), xCeil)
 	// The margin below controls the accuracy: the backward recurrence's
 	// sensitivity to the arbitrary starting value decays the further the
 	// starting order is past max(n, x), so a bigger margin means more

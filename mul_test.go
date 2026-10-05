@@ -177,7 +177,7 @@ func randomMulOperand128(r *rand.Rand, a Float128) Float128 {
 
 func TestFloat128_MulRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(13, 14))
-	for i := 0; i < 2_000_000; i++ {
+	for range 2_000_000 {
 		a := randomFloat128(r)
 		if r.IntN(2) == 0 {
 			a = a.Neg()
@@ -218,7 +218,7 @@ func randomMulOperand256(r *rand.Rand, a Float256) Float256 {
 
 func TestFloat256_MulRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(15, 16))
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		a := randomFloat256(r)
 		if r.IntN(2) == 0 {
 			a = a.Neg()

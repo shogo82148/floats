@@ -194,7 +194,7 @@ func shrcompressReference512(x ints.Uint512, n uint) ints.Uint512 {
 
 func TestShift(t *testing.T) {
 	r := rand.New(rand.NewPCG(25, 26))
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		var x ints.Uint512
 		randomWords(r, x[:])
 		n := uint(r.IntN(530))
@@ -266,7 +266,7 @@ func shortenFraction128(r *rand.Rand, x Float128) Float128 {
 
 func TestFMA128Random(t *testing.T) {
 	r := rand.New(rand.NewPCG(27, 28))
-	for i := 0; i < 2_000_000; i++ {
+	for range 2_000_000 {
 		x, y, z := randomFMAOperands128(r)
 		got := FMA128(x, y, z)
 		want := fmaReference128(x, y, z)
@@ -329,7 +329,7 @@ func shortenFraction256(r *rand.Rand, x Float256) Float256 {
 
 func TestFMA256Random(t *testing.T) {
 	r := rand.New(rand.NewPCG(29, 30))
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		x, y, z := randomFMAOperands256(r)
 		got := FMA256(x, y, z)
 		want := fmaReference256(x, y, z)

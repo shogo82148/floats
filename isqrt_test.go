@@ -86,7 +86,7 @@ func TestIsqrt128(t *testing.T) {
 	check(^uint64(0), ^uint64(0))
 	check(^uint64(0)-1, 1) // (2^64-1)^2
 	check(^uint64(0)-1, 0)
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		s := r.Uint64() | 1<<63
 		// perfect squares and their predecessors
 		h, l := bits.Mul64(s, s)
@@ -129,7 +129,7 @@ func randomFloat256(r *rand.Rand) Float256 {
 
 func TestFloat128_SqrtRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(3, 4))
-	for i := 0; i < 200_000; i++ {
+	for i := range 200_000 {
 		a := randomFloat128(r)
 		if a.IsZero() || a.IsNaN() || a.IsInf(0) {
 			continue
@@ -153,7 +153,7 @@ func TestFloat128_SqrtRandom(t *testing.T) {
 
 func TestFloat256_SqrtRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(5, 6))
-	for i := 0; i < 100_000; i++ {
+	for i := range 100_000 {
 		a := randomFloat256(r)
 		if a.IsZero() || a.IsNaN() || a.IsInf(0) {
 			continue
