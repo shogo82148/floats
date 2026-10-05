@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Generates testdata/sinh128.txt and testdata/cosh128.txt.
-# Each line contains the bits of x and the correctly rounded sinh(x) or cosh(x) in hexadecimal.
+# Generates testdata/sinh128.txt, testdata/cosh128.txt, and testdata/tanh128.txt.
+# Each line contains the bits of x and the correctly rounded sinh(x), cosh(x), or tanh(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_sinh_testdata.py
 
@@ -80,13 +80,25 @@ def gen(names, P, EB, seed):
         for s in range(2):
             inputs += [enc(1 << P, e, s), enc((1 << P) + 1, e, s), enc((2 << P) - 1, e, s)]
 
-    for name, fn in zip(names, (mpmath.sinh, mpmath.cosh)):
+    # only for tanh: around the threshold where tanh(x) rounds to ±1
+    tanh_inputs = list(inputs)
+    with mpmath.workprec(4 * P + 64):
+        one = mpmath.log(mpmath.mpf(2) ** (P + 3)) / 2
+        for s in (1, -1):
+            tanh_inputs.append(nearest(s * one))
+            for _ in range(20):
+                tanh_inputs.append(nearest(s * (one + rnd.uniform(-1, 1))))
+    tanh_inputs += [random_value(6, 9) for _ in range(10)]
+
+    for name, fn, xs in zip(names, (mpmath.sinh, mpmath.cosh, mpmath.tanh), (inputs, inputs, tanh_inputs)):
         with open(f"testdata/{name}.txt", "w") as f:
-            for v in inputs:
+            for v in xs:
                 with mpmath.workprec(P + 64):
                     x = dec(v)
                 e = max(0, int(mpmath.floor(mpmath.log(abs(x), 2))))
-                if abs(x) > 2 ** (EB - 1):
+                if fn is mpmath.tanh and abs(x) > 64:
+                    y = round_bits(mpmath.sign(x))  # ±1
+                elif abs(x) > 2 ** (EB - 1):
                     s = -1 if fn is mpmath.sinh and x < 0 else 1
                     y = round_bits(s * abs(x) * mpmath.mpf(2) ** B)  # ±Inf
                 else:
@@ -94,4 +106,4 @@ def gen(names, P, EB, seed):
                         y = round_bits(fn(x))
                 f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
-gen(["sinh128", "cosh128"], 112, 15, 128)
+gen(["sinh128", "cosh128", "tanh128"], 112, 15, 128)
