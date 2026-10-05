@@ -56,7 +56,13 @@ func logHyp128(sign uint64, exp int, m1, m0 uint64, acosh bool) Float128 {
 		k = u.BitLen() - 193
 		v = u.Rsh(uint(k))
 	}
+	return logFix128(sign, k, v, 0)
+}
 
+// logFix128 returns ±log(u) × 2**e, where u = 2**k × v, and v is in [1, 2) and in fixed point with 192 fractional bits.
+// u must be greater than 1 and its logarithm must not be less than 2**-58.
+// sign is the sign bit of the result.
+func logFix128(sign uint64, k int, v ints.Uint256, e int) Float128 {
 	// v = 1 + f × 2**-192. the table-driven reduction picks a breakpoint c ≈ v in [1, 2)
 	// for which 1/c and log(c) are precomputed, and log(v) = log(c) + log(1+r) with r = v/c - 1.
 	// Bucket 0 borders c = 1, where log(v) itself is tiny, and uses c = 1 exactly.
@@ -116,9 +122,9 @@ func logHyp128(sign uint64, exp int, m1, m0 uint64, acosh bool) Float128 {
 	}
 
 	if t[0] != 0 {
-		return fixToFloat128(sign, t[0], t[1], t[2], t[3] != 0, -128)
+		return fixToFloat128(sign, t[0], t[1], t[2], t[3] != 0, e-128)
 	}
-	return fixToFloat128(sign, t[1], t[2], t[3], false, -192)
+	return fixToFloat128(sign, t[1], t[2], t[3], false, e-192)
 }
 
 // Acosh returns the inverse hyperbolic cosine of a.
@@ -152,46 +158,27 @@ func (a Float128) Acosh() Float128 {
 //	x.Atanh() = NaN if x < -1 or x > 1
 //	NaN.Atanh() = NaN
 func (a Float128) Atanh() Float128 {
-	var (
-		// Zero = 0.0
-		Zero = Float128{}
-
-		// Half = 0.5
-		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// One = 1.0
-		One = Float128(uvone128)
-
-		// NearZero = 2**-58
-		NearZero = Float128{0x3fc5_0000_0000_0000, 0x0000_0000_0000_0000}
-	)
-
-	// special cases
+	// a = m × 2**(exp-112), where m = (m1:m0) is a 113-bit integer in [2**112, 2**113).
+	exp := int((a[0]>>(shift128-64))&mask128) - bias128
+	sign := a[0] & signMask128[0]
 	switch {
-	case a.Lt(One.Neg()) || a.Gt(One) || a.IsNaN():
-		return NewFloat128NaN()
-	case a.Eq(One):
-		return NewFloat128Inf(1)
-	case a.Eq(One.Neg()):
-		return NewFloat128Inf(-1)
+	case exp > 0 || (exp == 0 && (a[0]&fracMask128[0] != 0 || a[1] != 0)):
+		return NewFloat128NaN() // NaN or |a| > 1
+	case exp == 0:
+		return Float128{sign | uvinf128[0], uvinf128[1]} // ±1
+	case exp < -58:
+		// |a| < 2**-58, and |atanh(a) - a| ~ |a|³/3 is less than the half ulp of a.
+		// This also handles ±0 and subnormal numbers.
+		return a
 	}
-	sign := false
-	if a.Lt(Zero) {
-		a = a.Neg()
-		sign = true
-	}
-	var temp Float128
-	switch {
-	case a.Lt(NearZero):
-		temp = a
-	case a.Lt(Half):
-		temp = a.Add(a)
-		temp = Half.Mul(temp.Add(temp.Mul(a).Quo(One.Sub(a))).Log1p())
-	default:
-		temp = Half.Mul((a.Add(a).Quo(One.Sub(a))).Log1p())
-	}
-	if sign {
-		temp = temp.Neg()
-	}
-	return temp
+
+	// atanh(a) = log(u)/2, where u = (1+|a|)/(1-|a|) = (2**f + m)/(2**f - m) with f = 112 - exp.
+	m1 := a[0]&fracMask128[0] | 1<<(shift128-64)
+	f := uint(112 - exp)
+	one := ints.Uint512{7: 1}.Lsh(f)
+	m := ints.Uint512{6: m1, 7: a[1]}
+	q := one.Add(m).Lsh(192).Quo(one.Sub(m)) // u × 2**192
+	k := q.BitLen() - 193
+	q = q.Rsh(uint(k))
+	return logFix128(sign, k, ints.Uint256{q[4], q[5], q[6], q[7]}, -1)
 }

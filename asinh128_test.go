@@ -268,12 +268,74 @@ func TestFloat128_Atanh(t *testing.T) {
 		{exact128(-1), exact128(math.Inf(-1))},
 		{exact128(-2), exact128(math.NaN())},
 		{exact128(math.NaN()), exact128(math.NaN())},
+		{exact128(math.Inf(1)), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(math.NaN())},
+		{Float128{0x3fff_0000_0000_0000, 1}, exact128(math.NaN())}, // 1 + 2**-112
+		{Float128{0xbfff_0000_0000_0000, 1}, exact128(math.NaN())},
+		{Float128{0x3fff_0000_0000_0001, 0}, exact128(math.NaN())},               // 1 + 2**-48
+		{Float128{0xbfff_0001_0000_0000, 0}, exact128(math.NaN())},               // -(1 + 2**-112)
+		{Float128{0x3fc5_0000_0000_0000, 0}, Float128{0x3fc5_0000_0000_0000, 0}}, // 2**-58: atanh(x) rounds to x
+		{Float128{0xbfc5_0000_0000_0000, 0}, Float128{0xbfc5_0000_0000_0000, 0}},
+		{Float128{0x0000_0000_0000_0000, 1}, Float128{0x0000_0000_0000_0000, 1}}, // the smallest subnormal
+		{Float128{0x8000_0000_0000_0000, 1}, Float128{0x8000_0000_0000_0000, 1}},
 	}
 
 	for _, tt := range strictTests {
 		got := tt.x.Atanh()
 		if !eq128(got, tt.want) {
 			t.Errorf("Atanh(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func TestFloat128_AtanhAccuracy(t *testing.T) {
+	testFloat128Accuracy(t, "testdata/atanh128.txt", "Atanh", Float128.Atanh)
+}
+
+func BenchmarkFloat128_Atanh(b *testing.B) {
+	benchFloat128(b, Float128.Atanh, []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(0x1p-30)},
+		{"small", exact128(0.001)},
+		{"medium", exact128(0.5)},
+		{"near1", exact128(0.999)},
+		{"nearest1", Float128{0x3ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}}, // 1 - 2**-113
+	})
+}
+
+// TestFloat128_AtanhFloat256 compares Atanh with the result calculated in Float256 and rounded to Float128.
+// The error of the Float256 result is about 2**-130 times smaller than the ulp of Float128,
+// so they must be the same except for extremely rare cases.
+func TestFloat128_AtanhFloat256(t *testing.T) {
+	rnd := rand.New(rand.NewPCG(1, 2))
+	one := Float256(uvone256)
+	two := one.Add(one)
+	for i := 0; i < 20000; i++ {
+		var exp int
+		switch i % 4 {
+		case 0:
+			exp = -rnd.IntN(58) - 1
+		case 1:
+			exp = -rnd.IntN(4) - 1
+		default:
+			exp = -rnd.IntN(8) - 1
+		}
+		x := Float128{rnd.Uint64(), rnd.Uint64()}
+		x[0] = x[0]&0x8000_ffff_ffff_ffff | uint64(exp+16383)<<48
+		if i%8 == 1 {
+			x = Float128{x[0]&0x8000_0000_0000_0000 | 0x3ffe_ffff_ffff_ffff, x[1] | 0xffff_ffff_ffff_0000} // close to 1
+		}
+
+		got := x.Atanh()
+		if got.IsNaN() {
+			t.Fatalf("Atanh(%v) = NaN", x)
+		}
+		y := x.Float256()
+		want := one.Add(y).Quo(one.Sub(y)).Log().Quo(two).Float128()
+		if !eq128(got, want) {
+			t.Errorf("Atanh(%v) = %v; want %v", x, got, want)
 		}
 	}
 }
