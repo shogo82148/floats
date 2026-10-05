@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-# Generates testdata/log128.txt.
+# Generates testdata/log128.txt or testdata/log256.txt.
 # Each line contains the bits of x and the correctly rounded log(x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_log_testdata.py
+# Usage: python3 scripts/gen_log_testdata.py [128|256]
 
 import random
+import sys
 import mpmath
 
-P, EB = 112, 15
+BITS = int(sys.argv[1]) if len(sys.argv) > 1 else 128
+P, EB = {128: (112, 15), 256: (236, 19)}[BITS]
 B = (1 << (EB - 1)) - 1
 width = (P + EB + 1) // 4
-rnd = random.Random(128)
+rnd = random.Random(BITS)
 
 
 def enc(m, e, s=0):
@@ -58,7 +60,7 @@ def random_subnormal():
 
 inputs = []
 # random normal values across a wide exponent range
-inputs += [random_normal(-16000, 16000) for _ in range(300)]
+inputs += [random_normal(-(B - 383), B - 383) for _ in range(300)]
 # random subnormal values, including the smallest and largest
 inputs += [random_subnormal() for _ in range(80)]
 inputs += [1, (1 << P) - 1]
@@ -86,7 +88,7 @@ for k in range(-20, 21):
 # near the smallest normal/largest subnormal boundary
 inputs += [enc(1 << P, 1 - B, 0), (1 << P) - 1, enc((1 << P) + 1, 1 - B, 0)]
 
-with open("testdata/log128.txt", "w") as f:
+with open(f"testdata/log{BITS}.txt", "w") as f:
     for v in inputs:
         with mpmath.workprec(4 * P + 64):
             x = dec(v)
