@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_128_table.go, the fixed-point constants used by Float128 Exp, Exp2, and Expm1.
+# Generates expm1_128_table.go, the fixed-point constants used by Float128 Exp, Exp2, Expm1, and Sinh.
 #
 # Usage: python3 scripts/gen_expm1_128_table.py > expm1_128_table.go
 
@@ -38,4 +38,20 @@ print("// in the order of Horner's method: 1/(i+1)! for i = 11, 10, ..., 0.")
 print("var expm1Coeffs128 = [...][2]uint64{")
 for i in range(11, -1, -1):
     print(f"\t{{{limbs(fix(1 / mpmath.factorial(i + 1), 127), 2)}}}, // 1/{i + 1}!")
+print("}")
+print()
+print("// sinhCoeffs128 are the coefficients of sinh(r)/r = sum z**i/(2i+1)!, where z = r**2,")
+print("// in fixed point with 127 fractional bits,")
+print("// in the order of Horner's method: 1/(2i+1)! for i = 6, 5, ..., 0.")
+print("var sinhCoeffs128 = [...][2]uint64{")
+for i in range(6, -1, -1):
+    print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 1), 127), 2)}}}, // 1/{2 * i + 1}!")
+print("}")
+print()
+print("// coshCoeffs128 are the coefficients of (cosh(r) - 1)/r**2 = sum z**i/(2i+2)!, where z = r**2,")
+print("// in fixed point with 127 fractional bits,")
+print("// in the order of Horner's method: 1/(2i+2)! for i = 5, 4, ..., 0.")
+print("var coshCoeffs128 = [...][2]uint64{")
+for i in range(5, -1, -1):
+    print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 2), 127), 2)}}}, // 1/{2 * i + 2}!")
 print("}")
