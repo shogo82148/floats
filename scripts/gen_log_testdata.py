@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates testdata/log128.txt, testdata/log256.txt, or testdata/log2_256.txt.
+# Generates testdata/log{128,256}.txt or testdata/log2_{128,256}.txt.
 # Each line contains the bits of x and the correctly rounded log(x) or log2(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_log_testdata.py [128|256] [log|log2]
