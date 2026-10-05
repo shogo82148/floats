@@ -43,6 +43,14 @@ func TestFloat256_Asinh(t *testing.T) {
 		{exact256(math.Inf(1)), exact256(math.Inf(1))},
 		{exact256(math.Inf(-1)), exact256(math.Inf(-1))},
 		{exact256(math.NaN()), exact256(math.NaN())},
+
+		// asinh(x) rounds to x for tiny x, including the smallest subnormal numbers
+		{Float256{0, 0, 0, 1}, Float256{0, 0, 0, 1}},
+		{Float256{signMask256[0], 0, 0, 1}, Float256{signMask256[0], 0, 0, 1}},
+		{exact256(0x1p-119), exact256(0x1p-119)},
+		{exact256(0x1p-118), exact256(0x1p-118)},
+		{exact256(0x1p-118).Nextafter(NewFloat256Inf(-1)), exact256(0x1p-118).Nextafter(NewFloat256Inf(-1))},
+		{exact256(-0x1p-118), exact256(-0x1p-118)},
 	}
 
 	for _, tt := range strictTests {
@@ -51,6 +59,24 @@ func TestFloat256_Asinh(t *testing.T) {
 			t.Errorf("Asinh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
+}
+
+func TestFloat256_AsinhAccuracy(t *testing.T) {
+	testFloat256Accuracy(t, "testdata/asinh256.txt", "Asinh", Float256.Asinh)
+}
+
+func BenchmarkFloat256_Asinh(b *testing.B) {
+	benchFloat256(b, Float256.Asinh, []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(0x1p-120)}, // returns x
+		{"small", exact256(0x1p-20)}, // t = a + a²/(1+sqrt(1+a²)) < 2**-8
+		{"medium", exact256(0.5)},    // |a| < 1
+		{"negative", exact256(-1.5)}, // asinh(-a) = -asinh(a)
+		{"large", exact256(21)},      // 1 <= |a| < 2**128
+		{"huge", exact256(1e300)},    // log(2a)
+	})
 }
 
 func TestFloat256_Acosh(t *testing.T) {

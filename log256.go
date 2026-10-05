@@ -36,7 +36,12 @@ func (a Float256) Log() Float256 {
 // The relative error is about 2**-254 even if a is close to 1.
 func log256Fix(a Float256) (sign uint64, v ints.Uint512, exp int) {
 	k, idx, rneg, rmag := log256Reduce(a)
+	return log256Combine(k, idx, rneg, rmag)
+}
 
+// log256Combine returns log(2**k × c × (1+r)) = ±v × 2**exp, where c is the breakpoint of the bucket idx
+// and r = ±rmag × 2**-492, |r| < 2**-8, as the sign bit and v. v = 0 if the logarithm is exactly zero.
+func log256Combine(k int, idx uint64, rneg bool, rmag ints.Uint512) (sign uint64, v ints.Uint512, exp int) {
 	// log(a) = k × ln(2) + log(c) + log(1+r).
 	// If a is close to a power of two, log(a) ~ log(1+r) is much smaller than the other terms,
 	// and it must be computed with the relative precision.
