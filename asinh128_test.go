@@ -203,17 +203,17 @@ func BenchmarkFloat128_Acosh(b *testing.B) {
 // The error of the Float256 result is about 2**-130 times smaller than the ulp of Float128,
 // so they must be the same except for extremely rare cases.
 func TestFloat128_AcoshFloat256(t *testing.T) {
-	rnd := rand.New(rand.NewSource(1))
+	rnd := rand.New(rand.NewPCG(1, 2))
 	one := Float256(uvone256)
 	for i := 0; i < 20000; i++ {
 		var exp int
 		switch i % 4 {
 		case 0:
-			exp = rnd.Intn(16000)
+			exp = rnd.IntN(16000)
 		case 1:
-			exp = rnd.Intn(4)
+			exp = rnd.IntN(4)
 		default:
-			exp = rnd.Intn(30) + 55*(i/4%2) // around 1 and 2**60
+			exp = rnd.IntN(30) + 55*(i/4%2) // around 1 and 2**60
 		}
 		x := Float128{rnd.Uint64(), rnd.Uint64()}
 		x[0] = x[0]&0x0000_ffff_ffff_ffff | uint64(exp+16383)<<48
