@@ -1,5 +1,7 @@
 package floats
 
+import "github.com/shogo82148/ints"
+
 // Log1p returns the natural logarithm of 1 plus its argument a.
 // It is more accurate than [Log](1 + a) when a is near zero.
 //
@@ -11,45 +13,11 @@ package floats
 //	(a < -1).Log1p() = NaN
 //	NaN.Log1p() = NaN
 func (a Float256) Log1p() Float256 {
-	var (
-		// Sqrt2quo2 = sqrt(2)/2 ~ 0.707106781186547524400844362104849039284835937688474036588339868995366237
-		Sqrt2quo2 = Float256{
-			0x3fff_e6a0_9e66_7f3b, 0xcc90_8b2f_b136_6ea9,
-			0x57d3_e3ad_ec17_5127, 0x7509_9da2_f590_b066,
-		}
-
-		// Ln2Hi = ln(2) ~ 0.69314718055994530941723212145817656807550013436025525412068000949339362
-		// Ln2Lo = ln(2) - Ln2Hi ~ 1.68505384472783385591763704017160191700974868940429492048047E-72
-		Ln2Hi = Float256{
-			0x3fff_e62e_42fe_fa39, 0xef35_793c_7673_007e,
-			0x5ed5_e81e_6864_ce53, 0x16c5_b141_a2eb_7175,
-		}
-		Ln2Lo = Float256{
-			0x3ff1_07d1_5f3d_c3b1, 0x036f_5d64_c2ac_aa97,
-			0xda57_d0d8_8769_7571, 0xae09_c0c7_cb80_70d0,
-		}
-
-		// One = 1.0
-		One = Float256(uvone256)
-
-		// Half = 0.5
-		Half = Float256{
-			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-
-		// Two = 2.0
-		Two = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
-
 	// special cases
 	switch {
-	case a.Lt(One.Neg()) || a.IsNaN(): // includes -Inf
+	case a.Lt(Float256(uvone256).Neg()) || a.IsNaN(): // includes -Inf
 		return NewFloat256NaN()
-	case a.Eq(One.Neg()):
+	case a.Eq(Float256(uvone256).Neg()):
 		return NewFloat256Inf(-1)
 	case a.IsInf(1):
 		return NewFloat256Inf(1)
@@ -57,37 +25,98 @@ func (a Float256) Log1p() Float256 {
 		return a
 	}
 
-	if a.Abs().Gt(Half) {
-		// reduce
-		f1, ki := a.Add(One).Frexp()
-		if f1.Lt(Sqrt2quo2) {
-			f1 = f1.Add(f1)
-			ki--
-		}
-		f := f1.Sub(One) // f := f1 - 1
-		k := NewFloat256(float64(ki))
-
-		// compute
-		// Let s = f/(2+f); log(1+f) = log((1+s)/(1-s)) = 2s + 2/3 s³ + 2/5 s⁵ + 2/7 s⁷ + ...
-		// TODO: use a polynomial approximation
-		s := f.Quo(f.Add(Two))
-		var r Float256
-		for n := 79; n > 0; n -= 2 {
-			r = r.Add(power256(s, n).Quo(NewFloat256(float64(n))))
-		}
-		return k.Mul(Ln2Hi).Add(r.Add(r).Add(k.Mul(Ln2Lo)))
+	// a = ±m × 2**(exp-236), where m is a 237-bit integer in [2**236, 2**237).
+	sign, exp, m := a.normalize()
+	if exp < -239 {
+		// log(1+a) = a × (1 - a/2 + ...) rounds to a when |a| < 2**-239.
+		return a
 	}
 
-	// |a| < 0.5
-	// log(1+a) = a - a²/2 + a³/3 - a⁴/4 + ...
-	// TODO: use a polynomial approximation
-	var r Float256
-	for n := 210; n > 0; n-- {
-		term := power256(a, n).Quo(NewFloat256(float64(n)))
-		if n%2 == 0 {
-			term = term.Neg()
+	if exp < -8 {
+		// |a| < 2**-8. log(1+a) = a × G(w) = a - a² × H(w), where w = -a,
+		// G(w) = 1 + w/2 + w²/3 + ... = 1 + w × H(w), and H(w) = 1/2 + w/3 + w²/4 + ...
+		// a² × H is computed with the relative precision and subtracted from (or, if a < 0, added to) a
+		// without rounding, so that the result is correct even if a² × H is near a half ulp of a.
+
+		// |w| in fixed point with 264 fractional bits.
+		var w ints.Uint256
+		if s := exp + 28; s >= 0 {
+			w = m.Lsh(uint(s))
+		} else {
+			w = m.Rsh(uint(-s))
 		}
-		r = r.Add(term)
+
+		// H in fixed point with 255 fractional bits.
+		h := ints.Uint256(log256Coeffs[0])
+		for _, c := range log256Coeffs[1 : len(log256Coeffs)-1] { // 1/32, ..., 1/2
+			t := shr512to256(h.Mul512(w), 264)
+			if sign == 0 {
+				// w < 0
+				h = ints.Uint256(c).Sub(t)
+			} else {
+				h = ints.Uint256(c).Add(t)
+			}
+		}
+
+		// a² × H = m² × H × 2**(2exp-472-255). Keep the top 256 bits of m²,
+		// which are accurate enough since H has only 255 bits.
+		m2 := shr512to256(m.Mul512(m), 218)
+		c := m2.Mul512(h) // a² × H = c × 2**(2exp-509)
+
+		// |a| = m × 2**(exp-236) = (m × 2**274) × 2**(exp-510)
+		// a² × H = c × 2**(2exp-509) = (c >> (-1-exp)) × 2**(exp-510)
+		r := ints.Uint512{4: m[0], 5: m[1], 6: m[2], 7: m[3]}.Lsh(274)
+		if s := uint(-1 - exp); s < 512 {
+			c = c.Rsh(s)
+		} else {
+			c = ints.Uint512{}
+		}
+		if sign == 0 {
+			r = r.Sub(c)
+		} else {
+			r = r.Add(c)
+		}
+		return fixToFloat256(sign, r, false, exp-510)
 	}
-	return r
+
+	// |a| >= 2**-8, so the result is not small. log(1+a) = log(hi) + lo/hi,
+	// where hi + lo = 1 + a exactly, and |lo/hi| < 2**-235 so that log1p(lo/hi) ~ lo/hi.
+	hi, lo := twoSum256(Float256(uvone256), a)
+	lsign, v, vexp := log256Fix(hi)
+	if lo.IsZero() {
+		return fixToFloat256(lsign, v, false, vexp)
+	}
+
+	// log(hi) is a fixed-point value with 320 fractional bits, since hi is not close to 1.
+	// add lo/hi to it in the same fixed-point.
+	dsign, dexp, dm := lo.Quo(hi).normalize()
+	var d ints.Uint512 // |lo/hi| × 2**320
+	if s := dexp - 236 + 320; s >= 0 {
+		d = ints.Uint512{4: dm[0], 5: dm[1], 6: dm[2], 7: dm[3]}.Lsh(uint(s))
+	} else if s > -256 {
+		d = ints.Uint512{4: dm[0], 5: dm[1], 6: dm[2], 7: dm[3]}.Rsh(uint(-s))
+	}
+	if lsign != 0 {
+		v = v.Neg()
+	}
+	if dsign != 0 {
+		v = v.Sub(d)
+	} else {
+		v = v.Add(d)
+	}
+	var sign2 uint64
+	if v[0]>>63 != 0 {
+		sign2 = signMask256[0]
+		v = v.Neg()
+	}
+	return fixToFloat256(sign2, v, false, -320)
+}
+
+// twoSum256 returns hi, lo such that hi+lo = a+b exactly (as real numbers),
+// with hi = a+b rounded to the nearest Float256.
+func twoSum256(a, b Float256) (hi, lo Float256) {
+	hi = a.Add(b)
+	v := hi.Sub(a)
+	lo = a.Sub(hi.Sub(v)).Add(b.Sub(v))
+	return
 }
