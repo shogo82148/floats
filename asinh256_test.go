@@ -105,6 +105,12 @@ func TestFloat256_Acosh(t *testing.T) {
 		{exact256(math.Inf(1)), exact256(math.Inf(1))},
 		{exact256(math.Inf(-1)), exact256(math.NaN())},
 		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(1), exact256(0)},
+		{exact256(0), exact256(math.NaN())},
+		{exact256(math.Copysign(0, -1)), exact256(math.NaN())},
+		{exact256(-1), exact256(math.NaN())},
+		{exact256(0.5), exact256(math.NaN())},
+		{exact256(1).Nextafter(exact256(0)), exact256(math.NaN())}, // the largest number less than 1
 	}
 
 	for _, tt := range strictTests {
@@ -113,6 +119,23 @@ func TestFloat256_Acosh(t *testing.T) {
 			t.Errorf("Acosh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
+}
+
+func TestFloat256_AcoshAccuracy(t *testing.T) {
+	testFloat256Accuracy(t, "testdata/acosh256.txt", "Acosh", Float256.Acosh)
+}
+
+func BenchmarkFloat256_Acosh(b *testing.B) {
+	benchFloat256(b, Float256.Acosh, []struct {
+		name string
+		x    Float256
+	}{
+		{"near1", exact256(1).Nextafter(exact256(2))}, // 1 + 2**-236
+		{"small", exact256(1.001)},                    // t = (a-1) + sqrt(a²-1) < 2**-8
+		{"medium", exact256(1.5)},                     // 1 < a < 2
+		{"large", exact256(21)},                       // 2 <= a < 2**128
+		{"huge", exact256(1e300)},                     // log(2a)
+	})
 }
 
 func TestFloat256_Atanh(t *testing.T) {
