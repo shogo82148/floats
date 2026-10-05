@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat256_Asin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -48,6 +49,7 @@ func TestFloat256_Asin(t *testing.T) {
 }
 
 func TestFloat256_Acos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -88,6 +90,7 @@ func TestFloat256_Acos(t *testing.T) {
 }
 
 func TestFloat256_Atan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -131,6 +134,7 @@ func TestFloat256_Atan(t *testing.T) {
 }
 
 func TestFloat256_Atan2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		y, x Float256
 		want string

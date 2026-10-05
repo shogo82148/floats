@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat32_Jn(t *testing.T) {
+	t.Parallel()
 	type tc struct {
 		n int
 		x float64

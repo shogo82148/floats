@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat128_Erf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string
@@ -55,6 +56,7 @@ func BenchmarkFloat128_Erf(b *testing.B) {
 }
 
 func TestFloat128_Erfc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string
@@ -105,6 +107,7 @@ func BenchmarkFloat128_Erfc(b *testing.B) {
 }
 
 func TestFloat128_Erfinv(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string
@@ -155,6 +158,7 @@ func BenchmarkFloat128_Erfinv(b *testing.B) {
 }
 
 func TestFloat128_Erfcinv(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string

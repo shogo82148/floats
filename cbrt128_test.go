@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat128_Cbrt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string

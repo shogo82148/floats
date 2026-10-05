@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat256_Asinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -62,6 +63,7 @@ func TestFloat256_Asinh(t *testing.T) {
 }
 
 func TestFloat256_AsinhAccuracy(t *testing.T) {
+	t.Parallel()
 	testFloat256Accuracy(t, "testdata/asinh256.txt", "Asinh", Float256.Asinh)
 }
 
@@ -80,6 +82,7 @@ func BenchmarkFloat256_Asinh(b *testing.B) {
 }
 
 func TestFloat256_Acosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -122,6 +125,7 @@ func TestFloat256_Acosh(t *testing.T) {
 }
 
 func TestFloat256_AcoshAccuracy(t *testing.T) {
+	t.Parallel()
 	testFloat256Accuracy(t, "testdata/acosh256.txt", "Acosh", Float256.Acosh)
 }
 
@@ -139,6 +143,7 @@ func BenchmarkFloat256_Acosh(b *testing.B) {
 }
 
 func TestFloat256_Atanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -200,6 +205,7 @@ func TestFloat256_Atanh(t *testing.T) {
 }
 
 func TestFloat256_AtanhAccuracy(t *testing.T) {
+	t.Parallel()
 	testFloat256Accuracy(t, "testdata/atanh256.txt", "Atanh", Float256.Atanh)
 }
 

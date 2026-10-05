@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Log(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -63,6 +64,7 @@ func BenchmarkFloat32_Log(b *testing.B) {
 }
 
 func TestFloat32_Log10(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -122,6 +124,7 @@ func BenchmarkFloat32_Log10(b *testing.B) {
 }
 
 func TestFloat32_Log2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -180,6 +183,7 @@ func BenchmarkFloat32_Log2(b *testing.B) {
 // They are found by checking all Float32 values with math.Log and math.Log10 in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_LogHardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded log(x)
 	logTests := [][2]uint32{
 		{0x3c413d3a, 0xc08e158f},
@@ -213,6 +217,7 @@ func TestFloat32_LogHardCases(t *testing.T) {
 // The results of the math package rounded to float32 are correctly rounded except for rare cases,
 // so the results should almost always match.
 func TestFloat32_LogRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string

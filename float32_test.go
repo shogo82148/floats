@@ -10,6 +10,7 @@ import (
 )
 
 func TestFloat32_IsNaN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    Float32
@@ -36,6 +37,7 @@ func TestFloat32_IsNaN(t *testing.T) {
 }
 
 func TestFloat32_IsInf(t *testing.T) {
+	t.Parallel()
 	inf := Float32(math.Inf(1))
 	neginf := Float32(math.Inf(-1))
 
@@ -76,6 +78,7 @@ func BenchmarkFloat32_IsInf(b *testing.B) {
 }
 
 func TestFloat32_Signbit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float32
 		want bool
@@ -104,6 +107,7 @@ func BenchmarkFloat32_Signbit(b *testing.B) {
 }
 
 func TestFloat32_Copysign(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, sign, want Float32
 	}{
@@ -120,6 +124,7 @@ func TestFloat32_Copysign(t *testing.T) {
 }
 
 func TestFloat32_Int64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out int64
@@ -142,6 +147,7 @@ func TestFloat32_Int64(t *testing.T) {
 }
 
 func TestFloat32_Uint64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out uint64
@@ -161,6 +167,7 @@ func TestFloat32_Uint64(t *testing.T) {
 }
 
 func TestFloat32_Int128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out ints.Int128
@@ -181,6 +188,7 @@ func TestFloat32_Int128(t *testing.T) {
 }
 
 func TestFloat32_Uint128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out ints.Uint128
@@ -201,6 +209,7 @@ func TestFloat32_Uint128(t *testing.T) {
 }
 
 func TestFloat32_Int256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out ints.Int256
@@ -228,6 +237,7 @@ func TestFloat32_Int256(t *testing.T) {
 }
 
 func TestFloat32_Uint256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float32
 		out ints.Uint256
@@ -248,6 +258,7 @@ func TestFloat32_Uint256(t *testing.T) {
 }
 
 func TestFloat32_IsZero(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float32
 		want bool
@@ -267,6 +278,7 @@ func TestFloat32_IsZero(t *testing.T) {
 }
 
 func TestFloat32_Neg(t *testing.T) {
+	t.Parallel()
 	negZero := Float32(math.Copysign(0, -1))
 	nan := Float32(math.NaN())
 	inf := Float32(math.Inf(1))
@@ -290,6 +302,7 @@ func TestFloat32_Neg(t *testing.T) {
 }
 
 func TestFloat32_Abs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float32
 	}{
@@ -317,6 +330,7 @@ func BenchmarkFloat32_Neg(b *testing.B) {
 }
 
 func TestFloat32_Mul(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -363,6 +377,7 @@ func BenchmarkFloat32_Mul(b *testing.B) {
 }
 
 func TestFloat32_Quo(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	inf := Float32(math.Inf(1))
 
@@ -402,6 +417,7 @@ func BenchmarkFloat32_Quo(b *testing.B) {
 }
 
 func TestFloat32_Add(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	inf := Float32(math.Inf(1))
 	tests := []struct {
@@ -442,6 +458,7 @@ func BenchmarkFloat32_Add(b *testing.B) {
 }
 
 func TestFloat32_Sub(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	inf := Float32(math.Inf(1))
 	tests := []struct {
@@ -479,6 +496,7 @@ func BenchmarkFloat32_Sub(b *testing.B) {
 }
 
 func TestFloat32_Sqrt(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -514,6 +532,7 @@ func BenchmarkFloat32_Sqrt(b *testing.B) {
 }
 
 func TestFloat32_Eq(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -553,6 +572,7 @@ func BenchmarkFloat32_Eq(b *testing.B) {
 }
 
 func TestFloat32_Ne(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -591,6 +611,7 @@ func BenchmarkFloat32_Ne(b *testing.B) {
 }
 
 func TestFloat32_Lt(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -628,6 +649,7 @@ func BenchmarkFloat32_Lt(b *testing.B) {
 }
 
 func TestFloat32_Gt(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -665,6 +687,7 @@ func BenchmarkFloat32_Gt(b *testing.B) {
 }
 
 func TestFloat32_Le(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -703,6 +726,7 @@ func BenchmarkFloat32_Le(b *testing.B) {
 }
 
 func TestFloat32_Ge(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -740,6 +764,7 @@ func BenchmarkFloat32_Ge(b *testing.B) {
 }
 
 func TestFMA32(t *testing.T) {
+	t.Parallel()
 	nan := Float32(math.NaN())
 	negZero := Float32(math.Copysign(0, -1))
 	inf := Float32(math.Inf(1))
@@ -776,6 +801,7 @@ func BenchmarkFMA32(b *testing.B) {
 }
 
 func TestFloat32_Nextafter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x, y, want Float32
 	}{
@@ -800,6 +826,7 @@ func TestFloat32_Nextafter(t *testing.T) {
 }
 
 func TestFloat32_Modf(t *testing.T) {
+	t.Parallel()
 	t.Cleanup(func() { optimized = true })
 	tests := []struct {
 		in       Float32
@@ -840,6 +867,7 @@ func TestFloat32_Modf(t *testing.T) {
 }
 
 func TestFloat32_Modf_Random(t *testing.T) {
+	t.Parallel()
 	t.Cleanup(func() { optimized = true })
 	for range 0x10000 {
 		f := NewFloat32FromBits(rand.Uint32())
@@ -874,6 +902,7 @@ func BenchmarkFloat32_Modf_Optimized(b *testing.B) {
 }
 
 func TestFloat32_Frexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float32
 		wantFrac Float32
@@ -898,6 +927,7 @@ func TestFloat32_Frexp(t *testing.T) {
 }
 
 func TestFloat32_Ldexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		frac Float32
 		exp  int
@@ -931,6 +961,7 @@ func TestFloat32_Ldexp(t *testing.T) {
 }
 
 func TestFloat32_Mod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float32
 	}{
@@ -958,6 +989,7 @@ func TestFloat32_Mod(t *testing.T) {
 }
 
 func TestFloat32_Remainder(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float32
 	}{

@@ -9,6 +9,7 @@ import (
 )
 
 func TestFloat64_IsNaN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    Float64
@@ -35,6 +36,7 @@ func TestFloat64_IsNaN(t *testing.T) {
 }
 
 func TestFloat64_IsInf(t *testing.T) {
+	t.Parallel()
 	inf := Float64(math.Inf(1))
 	neginf := Float64(math.Inf(-1))
 
@@ -75,6 +77,7 @@ func BenchmarkFloat64_IsInf(b *testing.B) {
 }
 
 func TestFloat64_Signbit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want bool
@@ -94,6 +97,7 @@ func TestFloat64_Signbit(t *testing.T) {
 }
 
 func TestFloat64_Copysign(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, sign, want Float64
 	}{
@@ -117,6 +121,7 @@ func BenchmarkFloat64_Signbit(b *testing.B) {
 }
 
 func TestFloat64_Int64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want int64
@@ -137,6 +142,7 @@ func TestFloat64_Int64(t *testing.T) {
 }
 
 func TestFloat64_Uint64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float64
 		out uint64
@@ -156,6 +162,7 @@ func TestFloat64_Uint64(t *testing.T) {
 }
 
 func TestFloat64_Int128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want ints.Int128
@@ -176,6 +183,7 @@ func TestFloat64_Int128(t *testing.T) {
 }
 
 func TestFloat64_Uint128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want ints.Uint128
@@ -196,6 +204,7 @@ func TestFloat64_Uint128(t *testing.T) {
 }
 
 func TestFloat64_Int256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want ints.Int256
@@ -224,6 +233,7 @@ func TestFloat64_Int256(t *testing.T) {
 }
 
 func TestFloat64_Uint256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want ints.Uint256
@@ -245,6 +255,7 @@ func TestFloat64_Uint256(t *testing.T) {
 }
 
 func TestFloat64_IsZero(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float64
 		want bool
@@ -264,6 +275,7 @@ func TestFloat64_IsZero(t *testing.T) {
 }
 
 func TestFloat64_Neg(t *testing.T) {
+	t.Parallel()
 	negZero := Float64(math.Copysign(0, -1))
 	nan := Float64(math.NaN())
 	inf := Float64(math.Inf(1))
@@ -289,6 +301,7 @@ func TestFloat64_Neg(t *testing.T) {
 }
 
 func TestFloat64_Abs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float64
 	}{
@@ -316,6 +329,7 @@ func BenchmarkFloat64_Neg(b *testing.B) {
 }
 
 func TestFloat64_Mul(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -363,6 +377,7 @@ func BenchmarkFloat64_Mul(b *testing.B) {
 }
 
 func TestFloat64_Quo(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	inf := Float64(math.Inf(1))
 
@@ -403,6 +418,7 @@ func BenchmarkFloat64_Quo(b *testing.B) {
 }
 
 func TestFloat64_Add(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	inf := Float64(math.Inf(1))
 
@@ -444,6 +460,7 @@ func BenchmarkFloat64_Add(b *testing.B) {
 }
 
 func TestFloat64_Sub(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	inf := Float64(math.Inf(1))
 
@@ -482,6 +499,7 @@ func BenchmarkFloat64_Sub(b *testing.B) {
 }
 
 func TestFloat64_Sqrt(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -525,6 +543,7 @@ func BenchmarkFloat64_Sqrt(b *testing.B) {
 }
 
 func TestFloat64_Eq(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 
@@ -559,6 +578,7 @@ func BenchmarkFloat64_Eq(b *testing.B) {
 }
 
 func TestFloat64_Ne(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 
@@ -593,6 +613,7 @@ func BenchmarkFloat64_Ne(b *testing.B) {
 }
 
 func TestFloat64_Lt(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -631,6 +652,7 @@ func BenchmarkFloat64_Lt(b *testing.B) {
 }
 
 func TestFloat64_Gt(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -667,6 +689,7 @@ func BenchmarkFloat64_Gt(b *testing.B) {
 }
 
 func TestFloat64_Le(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -703,6 +726,7 @@ func BenchmarkFloat64_Le(b *testing.B) {
 }
 
 func TestFloat64_Ge(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	inf := Float64(math.Inf(1))
@@ -739,6 +763,7 @@ func BenchmarkFloat64_Ge(b *testing.B) {
 }
 
 func TestFMA64(t *testing.T) {
+	t.Parallel()
 	nan := Float64(math.NaN())
 	negZero := Float64(math.Copysign(0, -1))
 	//inf := Float64(math.Inf(1))
@@ -773,6 +798,7 @@ func BenchmarkFMA64(b *testing.B) {
 }
 
 func TestFloat64_Nextafter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x, y, want Float64
 	}{
@@ -797,6 +823,7 @@ func TestFloat64_Nextafter(t *testing.T) {
 }
 
 func TestFloat64_Modf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float64
 		wantInt  Float64
@@ -838,6 +865,7 @@ func BenchmarkFloat64_Modf(b *testing.B) {
 }
 
 func TestFloat64_Frexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float64
 		wantFrac Float64
@@ -862,6 +890,7 @@ func TestFloat64_Frexp(t *testing.T) {
 }
 
 func TestFloat64_Ldexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		frac Float64
 		exp  int
@@ -896,6 +925,7 @@ func TestFloat64_Ldexp(t *testing.T) {
 }
 
 func TestFloat64_Mod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float64
 	}{
@@ -923,6 +953,7 @@ func TestFloat64_Mod(t *testing.T) {
 }
 
 func TestFloat64_Remainder(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float64
 	}{

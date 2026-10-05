@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Sinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -72,6 +73,7 @@ func BenchmarkFloat32_Sinh(b *testing.B) {
 }
 
 func TestFloat32_Cosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -127,6 +129,7 @@ func BenchmarkFloat32_Cosh(b *testing.B) {
 }
 
 func TestFloat32_Tanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -186,6 +189,7 @@ func BenchmarkFloat32_Tanh(b *testing.B) {
 // They are found by checking all Float32 values with math.Sinh, math.Cosh, and math.Tanh in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_SinhCoshTanhHardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded sinh(x), cosh(x), and tanh(x)
 	tests := [][4]uint32{
 		{0x3a1285ff, 0x3a1285ff, 0x3f800001, 0x3a1285fe},
@@ -221,6 +225,7 @@ func TestFloat32_SinhCoshTanhHardCases(t *testing.T) {
 // math.Sinh, math.Cosh, and math.Tanh rounded to float32 are correctly rounded except for rare cases,
 // so the results should almost always match.
 func TestFloat32_SinhCoshTanhRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string

@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Log1p(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -75,6 +76,7 @@ func TestFloat32_Log1p(t *testing.T) {
 // They are found by checking all Float32 values with math.Log1p in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_Log1pHardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded log(1+x)
 	tests := [][2]uint32{
 		{0xbb0ec8c4, 0xbb0ef0a5},
@@ -100,6 +102,7 @@ func TestFloat32_Log1pHardCases(t *testing.T) {
 // math.Log1p rounded to float32 is correctly rounded except for rare cases,
 // so the results should almost always match.
 func TestFloat32_Log1pRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string

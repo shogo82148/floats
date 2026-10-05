@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat16_Sin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -43,6 +44,7 @@ func TestFloat16_Sin(t *testing.T) {
 }
 
 func TestFloat16_Cos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -77,6 +79,7 @@ func TestFloat16_Cos(t *testing.T) {
 }
 
 func TestFloat16_Sincos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x   Float16
 		sin float64
@@ -122,6 +125,7 @@ func TestFloat16_Sincos(t *testing.T) {
 }
 
 func TestFloat16_Tan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -166,6 +170,7 @@ func TestFloat16_Tan(t *testing.T) {
 // from the midpoint of two adjacent Float16 values (checked with mpmath),
 // so math.Sin, math.Cos, and math.Tan rounded to Float16 are correctly rounded.
 func TestFloat16_SinCosTanAll(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		if x.IsNaN() || x.IsInf(0) {

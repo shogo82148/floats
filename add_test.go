@@ -31,6 +31,7 @@ func roundToNearestEvenReference512(x ints.Uint512, shift uint) ints.Uint512 {
 }
 
 func TestRoundToNearestEven(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(11, 12))
 	for range 1_000_000 {
 		// keep the top bit clear so that the reference implementation doesn't overflow
@@ -316,6 +317,7 @@ func randomAddOperand128(r *rand.Rand, a Float128) Float128 {
 }
 
 func TestFloat128_AddRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(7, 8))
 	for range 2_000_000 {
 		a := randomFloat128(r)
@@ -350,6 +352,7 @@ func randomAddOperand256(r *rand.Rand, a Float256) Float256 {
 }
 
 func TestFloat256_AddRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(9, 10))
 	for range 1_000_000 {
 		a := randomFloat256(r)

@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat128_Jn(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		x    Float128

@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat16_J1(t *testing.T) {
+	t.Parallel()
 	tests := []float64{-50, -10, -1, -0.5, 0, 0.5, 1, 2, 5, 10, 50}
 
 	for _, x := range tests {
