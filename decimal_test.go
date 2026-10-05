@@ -21,6 +21,7 @@ var shifttests = []struct {
 }
 
 func TestDecimalShift(t *testing.T) {
+	t.Parallel()
 	for _, test := range shifttests {
 		var buf [decimalDigits128]byte
 		d := &decimal{d: buf[:]}

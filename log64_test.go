@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat64_Log(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -53,6 +54,7 @@ func BenchmarkFloat64_Log(b *testing.B) {
 }
 
 func TestFloat64_Log10(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -99,6 +101,7 @@ func BenchmarkFloat64_Log10(b *testing.B) {
 }
 
 func TestFloat64_Log2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

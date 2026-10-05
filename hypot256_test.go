@@ -6,6 +6,7 @@ import (
 )
 
 func TestHypot256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		y    Float256

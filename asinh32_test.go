@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Asinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -78,6 +79,7 @@ func TestFloat32_Asinh(t *testing.T) {
 // They are found by checking all Float32 values with math.Asinh in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_AsinhHardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded asinh(x)
 	tests := [][2]uint32{
 		{0x6eb1a8ec, 0x42845a89},
@@ -101,6 +103,7 @@ func TestFloat32_AsinhHardCases(t *testing.T) {
 // math.Asinh rounded to float32 is correctly rounded except for rare cases,
 // so the results should almost always match.
 func TestFloat32_AsinhRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -146,6 +149,7 @@ func BenchmarkFloat32_Asinh(b *testing.B) {
 }
 
 func TestFloat32_Acosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -199,6 +203,7 @@ func TestFloat32_Acosh(t *testing.T) {
 }
 
 func TestFloat32_Atanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -259,6 +264,7 @@ func TestFloat32_Atanh(t *testing.T) {
 // They are found by checking all Float32 values with math.Acosh in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_AcoshHardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded acosh(x)
 	tests := [][2]uint32{
 		{0x655890d3, 0x4254d1f9},
@@ -275,6 +281,7 @@ func TestFloat32_AcoshHardCases(t *testing.T) {
 // TestFloat32_AcoshAtanhRandom compares Acosh and Atanh with math.Acosh and math.Atanh on random inputs.
 // Checking all Float32 values on arm64, the results are the same.
 func TestFloat32_AcoshAtanhRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string

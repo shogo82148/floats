@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat16_Sinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -57,6 +58,7 @@ func BenchmarkFloat16_Sinh(b *testing.B) {
 }
 
 func TestFloat16_Cosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -104,6 +106,7 @@ func BenchmarkFloat16_Cosh(b *testing.B) {
 }
 
 func TestFloat16_Tanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -155,6 +158,7 @@ func BenchmarkFloat16_Tanh(b *testing.B) {
 // from the midpoint of two adjacent Float16 values (checked with mpmath),
 // so math.Sinh, math.Cosh, and math.Tanh rounded to Float16 are correctly rounded.
 func TestFloat16_SinhCoshTanhAll(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		if x.IsNaN() || x.IsInf(0) {

@@ -9,6 +9,7 @@ import (
 )
 
 func TestFloat16_IsNaN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    Float16
@@ -35,6 +36,7 @@ func TestFloat16_IsNaN(t *testing.T) {
 }
 
 func TestFloat16_IsInf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float16
 		sign int
@@ -72,6 +74,7 @@ func BenchmarkFloat16_IsInf(b *testing.B) {
 }
 
 func TestFloat16_Signbit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float16
 		want bool
@@ -99,6 +102,7 @@ func BenchmarkFloat16_Signbit(b *testing.B) {
 }
 
 func TestFloat16_Copysign(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, sign, want Float16
 	}{
@@ -115,6 +119,7 @@ func TestFloat16_Copysign(t *testing.T) {
 }
 
 func TestFloat16_Int64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out int64
@@ -138,6 +143,7 @@ func BenchmarkFloat16_Int64(b *testing.B) {
 }
 
 func TestFloat16_Uint64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out uint64
@@ -156,6 +162,7 @@ func TestFloat16_Uint64(t *testing.T) {
 }
 
 func TestFloat16_Int128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out ints.Int128
@@ -178,6 +185,7 @@ func TestFloat16_Int128(t *testing.T) {
 }
 
 func TestFloat16_Uint128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out ints.Uint128
@@ -197,6 +205,7 @@ func TestFloat16_Uint128(t *testing.T) {
 }
 
 func TestFloat16_Int256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out ints.Int256
@@ -237,6 +246,7 @@ func TestFloat16_Int256(t *testing.T) {
 }
 
 func TestFloat16_Uint256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float16
 		out ints.Uint256
@@ -256,6 +266,7 @@ func TestFloat16_Uint256(t *testing.T) {
 }
 
 func TestFloat16_IsZero(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float16
 		want bool
@@ -274,6 +285,7 @@ func TestFloat16_IsZero(t *testing.T) {
 }
 
 func TestFloat16_Neg(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float16
 	}{
@@ -300,6 +312,7 @@ func BenchmarkFloat16_Neg(b *testing.B) {
 }
 
 func TestFloat16_Abs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float16
 	}{
@@ -320,6 +333,7 @@ func TestFloat16_Abs(t *testing.T) {
 }
 
 func TestFloat16_Mul(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{
@@ -361,6 +375,7 @@ func BenchmarkFloat16_Mul(b *testing.B) {
 }
 
 func TestFloat16_Quo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{
@@ -403,6 +418,7 @@ func BenchmarkFloat16_Quo(b *testing.B) {
 }
 
 func TestFloat16_Add(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{
@@ -454,6 +470,7 @@ func BenchmarkFloat16_Add(b *testing.B) {
 }
 
 func TestFloat16_Sub(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{
@@ -493,6 +510,7 @@ func BenchmarkFloat16_Sub(b *testing.B) {
 }
 
 func TestFloat16_Sqrt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float16
 	}{
@@ -525,6 +543,7 @@ func BenchmarkFloat16_Sqrt(b *testing.B) {
 }
 
 func TestFloat16_Eq(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -552,6 +571,7 @@ func BenchmarkFloat16_Eq(b *testing.B) {
 }
 
 func TestFloat16_Ne(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -579,6 +599,7 @@ func BenchmarkFloat16_Ne(b *testing.B) {
 }
 
 func TestFloat16_Lt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -608,6 +629,7 @@ func BenchmarkFloat16_Lt(b *testing.B) {
 }
 
 func TestFloat16_Gt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -637,6 +659,7 @@ func BenchmarkFloat16_Gt(b *testing.B) {
 }
 
 func TestFloat16_Le(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -665,6 +688,7 @@ func BenchmarkFloat16_Le(b *testing.B) {
 }
 
 func TestFloat16_Ge(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float16
 		want bool
@@ -691,6 +715,7 @@ func BenchmarkFloat16_Ge(b *testing.B) {
 }
 
 func TestFMA16(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, c, want Float16
 	}{
@@ -725,6 +750,7 @@ func BenchmarkFMA16(b *testing.B) {
 }
 
 func TestFloat16_Nextafter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x, y, want Float16
 	}{
@@ -749,6 +775,7 @@ func TestFloat16_Nextafter(t *testing.T) {
 }
 
 func TestFloat16_Modf(t *testing.T) {
+	t.Parallel()
 	t.Cleanup(func() { optimized = true })
 	tests := []struct {
 		in       Float16
@@ -789,6 +816,7 @@ func TestFloat16_Modf(t *testing.T) {
 }
 
 func TestFloat16_Modf_All(t *testing.T) {
+	t.Parallel()
 	t.Cleanup(func() { optimized = true })
 	for i := range 0x10000 {
 		f := Float16(i)
@@ -823,6 +851,7 @@ func BenchmarkFloat16_Modf_Optimized(b *testing.B) {
 }
 
 func TestFloat16_Frexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float16
 		wantFrac Float16
@@ -848,6 +877,7 @@ func TestFloat16_Frexp(t *testing.T) {
 }
 
 func TestFloat16_Ldexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		frac Float16
 		exp  int
@@ -881,6 +911,7 @@ func TestFloat16_Ldexp(t *testing.T) {
 }
 
 func TestFloat16_Mod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{
@@ -908,6 +939,7 @@ func TestFloat16_Mod(t *testing.T) {
 }
 
 func TestFloat16_Remainder(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float16
 	}{

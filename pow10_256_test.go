@@ -6,6 +6,7 @@ import (
 )
 
 func TestNewFloat256Pow10(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want string

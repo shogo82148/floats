@@ -6,6 +6,7 @@ import (
 )
 
 func TestParseFloat64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float64
@@ -61,6 +62,7 @@ func BenchmarkParseFloat64_FloatExp(b *testing.B) {
 }
 
 func TestFloat64_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float64
@@ -94,6 +96,7 @@ func TestFloat64_UnmarshalJSON(t *testing.T) {
 }
 
 func TestFloat64_UnmarshalText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float64

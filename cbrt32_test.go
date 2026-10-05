@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat32_Cbrt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64

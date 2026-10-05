@@ -8,6 +8,7 @@ import "testing"
 // expansion would be silently truncated and the shortest representation would
 // no longer round-trip.
 func TestDecimalBufferExtremes(t *testing.T) {
+	t.Parallel()
 	// largest subnormal Float128
 	x128 := Float128{0x0000_0fff_ffff_ffff, 0xffff_ffff_ffff_ffff}
 	if y, err := ParseFloat128(x128.String()); err != nil || y != x128 {

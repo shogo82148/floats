@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat64_Asinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -54,6 +55,7 @@ func TestFloat64_Asinh(t *testing.T) {
 }
 
 func TestFloat64_Acosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -90,6 +92,7 @@ func TestFloat64_Acosh(t *testing.T) {
 }
 
 func TestFloat64_Atanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

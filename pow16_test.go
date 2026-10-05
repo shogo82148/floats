@@ -12,6 +12,7 @@ import (
 )
 
 func TestFloat16_Pow(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		y    Float16
@@ -144,6 +145,7 @@ func TestFloat16_Pow(t *testing.T) {
 // and contains all exact results on the midpoint of two adjacent Float16 values.
 // Checking all pairs of Float16 values, Pow is correctly rounded.
 func TestFloat16_PowAccuracy(t *testing.T) {
+	t.Parallel()
 	f, err := os.Open("testdata/pow16.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -175,6 +177,7 @@ func TestFloat16_PowAccuracy(t *testing.T) {
 // math.Pow rounded to Float16 is correctly rounded except for 7 pairs of Float16 values,
 // so the results should almost always match.
 func TestFloat16_PowRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	var mismatch int
 	for range 1000000 {

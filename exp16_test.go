@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat16_Exp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -46,6 +47,7 @@ func TestFloat16_Exp(t *testing.T) {
 }
 
 func TestFloat16_Exp2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -94,6 +96,7 @@ func TestFloat16_Exp2(t *testing.T) {
 // except for 2**-25, which is exactly the midpoint and is computed exactly by math.Exp2.
 // So the results of the math package rounded to Float16 are correctly rounded.
 func TestFloat16_ExpAll(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		if x.IsNaN() || x.IsInf(0) {

@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat32_Lgamma(t *testing.T) {
+	t.Parallel()
 	tests := []float64{-2.5, -0.5, 0.5, 1, 1.5, 2, 2.5, 3, 100}
 
 	for _, x := range tests {

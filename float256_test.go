@@ -9,6 +9,7 @@ import (
 )
 
 func TestFloat256_IsNaN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    Float256
@@ -45,6 +46,7 @@ func TestFloat256_IsNaN(t *testing.T) {
 }
 
 func TestFloat256_IsInf(t *testing.T) {
+	t.Parallel()
 	inf := Float256{
 		0x7fff_f000_0000_0000,
 		0x0000_0000_0000_0000,
@@ -104,6 +106,7 @@ func BenchmarkFloat256_IsInf(b *testing.B) {
 }
 
 func TestFloat256_Signbit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   Float256
 		want bool
@@ -151,6 +154,7 @@ func BenchmarkFloat256_Signbit(b *testing.B) {
 }
 
 func TestFloat256_Copysign(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, sign, want Float256
 	}{
@@ -167,6 +171,7 @@ func TestFloat256_Copysign(t *testing.T) {
 }
 
 func TestFloat256_Int64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out int64
@@ -234,6 +239,7 @@ func BenchmarkFloat256_Int64(b *testing.B) {
 }
 
 func TestFloat256_Uint64(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out uint64
@@ -252,6 +258,7 @@ func TestFloat256_Uint64(t *testing.T) {
 }
 
 func TestFloat256_Int128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out ints.Int128
@@ -273,6 +280,7 @@ func TestFloat256_Int128(t *testing.T) {
 }
 
 func TestFloat256_Uint128(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out ints.Uint128
@@ -293,6 +301,7 @@ func TestFloat256_Uint128(t *testing.T) {
 }
 
 func TestFloat256_Int256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out ints.Int256
@@ -323,6 +332,7 @@ func TestFloat256_Int256(t *testing.T) {
 }
 
 func TestFloat256_Uint256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in  Float256
 		out ints.Uint256
@@ -346,6 +356,7 @@ func TestFloat256_Uint256(t *testing.T) {
 }
 
 func TestFloat256_IsZero(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a    Float256
 		want bool
@@ -390,6 +401,7 @@ func TestFloat256_IsZero(t *testing.T) {
 }
 
 func TestFloat256_Neg(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float256
 	}{
@@ -500,6 +512,7 @@ func TestFloat256_Neg(t *testing.T) {
 }
 
 func TestFloat256_Abs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float256
 	}{
@@ -520,6 +533,7 @@ func TestFloat256_Abs(t *testing.T) {
 }
 
 func TestFloat256_Mul(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{
@@ -918,6 +932,7 @@ func BenchmarkFloat256_Mul(b *testing.B) {
 }
 
 func TestFloat256_Quo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{
@@ -1134,6 +1149,7 @@ func BenchmarkFloat256_Quo(b *testing.B) {
 }
 
 func TestFloat256_Add(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{
@@ -1485,6 +1501,7 @@ func BenchmarkFloat256_Add(b *testing.B) {
 }
 
 func TestFloat256_Sub(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{
@@ -1816,6 +1833,7 @@ func BenchmarkFloat256_Sub(b *testing.B) {
 }
 
 func TestFloat256_Sqrt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, want Float256
 	}{
@@ -1890,6 +1908,7 @@ func BenchmarkFloat256_Sqrt(b *testing.B) {
 }
 
 func TestFloat256_Eq(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -1989,6 +2008,7 @@ func BenchmarkFloat256_Eq(b *testing.B) {
 }
 
 func TestFloat256_Ne(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -2071,6 +2091,7 @@ func BenchmarkFloat256_Ne(b *testing.B) {
 }
 
 func TestFloat256_Lt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -2219,6 +2240,7 @@ func BenchmarkFloat256_Lt(b *testing.B) {
 }
 
 func TestFloat256_Gt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -2368,6 +2390,7 @@ func BenchmarkFloat256_Gt(b *testing.B) {
 }
 
 func TestFloat256_Le(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -2501,6 +2524,7 @@ func BenchmarkFloat256_Le(b *testing.B) {
 }
 
 func TestFloat256_Ge(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b Float256
 		want bool
@@ -2634,6 +2658,7 @@ func BenchmarkFloat256_Ge(b *testing.B) {
 }
 
 func TestFMA256(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, c, want Float256
 	}{
@@ -2796,6 +2821,7 @@ func BenchmarkFMA256(b *testing.B) {
 }
 
 func TestFloat256_Nextafter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x, y, want Float256
 	}{
@@ -2841,6 +2867,7 @@ func TestFloat256_Nextafter(t *testing.T) {
 }
 
 func TestFloat256_Modf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float256
 		wantInt  Float256
@@ -2882,6 +2909,7 @@ func BenchmarkFloat256_Modf(b *testing.B) {
 }
 
 func TestFloat256_Frexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in       Float256
 		wantFrac Float256
@@ -2913,6 +2941,7 @@ func TestFloat256_Frexp(t *testing.T) {
 }
 
 func TestFloat256_Ldexp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		frac Float256
 		exp  int
@@ -2959,6 +2988,7 @@ func TestFloat256_Ldexp(t *testing.T) {
 }
 
 func TestFloat256_Mod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{
@@ -2986,6 +3016,7 @@ func TestFloat256_Mod(t *testing.T) {
 }
 
 func TestFloat256_Remainder(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b, want Float256
 	}{

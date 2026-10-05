@@ -193,6 +193,7 @@ func shrcompressReference512(x ints.Uint512, n uint) ints.Uint512 {
 }
 
 func TestShift(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(25, 26))
 	for range 1_000_000 {
 		var x ints.Uint512
@@ -265,6 +266,7 @@ func shortenFraction128(r *rand.Rand, x Float128) Float128 {
 }
 
 func TestFMA128Random(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(27, 28))
 	for range 2_000_000 {
 		x, y, z := randomFMAOperands128(r)
@@ -328,6 +330,7 @@ func shortenFraction256(r *rand.Rand, x Float256) Float256 {
 }
 
 func TestFMA256Random(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(29, 30))
 	for range 1_000_000 {
 		x, y, z := randomFMAOperands256(r)
@@ -343,6 +346,7 @@ func TestFMA256Random(t *testing.T) {
 // two representable values except for the bits far below,
 // so that the sticky bit decides the rounding direction.
 func TestFMA256Sticky(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x, y, z, want Float256
 	}{

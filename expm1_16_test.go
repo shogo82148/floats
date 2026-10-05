@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat16_Expm1(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64

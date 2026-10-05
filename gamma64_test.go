@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat64_Gamma(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

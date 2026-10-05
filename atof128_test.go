@@ -108,6 +108,7 @@ var parseFloat128Tests = []struct {
 }
 
 func TestParseFloat128(t *testing.T) {
+	t.Parallel()
 	for _, tt := range parseFloat128Tests {
 		got, err := ParseFloat128(tt.input)
 		if err != nil {
@@ -178,6 +179,7 @@ func BenchmarkParseFloat128_FloatExp(b *testing.B) {
 }
 
 func TestFloat128_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float128
@@ -211,6 +213,7 @@ func TestFloat128_UnmarshalJSON(t *testing.T) {
 }
 
 func TestFloat128_UnmarshalText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float128
