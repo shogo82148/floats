@@ -5,6 +5,12 @@ package floats
 // log256Ln2 is ln(2) * 2**320.
 var log256Ln2 = [5]uint64{0xb17217f7d1cf79ab, 0xc9e3b39803f2f6af, 0x40f343267298b62d, 0x8a0d175b8baafa2b, 0xe7b876206debac98}
 
+// log256Ln2Inv is 1/ln(2) * 2**255.
+var log256Ln2Inv = [4]uint64{0xb8aa3b295c17f0bb, 0xbe87fed0691d3e88, 0xeb577aa8dd695a58, 0x8b25166cd1a13248}
+
+// log256Ln2Inv319 is 1/ln(2) * 2**319.
+var log256Ln2Inv319 = [5]uint64{0xb8aa3b295c17f0bb, 0xbe87fed0691d3e88, 0xeb577aa8dd695a58, 0x8b25166cd1a13247, 0xde1c43f755176cd6}
+
 // log256InvC[idx] is 1/c in fixed point with 256 fractional bits,
 // where c is the breakpoint of the bucket idx: c = 1 + (idx+0.5)/256 for 0 < idx < 255.
 // Log handles idx 0 (c = 1) itself, so its entry is unused. idx 255 is c = 2.

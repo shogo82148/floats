@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-# Generates testdata/log128.txt or testdata/log256.txt.
-# Each line contains the bits of x and the correctly rounded log(x) in hexadecimal.
+# Generates testdata/log128.txt, testdata/log256.txt, or testdata/log2_256.txt.
+# Each line contains the bits of x and the correctly rounded log(x) or log2(x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_log_testdata.py [128|256]
+# Usage: python3 scripts/gen_log_testdata.py [128|256] [log|log2]
 
 import random
 import sys
 import mpmath
 
 BITS = int(sys.argv[1]) if len(sys.argv) > 1 else 128
+BASE2 = len(sys.argv) > 2 and sys.argv[2] == "log2"
 P, EB = {128: (112, 15), 256: (236, 19)}[BITS]
 B = (1 << (EB - 1)) - 1
 width = (P + EB + 1) // 4
@@ -88,10 +89,18 @@ for k in range(-20, 21):
 # near the smallest normal/largest subnormal boundary
 inputs += [enc(1 << P, 1 - B, 0), (1 << P) - 1, enc((1 << P) + 1, 1 - B, 0)]
 
-with open(f"testdata/log{BITS}.txt", "w") as f:
+if BASE2:
+    # exact powers of two, whose log2 is exact
+    for k in range(-30, 31):
+        inputs.append(enc(1 << P, k, 0))
+    for _ in range(20):
+        inputs.append(enc(1 << P, rnd.randint(-(B - 1), B), 0))
+
+name = f"testdata/log2_{BITS}.txt" if BASE2 else f"testdata/log{BITS}.txt"
+with open(name, "w") as f:
     for v in inputs:
         with mpmath.workprec(4 * P + 64):
             x = dec(v)
         with mpmath.workprec(4 * P + 64):
-            y = round_bits(mpmath.log(x))
+            y = round_bits(mpmath.log(x, 2) if BASE2 else mpmath.log(x))
         f.write(f"{v:0{width}x} {y:0{width}x}\n")
