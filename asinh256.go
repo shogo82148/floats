@@ -21,20 +21,86 @@ func (a Float256) Asinh() Float256 {
 		// This also handles ±0 and subnormal numbers.
 		return a
 	}
+	if exp >= 0 {
+		return logHyp256(sign, exp, m, false)
+	}
 
-	// asinh(a) = log(u), where u = |a| + sqrt(a² + 1) = 2**k × v and v is in [1, 2).
-	// vf is v × 2**319.
+	// asinh(a) = log(1+t), where t = |a| + a²/(1 + sqrt(a² + 1)) in fixed point with 492 fractional bits.
+	// sqrt(a² + 1) × 2**255 = sqrt(m² × 2**(2exp+38) + 2**510) is in [2**255, 2**256).
+	m2 := m.Mul512(m)
+	var n ints.Uint512
+	if sh := 2*exp + 38; sh >= 0 {
+		n = m2.Lsh(uint(sh))
+	} else {
+		n = m2.Rsh(uint(-sh))
+	}
+	root, _ := sqrtRem512(n.Add(ints.Uint512{0: 1 << 62}))
+
+	// a²/(1 + sqrt(a² + 1)) = M2 × 2**(2exp-254) / (d × 2**-255), where d = 2**255 + root, and M2 is the top 256 bits of m².
+	d := ints.Uint512{4: 1 << 63}.Add(root.Uint512())
+	q := shr512to256(m2, 218).Uint512().Lsh(255).Quo(d)
+	t := m.Uint512().Lsh(uint(exp + 256)).Add(q.Lsh(uint(2*exp + 238)))
+	return log1pFix256(sign, t)
+}
+
+// Acosh returns the inverse hyperbolic cosine of a.
+//
+// Special cases are:
+//
+//	+Inf.Acosh() = +Inf
+//	x.Acosh() = NaN if x < 1
+//	NaN.Acosh() = NaN
+func (a Float256) Acosh() Float256 {
+	if a.IsNaN() {
+		return a
+	}
+
+	// a = m × 2**(exp-236), where m is a 237-bit integer in [2**236, 2**237).
+	sign, exp, m := a.normalize()
+	switch {
+	case sign != 0 || exp < 0: // a < 1
+		return NewFloat256NaN()
+	case a.IsInf(1):
+		return a
+	case exp > 0:
+		return logHyp256(0, exp, m, true)
+	}
+
+	// 1 <= a < 2. acosh(a) = log(1+t), where t = (a-1) + sqrt(a²-1) in fixed point with 492 fractional bits.
+	// a-1 = d × 2**-236 and a²-1 = (a-1)(a+1) = d × (2**237 + d) × 2**-472 are exact integers.
+	d := m.Sub(ints.Uint256{0: 1 << 44}) // m - 2**236
+	if d.IsZero() {
+		return Float256{}
+	}
+	n := d.Mul512(ints.Uint256{0: 1 << 45}.Add(d))
+	lz := uint(n.LeadingZeros() &^ 1) // sqrtRem512 requires n[0] >= 1<<62.
+	root, _ := sqrtRem512(n.Lsh(lz))
+	// sqrt(a²-1) × 2**492 = root × 2**(256-lz/2)
+	t := d.Uint512().Lsh(256).Add(root.Uint512().Lsh(256 - lz/2))
+	return log1pFix256(0, t)
+}
+
+// logHyp256 returns ±log(a + sqrt(a² ± 1)), i.e. ±asinh(a) if acosh is false and ±acosh(a) otherwise,
+// for a = m × 2**(exp-236), where m is a 237-bit integer in [2**236, 2**237).
+// sign is the sign bit of the result. exp must be at least 0, and at least 1 if acosh is true.
+func logHyp256(sign uint64, exp int, m ints.Uint256, acosh bool) Float256 {
+	// u = a + sqrt(a² ± 1) = 2**k × v, where v is in [1, 2). vf is v × 2**319.
 	var k int
 	var vf ints.Uint512
-	switch {
-	case exp >= 128:
-		// u = 2|a| × (1 + 1/(4a²) + ...) and the relative error of the approximation u ~ 2|a| is less than 2**-258.
+	if exp >= 128 {
+		// u = 2a × (1 ± 1/(4a²) + ...) and the relative error of the approximation u ~ 2a is less than 2**-258.
 		k = exp + 1
 		vf = m.Uint512().Lsh(83)
-	case exp >= 0:
-		// sqrt(a² + 1) × 2**g = sqrt(m² × 2**(2exp-472+2f) + 2**(2f)), where f = 254 - exp.
+	} else {
+		// sqrt(a² ± 1) × 2**g = sqrt(m² × 2**(2exp-472+2f) ± 2**(2f)), where f = 254 - exp.
 		// the integer arithmetic is exact, and the root has 255 or 256 bits.
-		n := m.Mul512(m).Lsh(36).Add(ints.Uint512{7: 1}.Lsh(uint(508 - 2*exp)))
+		n := m.Mul512(m).Lsh(36)
+		one := ints.Uint512{7: 1}.Lsh(uint(508 - 2*exp))
+		if acosh {
+			n = n.Sub(one)
+		} else {
+			n = n.Add(one)
+		}
 		s := uint(n.LeadingZeros() &^ 1) // sqrtRem512 requires n[0] >= 1<<62.
 		root, _ := sqrtRem512(n.Lsh(s))
 		g := 254 - exp + int(s/2)
@@ -42,34 +108,26 @@ func (a Float256) Asinh() Float256 {
 		bl := u.BitLen()
 		k = bl - 1 - g
 		vf = u.Lsh(uint(320 - bl))
-	default:
-		// u = 1 + t, where t = |a| + a²/(1 + sqrt(a² + 1)) in fixed point with 492 fractional bits.
-		// sqrt(a² + 1) × 2**255 = sqrt(m² × 2**(2exp+38) + 2**510) is in [2**255, 2**256).
-		m2 := m.Mul512(m)
-		var n ints.Uint512
-		if sh := 2*exp + 38; sh >= 0 {
-			n = m2.Lsh(uint(sh))
-		} else {
-			n = m2.Rsh(uint(-sh))
-		}
-		root, _ := sqrtRem512(n.Add(ints.Uint512{0: 1 << 62}))
-
-		// a²/(1 + sqrt(a² + 1)) = M2 × 2**(2exp-254) / (d × 2**-255), where d = 2**255 + root, and M2 is the top 256 bits of m².
-		d := ints.Uint512{4: 1 << 63}.Add(root.Uint512())
-		q := shr512to256(m2, 218).Uint512().Lsh(255).Quo(d)
-		t := m.Uint512().Lsh(uint(exp + 256)).Add(q.Lsh(uint(2*exp + 238)))
-
-		if t.BitLen() <= 484 {
-			// t < 2**-8. log(1+t) is computed without the reduction.
-			q, lz := log256Log1p(false, t)
-			return fixToFloat256(sign, q, false, -491-lz)
-		}
-		u := t.Add(ints.Uint512{0: 1 << 44}) // u × 2**492
-		bl := u.BitLen()
-		k = bl - 493
-		vf = u.Rsh(uint(bl - 320))
 	}
+	return log256Wide(sign, k, vf)
+}
 
+// log1pFix256 returns ±log(1+t) for t = |t| × 2**-492 > 0 in fixed point, where |t| < 2**493.
+// sign is the sign bit of the result.
+func log1pFix256(sign uint64, t ints.Uint512) Float256 {
+	if t.BitLen() <= 484 {
+		// t < 2**-8. log(1+t) is computed without the reduction to keep the relative precision.
+		q, lz := log256Log1p(false, t)
+		return fixToFloat256(sign, q, false, -491-lz)
+	}
+	u := t.Add(ints.Uint512{0: 1 << 44}) // u × 2**492
+	bl := u.BitLen()
+	return log256Wide(sign, bl-493, u.Rsh(uint(bl-320)))
+}
+
+// log256Wide returns ±log(u), where u = 2**k × v, v is in [1, 2), and vf is v × 2**319.
+// u must not be close to 1: log(u) >= 2**-9. sign is the sign bit of the result.
+func log256Wide(sign uint64, k int, vf ints.Uint512) Float256 {
 	idx, rneg, rmag := log256ReduceWide(vf)
 	_, v, e := log256Combine(k, idx, rneg, rmag)
 	return fixToFloat256(sign, v, false, e)
@@ -98,48 +156,6 @@ func log256ReduceWide(vf ints.Uint512) (idx uint64, rneg bool, rmag ints.Uint512
 	}
 	d = d.Rsh(146)
 	return idx, rneg, ints.Uint512(d[8:])
-}
-
-// Acosh returns the inverse hyperbolic cosine of a.
-//
-// Special cases are:
-//
-//	+Inf.Acosh() = +Inf
-//	x.Acosh() = NaN if x < 1
-//	NaN.Acosh() = NaN
-func (a Float256) Acosh() Float256 {
-	var (
-		// Ln2 = ln(2)
-		Ln2 = Float256{
-			0x3fff_e62e_42fe_fa39, 0xef35_793c_7673_007e,
-			0x5ed5_e81e_6864_ce53, 0x16c5_b141_a2eb_7175,
-		}
-		// Zero = 0.0
-		Zero = Float256{}
-		// One = 1.0
-		One = Float256(uvone256)
-		// Two = 2.0
-		Two = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		// Large = 2**170
-		Large = Float256{
-			0x400a_9000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
-	switch {
-	case a.Lt(One) || a.IsNaN():
-		return NewFloat256NaN()
-	case a.Eq(One):
-		return Zero
-	case a.Ge(Large):
-		return a.Log().Add(Ln2) // a >= 2**170
-	case a.Gt(Two):
-		return (a.Add((a.Mul(a).Sub(One)).Sqrt())).Log() // 2**170 > a > 2.0
-	}
-	t := a.Sub(One)
-	return (t.Add((t.Mul(t).Add(Two.Mul(t))).Sqrt())).Log1p() // 2 >= a > 1
 }
 
 // Atanh returns the inverse hyperbolic tangent of a.
