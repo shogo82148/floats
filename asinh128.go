@@ -26,20 +26,30 @@ func (a Float128) Asinh() Float128 {
 	}
 	sign := a[0] & signMask128[0]
 	m1 := a[0]&fracMask128[0] | 1<<(shift128-64)
-	m0 := a[1]
+	return logHyp128(sign, exp, m1, a[1], false)
+}
 
-	// asinh(|a|) = log(u) = k × ln(2) + log(v), where u = |a| + sqrt(1+a²) = 2**k × v and v is in [1, 2).
-	// v is in fixed point with 192 fractional bits.
+// logHyp128 returns ±log(a + sqrt(a² ± 1)), i.e. ±asinh(a) if acosh is false and ±acosh(a) otherwise,
+// for a = m × 2**(exp-112), where m = (m1:m0) is a 113-bit integer in [2**112, 2**113).
+// sign is the sign bit of the result. a must be greater than 1 if acosh is true, and the exp must be at least -56.
+func logHyp128(sign uint64, exp int, m1, m0 uint64, acosh bool) Float128 {
+	// u = a + sqrt(a² ± 1) = 2**k × v, where v is in [1, 2) and in fixed point with 192 fractional bits.
 	var k int
 	var v ints.Uint256
 	if exp >= 60 {
-		// u = 2|a| × (1 + 1/(4a²) + ...) and the relative error of the approximation u ~ 2|a| is less than 2**-122.
+		// u = 2a × (1 ± 1/(4a²) + ...) and the relative error of the approximation u ~ 2a is less than 2**-122.
 		k = exp + 1
 		v = ints.Uint256{2: m1, 3: m0}.Lsh(80)
 	} else {
-		// sqrt(1+a²) × 2**192 = sqrt(2**384 + m² × 2**(2exp+160)).
+		// sqrt(a² ± 1) × 2**192 = sqrt(m² × 2**(2exp+160) ± 2**384).
+		// the integer arithmetic is exact even if a is close to 1 and a² - 1 cancels.
 		p3, p2, p1, p0 := mul128x128(m1, m0, m1, m0)
-		n := ints.Uint512{4: p3, 5: p2, 6: p1, 7: p0}.Lsh(uint(2*exp + 160)).Add(ints.Uint512{1: 1})
+		n := ints.Uint512{4: p3, 5: p2, 6: p1, 7: p0}.Lsh(uint(2*exp + 160))
+		if acosh {
+			n = n.Sub(ints.Uint512{1: 1})
+		} else {
+			n = n.Add(ints.Uint512{1: 1})
+		}
 		s := uint(n.LeadingZeros() &^ 1) // sqrtRem512 requires n[0] >= 1<<62.
 		root, _ := sqrtRem512(n.Lsh(s))
 		u := ints.Uint256{2: m1, 3: m0}.Lsh(uint(exp + 80)).Add(root.Rsh(s / 2)) // u × 2**192
@@ -119,24 +129,17 @@ func (a Float128) Asinh() Float128 {
 //	x.Acosh() = NaN if x < 1
 //	NaN.Acosh() = NaN
 func (a Float128) Acosh() Float128 {
-	var (
-		Ln2   = Float128{0x3ffe_62e4_2fef_a39e, 0xf357_93c7_6730_07e6} // 6.93147180559945286227e-01
-		One   = Float128(uvone128)                                     // 1.0
-		Two   = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000} // 2.0
-		Large = Float128{0x4039_0000_0000_0000, 0x0000_0000_0000_0000} // 2**58
-	)
+	// a = m × 2**(exp-112), where m = (m1:m0) is a 113-bit integer in [2**112, 2**113).
+	exp := int((a[0]>>(shift128-64))&mask128) - bias128
 	switch {
-	case a.Lt(One) || a.IsNaN():
+	case a.IsNaN() || a[0]&signMask128[0] != 0 || exp < 0: // NaN or a < 1
 		return NewFloat128NaN()
-	case a.Eq(One):
+	case exp == mask128-bias128:
+		return a // +Inf
+	case a == Float128(uvone128):
 		return Float128{}
-	case a.Ge(Large):
-		return a.Log().Add(Ln2) // a > 2**58
-	case a.Gt(Two):
-		return (a.Add((a.Mul(a).Sub(One)).Sqrt())).Log() // 2**58 > a > 2.0
 	}
-	t := a.Sub(One)
-	return (t.Add((t.Mul(t).Add(Two.Mul(t))).Sqrt())).Log1p() // 2 >= a > 1
+	return logHyp128(0, exp, a[0]&fracMask128[0]|1<<(shift128-64), a[1], true)
 }
 
 // Atanh returns the inverse hyperbolic tangent of a.
