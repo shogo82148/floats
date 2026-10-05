@@ -1,7 +1,9 @@
 package floats
 
 import (
+	"fmt"
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -44,6 +46,28 @@ func TestFloat16_Asin(t *testing.T) {
 		if !eq16(got, tt.want) {
 			t.Errorf("Asin(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func TestFloat16_Asin_exhaustive(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		got := x.Asin()
+		want := NewFloat16(math.Asin(x.Float64().BuiltIn()))
+		if !eq16(got, want) {
+			t.Errorf("Asin(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Asin(b *testing.B) {
+	for _, v := range []float64{0.25, 0.75} {
+		x := exact16(v)
+		b.Run(fmt.Sprint(v), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Asin())
+			}
+		})
 	}
 }
 
