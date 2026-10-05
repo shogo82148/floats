@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates testdata/cbrt128.txt.
+# Generates testdata/cbrt128.txt and testdata/cbrt256.txt.
 # Each line contains the bits of x and the correctly rounded cbrt(x) in hexadecimal.
 # The cube root is rounded with exact integer arithmetic.
 #
@@ -18,7 +18,7 @@ def icbrt(n):
         x = y
 
 
-def gen(name, P, EB, seed):
+def gen(name, P, EB, seed, hard_candidates):
     B = (1 << (EB - 1)) - 1
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
@@ -91,7 +91,7 @@ def gen(name, P, EB, seed):
     # hard cases: the cube root is close to a midpoint of two floating-point numbers
     hard = []
     for r in range(3):
-        for _ in range(60000):
+        for _ in range(hard_candidates):
             m = rnd.getrandbits(P) | (1 << P)
             g = icbrt((m << (r + 2 * P)) << 120)  # floor(cbrt(m × 2**r × 2**(2P)) × 2**40)
             frac = (g & ((1 << 40) - 1)) - (1 << 39)
@@ -106,4 +106,5 @@ def gen(name, P, EB, seed):
             f.write(f"{v:0{width}x} {cbrt_bits(v):0{width}x}\n")
 
 
-gen("cbrt128", 112, 15, 128)
+gen("cbrt128", 112, 15, 128, 60000)
+gen("cbrt256", 236, 19, 256, 500000)
