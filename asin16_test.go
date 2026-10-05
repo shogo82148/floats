@@ -1,7 +1,9 @@
 package floats
 
 import (
+	"fmt"
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -127,6 +129,28 @@ func TestFloat16_Atan(t *testing.T) {
 		if !eq16(got, tt.want) {
 			t.Errorf("Atan(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+func TestFloat16_Atan_exhaustive(t *testing.T) {
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		got := x.Atan()
+		want := NewFloat16(math.Atan(x.Float64().BuiltIn()))
+		if !eq16(got, want) {
+			t.Errorf("Atan(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+func BenchmarkFloat16_Atan(b *testing.B) {
+	for _, v := range []float64{0.25, 0.75, 3} {
+		x := exact16(v)
+		b.Run(fmt.Sprint(v), func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(x.Atan())
+			}
+		})
 	}
 }
 

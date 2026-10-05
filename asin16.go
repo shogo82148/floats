@@ -28,7 +28,47 @@ func (a Float16) Acos() Float16 {
 //	±0.Atan() = ±0
 //	±Inf.Atan() = ±Pi/2
 func (a Float16) Atan() Float16 {
-	return NewFloat16(math.Atan(a.Float64().BuiltIn()))
+	ix := a &^ signMask16
+	if ix < 0x2400 { // |a| < 2**-6
+		// atan(a) = a - a**3/3 + ... rounds to a.
+		return a
+	}
+	if ix >= uvinf16 {
+		if ix > uvinf16 {
+			// atan(NaN) = NaN
+			return NewFloat16NaN()
+		}
+		// atan(±Inf) = ±Pi/2
+		return a&signMask16 | NewFloat16(math.Pi/2)
+	}
+
+	// a is a normal Float16 value, so the conversion is exact.
+	x := normal16ToFloat64(ix)
+	var r float64
+	if x <= 1 {
+		r = atanKernel16(x)
+	} else {
+		// atan(x) = pi/2 - atan(1/x)
+		r = math.Pi/2 - atanKernel16(1/x)
+	}
+	if a&signMask16 != 0 {
+		r = -r
+	}
+	return NewFloat16(r)
+}
+
+// atanKernel16 returns atan(x) for 0 <= x <= 1.
+func atanKernel16(x float64) float64 {
+	// atan(x) = 2 atan(u), where u = x/(1+sqrt(1+x**2)) <= tan(pi/8).
+	u := x / (1 + math.Sqrt(1+x*x))
+	return 2 * u * atanSeries16(u*u)
+}
+
+// atanSeries16 returns atan(sqrt(z))/sqrt(z) for 0 <= z <= tan(pi/8)**2.
+// It is a degree-6 minimax polynomial; the relative error is about 2e-11,
+// far below the Float16 precision.
+func atanSeries16(z float64) float64 {
+	return 0.9999999999791293 + z*(-0.3333333212787915+z*(0.19999885898675399+z*(-0.1428163925942391+z*(0.11041054162292493+z*(-0.08459109187133435+z*(0.04712997339340858))))))
 }
 
 // Atan2 returns the arc tangent of a/b, using
