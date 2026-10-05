@@ -3,10 +3,13 @@ package floats
 import (
 	"bufio"
 	"math"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/shogo82148/ints"
 )
 
 func TestFloat256_Log(t *testing.T) {
@@ -241,4 +244,56 @@ func BenchmarkFloat256_Log2(b *testing.B) {
 		{"medium", exact256(1.5)},
 		{"large", exact256(1e300)},
 	})
+}
+
+// TestLog256G compares log256G, which evaluates the polynomial with the mixed precision,
+// with the plain evaluation with 256 bits. Their results may differ by one unit in the last place.
+func TestLog256G(t *testing.T) {
+	rnd := rand.New(rand.NewPCG(5, 6))
+	var differ int
+	for i := range 200000 {
+		var w ints.Uint256
+		for j := range w {
+			w[j] = rnd.Uint64()
+		}
+		switch i % 3 {
+		case 0:
+			w = w.Rsh(uint(rnd.IntN(250))) // |w| from 2**-8 to tiny
+		case 1:
+			w = w.Rsh(uint(rnd.IntN(3))) // |w| close to 2**-8
+		}
+		wneg := rnd.IntN(2) == 0
+
+		want := log256G256(w, wneg)
+		got := log256G(w, wneg)
+		var diff ints.Uint256
+		if got.Cmp(want) >= 0 {
+			diff = got.Sub(want)
+		} else {
+			diff = want.Sub(got)
+		}
+		if diff.BitLen() > 1 {
+			t.Fatalf("log256G(%v, %v) = %v; want %v", w, wneg, got, want)
+		}
+		if !diff.IsZero() {
+			differ++
+		}
+	}
+	if differ > 2000 {
+		t.Errorf("%d of 200000 results differ from the plain evaluation", differ)
+	}
+}
+
+// log256G256 is the plain evaluation of log256G with 256 bits.
+func log256G256(w ints.Uint256, wneg bool) ints.Uint256 {
+	g := ints.Uint256(log256Coeffs[0])
+	for _, c := range log256Coeffs[1:] {
+		t := shr512to256(g.Mul512(w), 264)
+		if wneg {
+			g = ints.Uint256(c).Sub(t)
+		} else {
+			g = ints.Uint256(c).Add(t)
+		}
+	}
+	return g
 }

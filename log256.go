@@ -149,22 +149,69 @@ func log256Reduce(a Float256) (exp int, idx uint64, rneg bool, rmag ints.Uint512
 	return
 }
 
+// log256G returns G(w) = 1 + w/2 + w²/3 + ... + w**32/33 in fixed point with 255 fractional bits,
+// where w is in fixed point with 264 fractional bits, and 0 <= |w| < 2**-8. w is negative if wneg is true.
+func log256G(w ints.Uint256, wneg bool) ints.Uint256 {
+	// |w| < 2**-8, so an error in the partial sum made i steps before the end of Horner's method
+	// is reduced by 2**(-8i). The earlier steps need fewer bits, as in sinhPoly256:
+	// the step p = 1, 2, ..., 32 uses at least 8p + 16 bits, and its error is less than 2**-269 in the result.
+	c := &log256Coeffs
+	const n = len(log256Coeffs)
+
+	// 128 bits (p <= 14): g in fixed point with 127 fractional bits, w with 136 fractional bits.
+	g1, g0 := c[0][0], c[0][1]
+	for i := 1; i < 15; i++ {
+		x3, x2, _, _ := mul128x128(g1, g0, w[0], w[1])
+		t1, t0 := x3>>8, x3<<56|x2>>8
+		var b uint64
+		if wneg {
+			g0, b = bits.Sub64(c[i][1], t0, 0)
+			g1, _ = bits.Sub64(c[i][0], t1, b)
+		} else {
+			g0, b = bits.Add64(c[i][1], t0, 0)
+			g1, _ = bits.Add64(c[i][0], t1, b)
+		}
+	}
+
+	// 192 bits (p <= 22): g in fixed point with 191 fractional bits, w with 200 fractional bits.
+	g := [3]uint64{g1, g0, 0}
+	w192 := [3]uint64{w[0], w[1], w[2]}
+	for i := 15; i < 23; i++ {
+		x := mul192x192(g, w192)
+		t := [3]uint64{x[0] >> 8, x[0]<<56 | x[1]>>8, x[1]<<56 | x[2]>>8}
+		var b uint64
+		if wneg {
+			g[2], b = bits.Sub64(c[i][2], t[2], 0)
+			g[1], b = bits.Sub64(c[i][1], t[1], b)
+			g[0], _ = bits.Sub64(c[i][0], t[0], b)
+		} else {
+			g[2], b = bits.Add64(c[i][2], t[2], 0)
+			g[1], b = bits.Add64(c[i][1], t[1], b)
+			g[0], _ = bits.Add64(c[i][0], t[0], b)
+		}
+	}
+
+	// 256 bits: g in fixed point with 255 fractional bits, w with 264 fractional bits.
+	g256 := ints.Uint256{g[0], g[1], g[2], 0}
+	for i := 23; i < n; i++ {
+		h := mulHi256(g256, w) // about (g × w) >> 256
+		t := ints.Uint256{h[0] >> 8, h[0]<<56 | h[1]>>8, h[1]<<56 | h[2]>>8, h[2]<<56 | h[3]>>8}
+		if wneg {
+			g256 = ints.Uint256(c[i]).Sub(t)
+		} else {
+			g256 = ints.Uint256(c[i]).Add(t)
+		}
+	}
+	return g256
+}
+
 // log256Log1p returns |log(1+r)| = q × 2**(-491-lz) for r = ±rmag × 2**-492 ≠ 0, |r| < 2**-8.
 // q is in [2**510, 2**512), so it keeps the relative precision even if r is tiny.
 func log256Log1p(rneg bool, rmag ints.Uint512) (q ints.Uint512, lz int) {
 	// log(1+r) = r × G(w), where w = -r and G(w) = 1 + w/2 + w²/3 + ... only has positive terms
 	// if w > 0. G is in fixed point with 255 fractional bits, and w is with 264 fractional bits.
 	w := shr512to256(rmag, 228)
-	wneg := !rneg
-	g := ints.Uint256(log256Coeffs[0])
-	for _, c := range log256Coeffs[1:] {
-		t := shr512to256(g.Mul512(w), 264)
-		if wneg {
-			g = ints.Uint256(c).Sub(t)
-		} else {
-			g = ints.Uint256(c).Add(t)
-		}
-	}
+	g := log256G(w, !rneg)
 
 	// normalize r so that it keeps the relative precision.
 	lz = rmag.LeadingZeros()
