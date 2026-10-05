@@ -1,5 +1,7 @@
 package floats
 
+import "math/bits"
+
 // Sinh returns the hyperbolic sine of a.
 //
 // Special cases are:
@@ -8,44 +10,107 @@ package floats
 //	±Inf.Sinh() = ±Inf
 //	NaN.Sinh() = NaN
 func (a Float128) Sinh() Float128 {
-	var (
-		// Large = 42
-		Large = Float128{0x4004_5000_0000_0000, 0x0000_0000_0000_0000}
+	sign := a[0] & signMask128[0]
+	exp := int((a[0]>>(shift128-64))&mask128) - bias128
 
-		// One = 1.0
-		One = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// Half = 0.5
-		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
-	)
-
-	sign := false
-	if a.Signbit() {
-		a = a.Neg()
-		sign = true
-	}
-
-	var temp Float128
 	switch {
-	case a.Gt(Large):
-		temp = a.Exp().Mul(Half)
-
-	case a.Gt(Half):
-		ex := a.Exp()
-		temp = ex.Sub(One.Quo(ex)).Mul(Half)
-
-	default:
-		// Taylor series expansion
-		// TODO: optimize using minimax approximation
-		for n := 49; n >= 1; n -= 2 {
-			temp = temp.Add(power128(a, n).Quo(factorial128(n)))
+	case exp < -56:
+		// sinh(a) = a + a**3/6 + ... ~ a when |a| < 2**-56,
+		// including ±0 and subnormal values.
+		return a
+	case exp >= 14:
+		// sinh(a) overflows when |a| > ln(2 × max float128) ~ 11357.2.
+		if a.IsNaN() {
+			return a
 		}
+		return Float128{sign | uvinf128[0], uvinf128[1]}
 	}
 
-	if sign {
-		temp = temp.Neg()
+	// a = ±m × 2**(exp-112), where m is a 113-bit integer.
+	m1 := a[0]&fracMask128[0] | 1<<(shift128-64)
+	m0 := a[1]
+
+	n := expN128(exp, m1, m0)
+	if n == 0 {
+		// |a| < ln(2)/128. sinh(a) = a × sinh(a)/a.
+		// a×2**134 in fixed point, truncated.
+		x1, x0 := expFix128(exp, m1, m0)
+		z3, z2, _, _ := mul128x128(x1, x0, x1, x0) // a**2 × 2**140
+		g1, g0 := sinhPoly128(sinhCoeffs128[:], z3, z2)
+		p3, p2, p1, p0 := mul128x128(m1, m0, g1, g0)
+		return fixToFloat128(sign, p3, p2, p1, p0 != 0, exp-112-127+64)
 	}
-	return temp
+
+	// |a| = n × ln(2)/64 + r, |r| < 2**-7.
+	r1, r0 := expReduce128(exp, m1, m0, n)
+	rneg := r1>>63 != 0
+	if rneg {
+		r1, r0 = neg128(r1, r0)
+	}
+
+	// e**r = cosh(r) + sinh(r) = 1 + c + s, e**-r = 1 + c - s,
+	// where c = cosh(r) - 1 = z × q, s = sinh(r) = r × p, and z = r**2.
+	z3, z2, _, _ := mul128x128(r1, r0, r1, r0) // z × 2**140
+	p1, p0 := sinhPoly128(sinhCoeffs128[:], z3, z2)
+	q1, q0 := sinhPoly128(coshCoeffs128[:], z3, z2)
+	s1, s0, _, _ := mul128x128(r1, r0, p1, p0) // s × 2**133
+	c1, c0, _, _ := mul128x128(z3, z2, q1, q0) // c × 2**139
+
+	// e**|a| = u × (1 + c ± s), e**-|a| = w × (1 + c ∓ s),
+	// where u = 2**(n/64) = 2**k × t[j], and w = 2**(-n/64).
+	k := int(n >> 6)
+	u := &expm1Table128[n&63]
+	t := &expm1Table128[-n&63]
+	var w2, w1, w0 uint64
+	if d := uint(k + int((n+63)>>6)); d < 192 {
+		w2, w1, w0 = rsh192(t[0], t[1], t[2], d)
+	}
+
+	// 2 × sinh(|a|) = e**|a| - e**-|a| = (u - w) × (1 + c) + (u + w) × (±s).
+	// They are in fixed point with 191 fractional bits, relative to 2**k.
+	d0, c := bits.Sub64(u[2], w0, 0)
+	d1, c := bits.Sub64(u[1], w1, c)
+	d2, _ := bits.Sub64(u[0], w2, c)
+	_, c = bits.Add64(u[2], w0, 0)
+	e1, c := bits.Add64(u[1], w1, c)
+	e2, c := bits.Add64(u[0], w2, c)
+	e2, e1 = c<<63|e2>>1, e2<<63|e1>>1 // (u + w) × 2**126
+
+	// (u - w) × c
+	x3, x2, x1, _ := mul128x128(d2, d1, c1, c0) // × 2**266
+	x2, x1, x0 := rsh192(x3, x2, x1, 11)
+	d0, c = bits.Add64(d0, x0, 0)
+	d1, c = bits.Add64(d1, x1, c)
+	d2, _ = bits.Add64(d2, x2, c)
+
+	// (u + w) × s
+	y3, y2, y1, _ := mul128x128(e2, e1, s1, s0) // × 2**259
+	y2, y1, y0 := rsh192(y3, y2, y1, 4)
+	if rneg {
+		d0, c = bits.Sub64(d0, y0, 0)
+		d1, c = bits.Sub64(d1, y1, c)
+		d2, _ = bits.Sub64(d2, y2, c)
+	} else {
+		d0, c = bits.Add64(d0, y0, 0)
+		d1, c = bits.Add64(d1, y1, c)
+		d2, _ = bits.Add64(d2, y2, c)
+	}
+	return fixToFloat128(sign, d2, d1, d0, false, k-1-191)
+}
+
+// sinhPoly128 evaluates the polynomial with the coefficients coeffs at z by Horner's method.
+// z = (z1:z0) × 2**-140, and the coefficients and the result are in fixed point with 127 fractional bits.
+func sinhPoly128(coeffs [][2]uint64, z1, z0 uint64) (g1, g0 uint64) {
+	g1, g0 = coeffs[0][0], coeffs[0][1]
+	for _, c := range coeffs[1:] {
+		// g = c + g×z
+		p3, p2, _, _ := mul128x128(g1, g0, z1, z0)
+		t1, t0 := p3>>12, p3<<52|p2>>12
+		var b uint64
+		g0, b = bits.Add64(c[1], t0, 0)
+		g1, _ = bits.Add64(c[0], t1, b)
+	}
+	return
 }
 
 // Cosh returns the hyperbolic cosine of a.

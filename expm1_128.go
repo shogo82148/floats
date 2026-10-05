@@ -114,7 +114,15 @@ func expFix128(exp int, m1, m0 uint64) (x1, x0 uint64) {
 // and n = round(|a| × 64/ln(2)) is computed by expN128.
 // (v2:v1:v0) × 2**-191 is in [0.99, 2), and its absolute error is about 2**-132.
 func expKernel128(sign uint64, exp int, m1, m0, n uint64) (k int, v2, v1, v0 uint64) {
-	// reduce: a = ±n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
+	r1, r0 := expReduce128(exp, m1, m0, n)
+	return expScale128(sign, n, r1, r0)
+}
+
+// expReduce128 returns r = |a| - n × ln(2)/64 for a = ±m × 2**(exp-112),
+// where m = (m1:m0) is a 113-bit integer, and n = round(|a| × 64/ln(2)) is computed by expN128.
+// r = (r1:r0) × 2**-134 is a signed 128-bit fixed point number with |r| < 2**-7.
+func expReduce128(exp int, m1, m0, n uint64) (r1, r0 uint64) {
+	// reduce: |a| = n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
 	// r = |a| - n×ln(2)/64 in fixed point with 134 fractional bits.
 	// |a|×2**134 and n×ln(2)/64×2**134 may not fit in 128 bits,
 	// but their difference does, so they are computed modulo 2**128.
@@ -129,10 +137,9 @@ func expKernel128(sign uint64, exp int, m1, m0, n uint64) (k int, v2, v1, v0 uin
 	_, c = bits.Add64(w0, 1<<63, 0) // round
 	w1, c = bits.Add64(w1, 0, c)
 	w2 += c
-	r0, c := bits.Sub64(x0, w1, 0)
-	r1, _ := bits.Sub64(x1, w2, c)
-
-	return expScale128(sign, n, r1, r0)
+	r0, c = bits.Sub64(x0, w1, 0)
+	r1, _ = bits.Sub64(x1, w2, c)
+	return
 }
 
 // expScale128 returns e**a = 2**k × (v2:v1:v0) × 2**-191

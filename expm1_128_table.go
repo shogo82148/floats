@@ -93,3 +93,28 @@ var expm1Coeffs128 = [...][2]uint64{
 	{0x4000000000000000, 0x0000000000000000}, // 1/2!
 	{0x8000000000000000, 0x0000000000000000}, // 1/1!
 }
+
+// sinhCoeffs128 are the coefficients of sinh(r)/r = sum z**i/(2i+1)!, where z = r**2,
+// in fixed point with 127 fractional bits,
+// in the order of Horner's method: 1/(2i+1)! for i = 6, 5, ..., 0.
+var sinhCoeffs128 = [...][2]uint64{
+	{0x000000005849184e, 0xa1b425f28e0cc749}, // 1/13!
+	{0x00000035cc8acfea, 0x89c71fce8fc97070}, // 1/11!
+	{0x0000171de3a556c7, 0x338faac1c88e5001}, // 1/9!
+	{0x0006806806806806, 0x8068068068068068}, // 1/7!
+	{0x0111111111111111, 0x1111111111111111}, // 1/5!
+	{0x1555555555555555, 0x5555555555555555}, // 1/3!
+	{0x8000000000000000, 0x0000000000000000}, // 1/1!
+}
+
+// coshCoeffs128 are the coefficients of (cosh(r) - 1)/r**2 = sum z**i/(2i+2)!, where z = r**2,
+// in fixed point with 127 fractional bits,
+// in the order of Horner's method: 1/(2i+2)! for i = 5, 4, ..., 0.
+var coshCoeffs128 = [...][2]uint64{
+	{0x000000047bb63bfe, 0x3625ed5136a61eb4}, // 1/12!
+	{0x0000024fc9f6ef13, 0xeb8e5de02da7d4cd}, // 1/10!
+	{0x0000d00d00d00d00, 0xd00d00d00d00d00d}, // 1/8!
+	{0x002d82d82d82d82d, 0x82d82d82d82d82d8}, // 1/6!
+	{0x0555555555555555, 0x5555555555555555}, // 1/4!
+	{0x4000000000000000, 0x0000000000000000}, // 1/2!
+}
