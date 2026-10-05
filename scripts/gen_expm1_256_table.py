@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_256_table.go, the fixed-point constants used by Float256 Expm1.
+# Generates expm1_256_table.go, the fixed-point constants used by Float256 Exp, Exp2, Expm1, and Sinh.
 #
 # Usage: python3 scripts/gen_expm1_256_table.py > expm1_256_table.go
 
@@ -41,4 +41,24 @@ print(f"// in the order of Horner's method: 1/(i+1)! for i = {TERMS - 1}, {TERMS
 print("var expm1Coeffs256 = [...][4]uint64{")
 for i in range(TERMS - 1, -1, -1):
     print(f"\t{{{limbs(fix(1 / mpmath.factorial(i + 1), 255), 4)}}}, // 1/{i + 1}!")
+print("}")
+
+# the number of the coefficients of sinh(r)/r and (cosh(r) - 1)/r**2 in z = r**2 for |r| <= ln(2)/128
+SINH_TERMS = 12
+
+print()
+print("// sinhCoeffs256 are the coefficients of sinh(r)/r = sum z**i/(2i+1)!, where z = r**2,")
+print("// in fixed point with 255 fractional bits,")
+print(f"// in the order of Horner's method: 1/(2i+1)! for i = {SINH_TERMS - 1}, {SINH_TERMS - 2}, ..., 0.")
+print("var sinhCoeffs256 = [...][4]uint64{")
+for i in range(SINH_TERMS - 1, -1, -1):
+    print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 1), 255), 4)}}}, // 1/{2 * i + 1}!")
+print("}")
+print()
+print("// coshCoeffs256 are the coefficients of (cosh(r) - 1)/r**2 = sum z**i/(2i+2)!, where z = r**2,")
+print("// in fixed point with 255 fractional bits,")
+print(f"// in the order of Horner's method: 1/(2i+2)! for i = {SINH_TERMS - 1}, {SINH_TERMS - 2}, ..., 0.")
+print("var coshCoeffs256 = [...][4]uint64{")
+for i in range(SINH_TERMS - 1, -1, -1):
+    print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 2), 255), 4)}}}, // 1/{2 * i + 2}!")
 print("}")
