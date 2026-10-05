@@ -194,7 +194,7 @@ func randomWords(r *rand.Rand, w []uint64) {
 
 func TestDiv3by2(t *testing.T) {
 	r := rand.New(rand.NewPCG(17, 18))
-	for i := 0; i < 2_000_000; i++ {
+	for range 2_000_000 {
 		var d ints.Uint128
 		randomWords(r, d[:])
 		d[0] |= 1 << 63
@@ -222,7 +222,7 @@ func TestDiv3by2(t *testing.T) {
 
 func TestDiv5by4(t *testing.T) {
 	r := rand.New(rand.NewPCG(19, 20))
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		var d ints.Uint256
 		randomWords(r, d[:])
 		d[0] |= 1 << 63
@@ -252,7 +252,7 @@ func TestDiv5by4(t *testing.T) {
 
 func TestFloat128_QuoRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(21, 22))
-	for i := 0; i < 2_000_000; i++ {
+	for range 2_000_000 {
 		a := randomFloat128(r)
 		if r.IntN(2) == 0 {
 			a = a.Neg()
@@ -272,7 +272,7 @@ func TestFloat128_QuoRandom(t *testing.T) {
 
 func TestFloat256_QuoRandom(t *testing.T) {
 	r := rand.New(rand.NewPCG(23, 24))
-	for i := 0; i < 1_000_000; i++ {
+	for range 1_000_000 {
 		a := randomFloat256(r)
 		if r.IntN(2) == 0 {
 			a = a.Neg()

@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math/bits"
+	"slices"
 
 	"github.com/shogo82148/ints"
 )
@@ -163,9 +164,9 @@ func mulWords(dst, x, y []uint64) {
 
 // bitLenWords returns the bit length of the little endian multi-word integer x.
 func bitLenWords(x []uint64) int {
-	for i := len(x) - 1; i >= 0; i-- {
-		if x[i] != 0 {
-			return 64*i + bits.Len64(x[i])
+	for i, v := range slices.Backward(x) {
+		if v != 0 {
+			return 64*i + bits.Len64(v)
 		}
 	}
 	return 0

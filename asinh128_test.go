@@ -79,7 +79,7 @@ func TestFloat128_AsinhAccuracy(t *testing.T) {
 func TestFloat128_AsinhFloat256(t *testing.T) {
 	rnd := rand.New(rand.NewPCG(1, 2))
 	one := Float256(uvone256)
-	for i := 0; i < 20000; i++ {
+	for i := range 20000 {
 		var exp int
 		switch i % 4 {
 		case 0:
@@ -205,7 +205,7 @@ func BenchmarkFloat128_Acosh(b *testing.B) {
 func TestFloat128_AcoshFloat256(t *testing.T) {
 	rnd := rand.New(rand.NewPCG(1, 2))
 	one := Float256(uvone256)
-	for i := 0; i < 20000; i++ {
+	for i := range 20000 {
 		var exp int
 		switch i % 4 {
 		case 0:
@@ -312,7 +312,7 @@ func TestFloat128_AtanhFloat256(t *testing.T) {
 	rnd := rand.New(rand.NewPCG(1, 2))
 	one := Float256(uvone256)
 	two := one.Add(one)
-	for i := 0; i < 20000; i++ {
+	for i := range 20000 {
 		var exp int
 		switch i % 4 {
 		case 0:

@@ -153,7 +153,7 @@ func lsh256(x ints.Uint256, n uint) ints.Uint256 {
 	b := n % 64
 	var y ints.Uint256
 	last := len(y) - 1 - w
-	for i := 0; i < last; i++ {
+	for i := range last {
 		y[i] = x[i+w]<<b | x[i+w+1]>>(64-b)
 	}
 	y[last] = x[len(x)-1] << b
@@ -170,7 +170,7 @@ func lsh512(x ints.Uint512, n uint) ints.Uint512 {
 	b := n % 64
 	var y ints.Uint512
 	last := len(y) - 1 - w
-	for i := 0; i < last; i++ {
+	for i := range last {
 		y[i] = x[i+w]<<b | x[i+w+1]>>(64-b)
 	}
 	y[last] = x[len(x)-1] << b
