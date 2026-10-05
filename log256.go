@@ -25,37 +25,45 @@ func (a Float256) Log() Float256 {
 		return NewFloat256Inf(-1)
 	}
 
-	exp, idx, rneg, rmag := log256Reduce(a)
+	sign, v, exp := log256Fix(a)
+	if v.IsZero() {
+		return Float256{}
+	}
+	return fixToFloat256(sign, v, false, exp)
+}
 
-	// log(a) = exp × ln(2) + log(c) + log(1+r).
+// log256Fix returns log(a) = ±v × 2**exp for a finite a > 0 as the sign bit and v, with v = 0 if a = 1.
+// The relative error is about 2**-254 even if a is close to 1.
+func log256Fix(a Float256) (sign uint64, v ints.Uint512, exp int) {
+	k, idx, rneg, rmag := log256Reduce(a)
+
+	// log(a) = k × ln(2) + log(c) + log(1+r).
 	// If a is close to a power of two, log(a) ~ log(1+r) is much smaller than the other terms,
 	// and it must be computed with the relative precision.
-	tiny := (idx == 0 && exp == 0) || (idx == 255 && exp == -1)
+	tiny := (idx == 0 && k == 0) || (idx == 255 && k == -1)
 	if rmag.IsZero() && tiny {
-		return Float256{}
+		return 0, ints.Uint512{}, 0
 	}
 
 	var log1r ints.Uint512 // |log(1+r)| × 2**320
 	if !rmag.IsZero() {
 		q, lz := log256Log1p(rneg, rmag) // |log(1+r)| = q × 2**(-491-lz)
 		if tiny {
-			var sign uint64
 			if rneg {
 				sign = signMask256[0]
 			}
-			return fixToFloat256(sign, q, false, -491-lz)
+			return sign, q, -491 - lz
 		}
 		if shift := uint(171 + lz); shift < 512 {
 			log1r = q.Rsh(shift)
 		}
 	}
 
-	// exp × ln(2) in fixed point with 320 fractional bits.
-	kabs := uint64(exp)
-	if exp < 0 {
+	// k × ln(2) in fixed point with 320 fractional bits.
+	kabs := uint64(k)
+	if k < 0 {
 		kabs = -kabs
 	}
-	var v ints.Uint512
 	var carry uint64
 	for i := 4; i >= 0; i-- {
 		hi, lo := bits.Mul64(log256Ln2[i], kabs)
@@ -64,7 +72,7 @@ func (a Float256) Log() Float256 {
 		carry = hi + c
 	}
 	v[2] = carry
-	if exp < 0 {
+	if k < 0 {
 		v = v.Neg()
 	}
 
@@ -76,15 +84,11 @@ func (a Float256) Log() Float256 {
 		v = v.Add(log1r)
 	}
 
-	if v.IsZero() {
-		return Float256{}
-	}
-	var sign uint64
 	if v[0]>>63 != 0 {
 		sign = signMask256[0]
 		v = v.Neg()
 	}
-	return fixToFloat256(sign, v, false, -320)
+	return sign, v, -320
 }
 
 // mul320x320 returns the 640-bit product of a and b.
@@ -167,12 +171,28 @@ func log256Log1p(rneg bool, rmag ints.Uint512) (q ints.Uint512, lz int) {
 // Log10 returns the decimal logarithm of a.
 // The special cases are the same as for [Log].
 func (a Float256) Log10() Float256 {
-	// 1/ln(10) ~ 0.43429448190325182765112891891660508229439700580366656611445378316586465
-	var Ln10Inv = Float256{
-		0x3fff_dbcb_7b15_26e5, 0x0e32_a6ab_7555_f5a6,
-		0x7b86_47dc_68c0_48b9, 0x3440_4747_e5a8_9ef2,
+	// special cases
+	switch {
+	case a.IsNaN() || a.IsInf(1):
+		return a
+	case a.Lt(Float256{}): // a < 0
+		return NewFloat256NaN()
+	case a.IsZero():
+		return NewFloat256Inf(-1)
 	}
-	return a.Log().Mul(Ln10Inv)
+
+	// log10(a) = log(a)/ln(10), where log(a) is computed without rounding.
+	sign, v, exp := log256Fix(a)
+	if v.IsZero() {
+		return Float256{}
+	}
+
+	// v = vn × 2**(256-lz) for the top 256 bits vn of v.
+	lz := v.LeadingZeros()
+	s := v.Lsh(uint(lz))
+	vn := ints.Uint256{s[0], s[1], s[2], s[3]}
+	p := vn.Mul512(ints.Uint256(log256Ln10Inv)) // × (1/ln(10)) × 2**256
+	return fixToFloat256(sign, p, false, exp-lz)
 }
 
 // Log2 returns the binary logarithm of a.

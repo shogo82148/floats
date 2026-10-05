@@ -11,6 +11,9 @@ var log256Ln2Inv = [4]uint64{0xb8aa3b295c17f0bb, 0xbe87fed0691d3e88, 0xeb577aa8d
 // log256Ln2Inv319 is 1/ln(2) * 2**319.
 var log256Ln2Inv319 = [5]uint64{0xb8aa3b295c17f0bb, 0xbe87fed0691d3e88, 0xeb577aa8dd695a58, 0x8b25166cd1a13247, 0xde1c43f755176cd6}
 
+// log256Ln10Inv is 1/ln(10) * 2**256.
+var log256Ln10Inv = [4]uint64{0x6f2dec549b9438ca, 0x9aadd557d699ee19, 0x1f71a30122e4d101, 0x1d1f96a27bc7529e}
+
 // log256InvC[idx] is 1/c in fixed point with 256 fractional bits,
 // where c is the breakpoint of the bucket idx: c = 1 + (idx+0.5)/256 for 0 < idx < 255.
 // Log handles idx 0 (c = 1) itself, so its entry is unused. idx 255 is c = 2.
