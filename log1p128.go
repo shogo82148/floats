@@ -11,30 +11,11 @@ package floats
 //	(a < -1).Log1p() = NaN
 //	NaN.Log1p() = NaN
 func (a Float128) Log1p() Float128 {
-	var (
-		// One = 1.0
-		One = Float128(uvone128)
-
-		// Half = 0.5
-		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// Sqrt2quo2 = sqrt(2)/2 ~ 707106781186547524400844362104849
-		Sqrt2quo2 = Float128{0x3ffe_6a09_e667_f3bc, 0xc908_b2fb_1366_ea95}
-
-		// Ln2Hi = ln(2) ~ 0.6931471805599453094172321214581765
-		// Ln2Lo = ln(2) - Ln2Hi ~ 8.928835774481220748938623512047474e-35
-		Ln2Hi = Float128{0x3ffe_62e4_2fef_a39e, 0xf357_93c7_6730_07e5}
-		Ln2Lo = Float128{0x3f8d_dabd_03cd_0c99, 0xca62_d8b6_2834_5d6e}
-
-		// Two = 2.0
-		Two = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-	)
-
 	// special cases
 	switch {
-	case a.Lt(One.Neg()) || a.IsNaN(): // includes -Inf
+	case a.Lt(Float128(uvone128).Neg()) || a.IsNaN(): // includes -Inf
 		return NewFloat128NaN()
-	case a.Eq(One.Neg()):
+	case a.Eq(Float128(uvone128).Neg()):
 		return NewFloat128Inf(-1)
 	case a.IsInf(1):
 		return NewFloat128Inf(1)
@@ -42,37 +23,59 @@ func (a Float128) Log1p() Float128 {
 		return a
 	}
 
-	if a.Abs().Gt(Half) {
-		// reduce
-		f1, ki := a.Add(One).Frexp()
-		if f1.Lt(Sqrt2quo2) {
-			f1 = f1.Add(f1)
-			ki--
-		}
-		f := f1.Sub(Float128(uvone128)) // f := f1 - 1
-		k := NewFloat128(float64(ki))
-
-		// compute
-		// Let s = f/(2+f); log(1+f) = log((1+s)/(1-s)) = 2s + 2/3 s³ + 2/5 s⁵ + 2/7 s⁷ + ...
-		// TODO: use a polynomial approximation
-		s := f.Quo(f.Add(Two))
-		var r Float128
-		for n := 39; n > 0; n -= 2 {
-			r = r.Add(power128(s, n).Quo(NewFloat128(float64(n))))
-		}
-		return k.Mul(Ln2Hi).Add(r.Add(r).Add(k.Mul(Ln2Lo)))
+	// a = ±m × 2**(exp-112), where m = (m1:m0) is a 113-bit integer in [2**112, 2**113).
+	sign, exp, frac := a.normalize()
+	if exp < -115 {
+		// log(1+a) = a × (1 - a/2 + ...) rounds to a when |a| < 2**-115.
+		return a
 	}
 
-	// |a| < 0.5
-	// log(1+a) = a - a²/2 + a³/3 - a⁴/4 + ...
-	// TODO: use a polynomial approximation
-	var r Float128
-	for n := 100; n > 0; n-- {
-		term := power128(a, n).Quo(NewFloat128(float64(n)))
-		if n%2 == 0 {
-			term = term.Neg()
+	if exp < -8 {
+		// |a| < 2**-8. log(1+a) = a × G(w) = a - a² × H(w), where w = -a,
+		// G(w) = 1 + w/2 + w²/3 + ... = 1 + w × H(w), and H(w) = 1/2 + w/3 + w²/4 + ...
+		// H is computed in fixed point, and the product a² × H as a double-Float128,
+		// so that the result is accurate even if a² × H is near a half ulp of a.
+		// |a| = rnorm × 2**(exp-191), where rnorm = m × 2**79 is in [2**191, 2**192).
+		// |w|, at scale 2**-192, is rnorm shifted right by (-1-exp).
+		m1, m0 := frac[0], frac[1]
+		w2, w1, w0 := rsh192(m1<<15|m0>>49, m0<<15, 0, uint(-1-exp))
+		var h [3]uint64
+		for _, c := range logGCoeffs128[:15] { // 1/16, ..., 1/2
+			q := mul192x192(h, [3]uint64{w2, w1, w0})
+			qTop := [3]uint64{q[0], q[1], q[2]}
+			if sign == 0 {
+				// w < 0
+				h = sub192(c, qTop)
+			} else {
+				h = add192(qTop, c)
+			}
 		}
-		r = r.Add(term)
+
+		// h is in fixed point with 191 fractional bits. split it exactly into two Float128.
+		hHiBits := [3]uint64{h[0], h[1] &^ (1<<16 - 1), 0} // the top 112 bits
+		hLoBits := sub192(h, hHiBits)
+		hHi := fixToFloat128(0, hHiBits[0], hHiBits[1], hHiBits[2], false, -191)
+		var hLo Float128
+		if hLoBits != ([3]uint64{}) {
+			lz, hLoNorm := logNormalizeTo192([4]uint64{hLoBits[0], hLoBits[1], hLoBits[2], 0})
+			hLo = fixToFloat128(0, hLoNorm[0], hLoNorm[1], hLoNorm[2], false, -191-lz)
+		}
+
+		// c = a² × H
+		s, e := twoProduct128(a, a)
+		cHi, cLo := twoProduct128(s, hHi)
+		cLo = cLo.Add(s.Mul(hLo)).Add(e.Mul(hHi))
+		rHi, rLo := ddAdd128(a, Float128{}, cHi.Neg(), cLo.Neg())
+		return rHi.Add(rLo)
 	}
-	return r
+
+	// |a| >= 2**-8, so the result is not small. log(1+a) = log(hi) + log1p(lo/hi),
+	// where hi + lo = 1 + a exactly, and |lo/hi| < 2**-112 so that log1p(lo/hi) ~ lo/hi.
+	hi, lo := twoSum128(Float128(uvone128), a)
+	logHi, logLo := hi.logDD()
+	if lo.IsZero() {
+		return logHi.Add(logLo)
+	}
+	logHi, logLo = ddAdd128(logHi, logLo, lo.Quo(hi), Float128{})
+	return logHi.Add(logLo)
 }
