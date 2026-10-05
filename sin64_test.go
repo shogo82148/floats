@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat64_Sin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -42,6 +43,7 @@ func TestFloat64_Sin(t *testing.T) {
 }
 
 func TestFloat64_Cos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -76,6 +78,7 @@ func TestFloat64_Cos(t *testing.T) {
 }
 
 func TestFloat64_Sincos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x   Float64
 		sin float64
@@ -121,6 +124,7 @@ func TestFloat64_Sincos(t *testing.T) {
 }
 
 func TestFloat64_Tan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

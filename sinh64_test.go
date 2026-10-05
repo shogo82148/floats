@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat64_Sinh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -54,6 +55,7 @@ func BenchmarkFloat64_Sinh(b *testing.B) {
 }
 
 func TestFloat64_Cosh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -101,6 +103,7 @@ func BenchmarkFloat64_Cosh(b *testing.B) {
 }
 
 func TestFloat64_Tanh(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

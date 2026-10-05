@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat64_Format(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		format string
 		x      Float64
@@ -57,6 +58,7 @@ func TestFloat64_Format(t *testing.T) {
 }
 
 func TestFloat64_Text(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		fmt  byte
@@ -80,6 +82,7 @@ func TestFloat64_Text(t *testing.T) {
 }
 
 func TestFloat64_MarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want string
@@ -119,6 +122,7 @@ func TestFloat64_MarshalJSON(t *testing.T) {
 }
 
 func TestFloat64_MarshalText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want string
@@ -148,6 +152,7 @@ func TestFloat64_MarshalText(t *testing.T) {
 }
 
 func TestFloat64_AppendText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want string

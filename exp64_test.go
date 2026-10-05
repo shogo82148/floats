@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat64_Exp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64
@@ -51,6 +52,7 @@ func BenchmarkFloat64_Exp(b *testing.B) {
 }
 
 func TestFloat64_Exp2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float64
 		want float64

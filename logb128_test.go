@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat128_Logb(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128
@@ -45,6 +46,7 @@ func BenchmarkFloat128_Logb(b *testing.B) {
 }
 
 func TestFloat128_Ilogb(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want int

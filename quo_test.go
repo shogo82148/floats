@@ -193,6 +193,7 @@ func randomWords(r *rand.Rand, w []uint64) {
 }
 
 func TestDiv3by2(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(17, 18))
 	for range 2_000_000 {
 		var d ints.Uint128
@@ -221,6 +222,7 @@ func TestDiv3by2(t *testing.T) {
 }
 
 func TestDiv5by4(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(19, 20))
 	for range 1_000_000 {
 		var d ints.Uint256
@@ -251,6 +253,7 @@ func TestDiv5by4(t *testing.T) {
 }
 
 func TestFloat128_QuoRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(21, 22))
 	for range 2_000_000 {
 		a := randomFloat128(r)
@@ -271,6 +274,7 @@ func TestFloat128_QuoRandom(t *testing.T) {
 }
 
 func TestFloat256_QuoRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(23, 24))
 	for range 1_000_000 {
 		a := randomFloat256(r)

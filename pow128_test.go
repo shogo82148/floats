@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat128_Pow(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		y    Float128

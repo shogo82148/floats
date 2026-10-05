@@ -176,6 +176,7 @@ func randomMulOperand128(r *rand.Rand, a Float128) Float128 {
 }
 
 func TestFloat128_MulRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(13, 14))
 	for range 2_000_000 {
 		a := randomFloat128(r)
@@ -217,6 +218,7 @@ func randomMulOperand256(r *rand.Rand, a Float256) Float256 {
 }
 
 func TestFloat256_MulRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(15, 16))
 	for range 1_000_000 {
 		a := randomFloat256(r)

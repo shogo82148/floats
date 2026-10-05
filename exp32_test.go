@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Exp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -79,6 +80,7 @@ func TestFloat32_Exp(t *testing.T) {
 // The results of the math package rounded to float32 are correctly rounded except for rare cases,
 // so the results should almost always match.
 func TestFloat32_ExpRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -131,6 +133,7 @@ func BenchmarkFloat32_Exp(b *testing.B) {
 }
 
 func TestFloat32_Exp2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -186,6 +189,7 @@ func TestFloat32_Exp2(t *testing.T) {
 // They are found by checking all Float32 values with math.Exp2 in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_Exp2HardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded 2**x
 	tests := [][2]uint32{
 		{0xbaec2b40, 0x3f7fae34},

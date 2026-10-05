@@ -6,6 +6,7 @@ import (
 )
 
 func TestNewFloat64Pow10(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		n    int
 		want float64

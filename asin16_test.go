@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat16_Asin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -50,6 +51,7 @@ func TestFloat16_Asin(t *testing.T) {
 }
 
 func TestFloat16_Asin_exhaustive(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		got := x.Asin()
@@ -72,6 +74,7 @@ func BenchmarkFloat16_Asin(b *testing.B) {
 }
 
 func TestFloat16_Acos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -112,6 +115,7 @@ func TestFloat16_Acos(t *testing.T) {
 }
 
 func TestFloat16_Acos_exhaustive(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		got := x.Acos()
@@ -134,6 +138,7 @@ func BenchmarkFloat16_Acos(b *testing.B) {
 }
 
 func TestFloat16_Atan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -177,6 +182,7 @@ func TestFloat16_Atan(t *testing.T) {
 }
 
 func TestFloat16_Atan_exhaustive(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		got := x.Atan()
@@ -199,6 +205,7 @@ func BenchmarkFloat16_Atan(b *testing.B) {
 }
 
 func TestFloat16_Atan2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		y, x Float16
 		want float64

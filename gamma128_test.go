@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat128_Gamma(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want string

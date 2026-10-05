@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat32_Expm1(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -75,6 +76,7 @@ func TestFloat32_Expm1(t *testing.T) {
 // They are found by checking all Float32 values with math.Expm1 in float64.
 // The results may not be correctly rounded, but they must be within 1 ulp.
 func TestFloat32_Expm1HardCases(t *testing.T) {
+	t.Parallel()
 	// x, and correctly rounded e**x - 1
 	tests := [][2]uint32{
 		{0xbb7b3b6c, 0xbb7ac04e},

@@ -8,6 +8,7 @@ import (
 )
 
 func TestFloat32_Asin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -66,6 +67,7 @@ func TestFloat32_Asin(t *testing.T) {
 // TestFloat32_AsinRandom compares Asin with math.Asin on random inputs.
 // Checking all Float32 values, the results are identical to math.Asin rounded to Float32.
 func TestFloat32_AsinRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -103,6 +105,7 @@ func BenchmarkFloat32_Asin(b *testing.B) {
 }
 
 func TestFloat32_Acos(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -160,6 +163,7 @@ func TestFloat32_Acos(t *testing.T) {
 // TestFloat32_AcosRandom compares Acos with math.Acos on random inputs.
 // Checking all Float32 values, the results are identical to math.Acos rounded to Float32.
 func TestFloat32_AcosRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -197,6 +201,7 @@ func BenchmarkFloat32_Acos(b *testing.B) {
 }
 
 func TestFloat32_Atan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want float64
@@ -261,6 +266,7 @@ func TestFloat32_Atan(t *testing.T) {
 // Checking all Float32 values, the only difference is 0x3d8d6b23 (and its negation),
 // where Atan is correctly rounded but math.Atan is not.
 func TestFloat32_AtanRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	gens := []struct {
 		name string
@@ -298,6 +304,7 @@ func BenchmarkFloat32_Atan(b *testing.B) {
 }
 
 func TestFloat32_Atan2(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		y, x Float32
 		want float64

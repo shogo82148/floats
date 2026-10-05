@@ -6,6 +6,7 @@ import (
 )
 
 func TestHypot32(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		y    Float32

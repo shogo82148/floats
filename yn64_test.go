@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat64_Yn(t *testing.T) {
+	t.Parallel()
 	type tc struct {
 		n int
 		x Float64

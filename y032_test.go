@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat32_Y0(t *testing.T) {
+	t.Parallel()
 	tests := []float64{0.5, 1, 2, 5, 10, 50}
 
 	for _, x := range tests {

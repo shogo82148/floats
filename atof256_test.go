@@ -167,6 +167,7 @@ var parseFloat256Tests = []struct {
 }
 
 func TestParseFloat256(t *testing.T) {
+	t.Parallel()
 	for _, tt := range parseFloat256Tests {
 		got, err := ParseFloat256(tt.input)
 		if err != nil {
@@ -246,6 +247,7 @@ func BenchmarkParseFloat256_FloatExp(b *testing.B) {
 }
 
 func TestFloat256_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float256
@@ -279,6 +281,7 @@ func TestFloat256_UnmarshalJSON(t *testing.T) {
 }
 
 func TestFloat256_UnmarshalText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  Float256

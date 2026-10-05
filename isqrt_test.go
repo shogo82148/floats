@@ -67,6 +67,7 @@ func sqrtBitByBit256(a Float256) Float256 {
 }
 
 func TestIsqrt128(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
 	check := func(hi, lo uint64) {
 		s := isqrt128(hi, lo)
@@ -128,6 +129,7 @@ func randomFloat256(r *rand.Rand) Float256 {
 }
 
 func TestFloat128_SqrtRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(3, 4))
 	for i := range 200_000 {
 		a := randomFloat128(r)
@@ -152,6 +154,7 @@ func TestFloat128_SqrtRandom(t *testing.T) {
 }
 
 func TestFloat256_SqrtRandom(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewPCG(5, 6))
 	for i := range 100_000 {
 		a := randomFloat256(r)

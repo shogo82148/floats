@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat32_Logb(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want Float32
@@ -41,6 +42,7 @@ func BenchmarkFloat32_Logb(b *testing.B) {
 }
 
 func TestFloat32_Ilogb(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float32
 		want int

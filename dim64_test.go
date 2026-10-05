@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat64_Dim(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a    Float64
 		b    Float64
@@ -31,6 +32,7 @@ func TestFloat64_Dim(t *testing.T) {
 }
 
 func TestFloat64_Max(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a    Float64
 		b    Float64
@@ -58,6 +60,7 @@ func TestFloat64_Max(t *testing.T) {
 }
 
 func TestFloat64_Min(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a    Float64
 		b    Float64

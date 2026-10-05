@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat16_Log1p(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float16
 		want float64
@@ -59,6 +60,7 @@ func BenchmarkFloat16_Log1p(b *testing.B) {
 // from the midpoint of two adjacent Float16 values (checked with mpmath),
 // so math.Log1p rounded to Float16 is correctly rounded.
 func TestFloat16_Log1pAll(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		want := NewFloat16(math.Log1p(x.Float64().BuiltIn()))

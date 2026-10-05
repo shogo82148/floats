@@ -6,6 +6,7 @@ import (
 )
 
 func TestFloat128_Floor(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128
@@ -32,6 +33,7 @@ func TestFloat128_Floor(t *testing.T) {
 }
 
 func TestFloat128_Ceil(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128
@@ -58,6 +60,7 @@ func TestFloat128_Ceil(t *testing.T) {
 }
 
 func TestFloat128_Trunc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128
@@ -84,6 +87,7 @@ func TestFloat128_Trunc(t *testing.T) {
 }
 
 func TestFloat128_Round(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128
@@ -114,6 +118,7 @@ func TestFloat128_Round(t *testing.T) {
 }
 
 func TestFloat128_RoundToEven(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float128
 		want Float128

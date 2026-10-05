@@ -7,6 +7,7 @@ import (
 )
 
 func TestFloat256_Erf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -55,6 +56,7 @@ func BenchmarkFloat256_Erf(b *testing.B) {
 }
 
 func TestFloat256_Erfinv(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
@@ -105,6 +107,7 @@ func BenchmarkFloat256_Erfinv(b *testing.B) {
 }
 
 func TestFloat256_Erfcinv(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		x    Float256
 		want string
