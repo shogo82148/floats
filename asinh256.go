@@ -109,7 +109,7 @@ func logHyp256(sign uint64, exp int, m ints.Uint256, acosh bool) Float256 {
 		k = bl - 1 - g
 		vf = u.Lsh(uint(320 - bl))
 	}
-	return log256Wide(sign, k, vf)
+	return log256Wide(sign, k, vf, 0)
 }
 
 // log1pFix256 returns ±log(1+t) for t = |t| × 2**-492 > 0 in fixed point, where |t| < 2**493.
@@ -122,15 +122,15 @@ func log1pFix256(sign uint64, t ints.Uint512) Float256 {
 	}
 	u := t.Add(ints.Uint512{0: 1 << 44}) // u × 2**492
 	bl := u.BitLen()
-	return log256Wide(sign, bl-493, u.Rsh(uint(bl-320)))
+	return log256Wide(sign, bl-493, u.Rsh(uint(bl-320)), 0)
 }
 
-// log256Wide returns ±log(u), where u = 2**k × v, v is in [1, 2), and vf is v × 2**319.
+// log256Wide returns ±log(u) × 2**e, where u = 2**k × v, v is in [1, 2), and vf is v × 2**319.
 // u must not be close to 1: log(u) >= 2**-9. sign is the sign bit of the result.
-func log256Wide(sign uint64, k int, vf ints.Uint512) Float256 {
+func log256Wide(sign uint64, k int, vf ints.Uint512, e int) Float256 {
 	idx, rneg, rmag := log256ReduceWide(vf)
-	_, v, e := log256Combine(k, idx, rneg, rmag)
-	return fixToFloat256(sign, v, false, e)
+	_, v, exp := log256Combine(k, idx, rneg, rmag)
+	return fixToFloat256(sign, v, false, exp+e)
 }
 
 // log256ReduceWide reduces v = 1 + f to v = c × (1+r), where c is the breakpoint of the bucket idx,
@@ -168,52 +168,53 @@ func log256ReduceWide(vf ints.Uint512) (idx uint64, rneg bool, rmag ints.Uint512
 //	x.Atanh() = NaN if x < -1 or x > 1
 //	NaN.Atanh() = NaN
 func (a Float256) Atanh() Float256 {
-	var (
-		// Zero = 0.0
-		Zero = Float256{}
+	// |a| = m × 2**(exp-236), where m is a 237-bit integer in [2**236, 2**237).
+	sign, exp, m := a.normalize()
+	switch {
+	case exp > 0 || (exp == 0 && m != ints.Uint256{0: 1 << 44}):
+		return NewFloat256NaN() // NaN or |a| > 1
+	case exp == 0:
+		return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]} // ±1
+	case exp < -119:
+		// |a| < 2**-119, and |atanh(a) - a| ~ |a|³/3 is less than the half ulp of a.
+		// This also handles ±0 and subnormal numbers.
+		return a
+	}
 
-		// Half = 0.5
-		Half = Float256{
-			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	if exp < -9 {
+		// |a| < 2**-9. atanh(a) = a + a × z × H(z), where z = a² < 2**-18 and H(z) = 1/3 + z/5 + z²/7 + ...
+		// a × z × H is computed with the relative precision and added to a without rounding.
+		// z = M2 × 2**(2exp-254), where M2 is the top 256 bits of m².
+		m2 := shr512to256(m.Mul512(m), 218)
+
+		// z in fixed point with 264 fractional bits, and H in fixed point with 257 fractional bits.
+		z := m2.Rsh(uint(-2*exp - 10))
+		h := ints.Uint256(atanhCoeffs256[0])
+		for _, c := range atanhCoeffs256[1:] {
+			h = ints.Uint256(c).Add(shr512to256(z.Mul512(h), 264))
 		}
 
-		// One = 1.0
-		One = Float256(uvone256)
+		// z × H = p × 2**(2exp-511). keep the top 256 bits of p: z × H = p1 × 2**(2exp-255).
+		p1 := shr512to256(m2.Mul512(h), 256)
+		c := m.Mul512(p1) // a × z × H = c × 2**(3exp-491)
 
-		// NearZero = 2**-170
-		NearZero = Float256{
-			0x3ff5_5000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
+		// a = (m × 2**274) × 2**(exp-510) and a × z × H = (c >> (-2exp-19)) × 2**(exp-510)
+		s := ints.Uint512{4: m[0], 5: m[1], 6: m[2], 7: m[3]}.Lsh(274).Add(c.Rsh(uint(-2*exp - 19)))
+		return fixToFloat256(sign, s, false, exp-510)
+	}
 
-	// special cases
-	switch {
-	case a.Lt(One.Neg()) || a.Gt(One) || a.IsNaN():
-		return NewFloat256NaN()
-	case a.Eq(One):
-		return NewFloat256Inf(1)
-	case a.Eq(One.Neg()):
-		return NewFloat256Inf(-1)
+	// atanh(a) = log(u)/2, where u = (1+|a|)/(1-|a|) = (2**f + m)/(2**f - m) with f = 236 - exp.
+	// u × 2**265 is computed by the integer division, and the relative error is less than 2**-265
+	// even if a is close to 1, since u >= 1.
+	one := ints.Uint512{7: 1}.Lsh(uint(236 - exp))
+	mm := m.Uint512()
+	q := one.Add(mm).Lsh(265).Quo(one.Sub(mm))
+	bl := q.BitLen()
+	var vf ints.Uint512
+	if bl >= 320 {
+		vf = q.Rsh(uint(bl - 320))
+	} else {
+		vf = q.Lsh(uint(320 - bl))
 	}
-	sign := false
-	if a.Lt(Zero) {
-		a = a.Neg()
-		sign = true
-	}
-	var temp Float256
-	switch {
-	case a.Lt(NearZero):
-		temp = a
-	case a.Lt(Half):
-		temp = a.Add(a)
-		temp = Half.Mul(temp.Add(temp.Mul(a).Quo(One.Sub(a))).Log1p())
-	default:
-		temp = Half.Mul((a.Add(a).Quo(One.Sub(a))).Log1p())
-	}
-	if sign {
-		temp = temp.Neg()
-	}
-	return temp
+	return log256Wide(sign, bl-266, vf, -1)
 }

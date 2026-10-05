@@ -173,6 +173,22 @@ func TestFloat256_Atanh(t *testing.T) {
 		{exact256(-1), exact256(math.Inf(-1))},
 		{exact256(-2), exact256(math.NaN())},
 		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(math.Inf(1)), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(math.NaN())},
+		{exact256(1).Nextafter(exact256(2)), exact256(math.NaN())},   // 1 + 2**-236
+		{exact256(-1).Nextafter(exact256(-2)), exact256(math.NaN())}, // -(1 + 2**-236)
+
+		// atanh(x) rounds to x for tiny x, including the smallest subnormal numbers
+		{Float256{0, 0, 0, 1}, Float256{0, 0, 0, 1}},
+		{Float256{signMask256[0], 0, 0, 1}, Float256{signMask256[0], 0, 0, 1}},
+		{exact256(0x1p-120), exact256(0x1p-120)},
+		{exact256(0x1p-119), exact256(0x1p-119)},
+		{exact256(-0x1p-119), exact256(-0x1p-119)},
+		{exact256(0x1p-119).Nextafter(NewFloat256Inf(-1)), exact256(0x1p-119).Nextafter(NewFloat256Inf(-1))},
+
+		// just above the threshold, atanh(x) = x + x³/3 + ... is not rounded to x for the largest x
+		{exact256(0x1p-118).Nextafter(NewFloat256Inf(-1)), exact256(0x1p-118)},
+		{exact256(-0x1p-118).Nextafter(NewFloat256Inf(1)), exact256(-0x1p-118)},
 	}
 
 	for _, tt := range strictTests {
@@ -181,4 +197,22 @@ func TestFloat256_Atanh(t *testing.T) {
 			t.Errorf("Atanh(%v) = %v; want %v", tt.x, got, tt.want)
 		}
 	}
+}
+
+func TestFloat256_AtanhAccuracy(t *testing.T) {
+	testFloat256Accuracy(t, "testdata/atanh256.txt", "Atanh", Float256.Atanh)
+}
+
+func BenchmarkFloat256_Atanh(b *testing.B) {
+	benchFloat256(b, Float256.Atanh, []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(0x1p-125)},                     // returns x
+		{"small", exact256(0x1p-20)},                     // series
+		{"medium", exact256(0.5)},                        // logarithm
+		{"negative", exact256(-0.75)},                    // atanh(-a) = -atanh(a)
+		{"near1", exact256(0.999)},                       // logarithm
+		{"nearest1", exact256(1).Nextafter(exact256(0))}, // 1 - 2**-237
+	})
 }
