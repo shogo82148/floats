@@ -96,6 +96,9 @@ func TestFloat256_LogAccuracy(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if total == 0 {
+		t.Fatal("testdata/log256.txt has no test cases")
+	}
 	if misrounded*100 > total {
 		t.Errorf("Log: %d of %d results are not correctly rounded; want at most 1%%", misrounded, total)
 	}
