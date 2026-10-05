@@ -52,6 +52,7 @@ func TestFloat16_Cbrt(t *testing.T) {
 // No cube root of a Float16 is closer than 2**-16 ulp to a midpoint of two Float16 values (checked with mpmath),
 // and the error of math.Cbrt is about 2**-52, so the result of the comparison is the correctly rounded one.
 func TestFloat16_CbrtAll(t *testing.T) {
+	t.Parallel()
 	for i := range 1 << 16 {
 		a := Float16(i)
 		got := a.Cbrt()
