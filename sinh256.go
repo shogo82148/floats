@@ -250,31 +250,52 @@ func mulHi256(a, b ints.Uint256) ints.Uint256 {
 //	±Inf.Cosh() = +Inf
 //	NaN.Cosh() = NaN
 func (a Float256) Cosh() Float256 {
-	var (
-		// Large = 84
-		Large = Float256{
-			0x4000_5500_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
+	exp := int((a[0]>>(shift256-192))&mask256) - bias256
 
-		// One = 1.0
-		One = Float256{
-			0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	switch {
+	case exp < -118:
+		// cosh(a) = 1 + a**2/2 + ... rounds to 1 when |a| < 2**-118,
+		// including ±0 and subnormal values.
+		return Float256(uvone256)
+	case exp >= 18:
+		// cosh(a) overflows when |a| > ln(2 × max float256) ~ 181705.1.
+		if a.IsNaN() {
+			return a
 		}
-
-		// Half = 0.5
-		Half = Float256{
-			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
-	a = a.Abs()
-	if a.Gt(Large) {
-		return a.Exp().Mul(Half)
+		return Float256(uvinf256)
 	}
-	ex := a.Exp()
-	return ex.Add(One.Quo(ex)).Mul(Half)
+
+	// |a| = m × 2**(exp-236), where m is a 237-bit integer.
+	m := ints.Uint256{a[0]&fracMask256[0] | 1<<(shift256-192), a[1], a[2], a[3]}
+
+	n := expN256(exp, m)
+	if n == 0 {
+		// |a| < ln(2)/128. cosh(a) = 1 + c, where c = z × q and z = a**2.
+		x := expFix256(exp, m)
+		z := shr512to256(x.Mul512(x), 256) // z × 2**268
+		q := sinhPoly256(&coshCoeffs256, z)
+		c := mulHi256(z, q) // c × 2**267, truncated
+		// 1 + c in fixed point with 383 fractional bits.
+		// c is truncated and cosh(a) is never on a midpoint, so the sticky bit is set.
+		v := lsh512(ints.Uint512{0, 0, 0, 0, c[0], c[1], c[2], c[3]}, 383-267)
+		v[2] |= 1 << 63
+		return fixToFloat256(0, v, true, -383)
+	}
+
+	k, rneg, s, c, u, w := sinhKernel256(exp, m, n)
+
+	// cosh(|a|) = (e**|a| + e**-|a|)/2 = (u + w)/2 × (1 + c) + (u - w)/2 × (±s).
+	// They are in fixed point with 383 fractional bits, relative to 2**k.
+	e := shr512(u.Add(w), 1)
+	f := shr512(u.Sub(w), 1)
+	v := e.Add(shr512(shr512to256(e, 128).Mul512(c), 139)) // (u + w)/2 × c
+	fs := shr512(shr512to256(f, 128).Mul512(s), 133)       // (u - w)/2 × s
+	if rneg {
+		v = v.Sub(fs)
+	} else {
+		v = v.Add(fs)
+	}
+	return fixToFloat256(0, v, false, k-383)
 }
 
 // Tanh returns the hyperbolic tangent of a.

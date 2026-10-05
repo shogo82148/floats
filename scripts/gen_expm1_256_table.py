@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_256_table.go, the fixed-point constants used by Float256 Exp, Exp2, Expm1, and Sinh.
+# Generates expm1_256_table.go, the fixed-point constants used by Float256 Exp, Exp2, Expm1, Sinh, and Cosh.
 #
 # Usage: python3 scripts/gen_expm1_256_table.py > expm1_256_table.go
 
