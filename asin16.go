@@ -47,7 +47,36 @@ func asinSeries16(z float64) float64 {
 //
 //	x.Acos() = NaN if x < -1 or x > 1
 func (a Float16) Acos() Float16 {
-	return NewFloat16(math.Acos(a.Float64().BuiltIn()))
+	ix := a &^ signMask16
+	if ix > uvone16 { // |a| > 1, Inf, or NaN
+		return NewFloat16NaN()
+	}
+
+	var x float64
+	if ix < 0x0400 {
+		// a is zero or subnormal.
+		x = float64(ix) * 0x1p-24
+	} else {
+		x = normal16ToFloat64(ix)
+	}
+	var r float64
+	if x <= 0.5 {
+		// acos(x) = pi/2 - asin(x)
+		s := x * asinSeries16(x*x)
+		if a&signMask16 != 0 {
+			s = -s
+		}
+		return NewFloat16(math.Pi/2 - s)
+	}
+
+	// acos(x) = 2 asin(sqrt((1-x)/2))
+	t := (1 - x) * 0.5 // exact
+	r = 2 * math.Sqrt(t) * asinSeries16(t)
+	if a&signMask16 != 0 {
+		// acos(-x) = pi - acos(x)
+		r = math.Pi - r
+	}
+	return NewFloat16(r)
 }
 
 // Atan returns the arctangent, in radians, of a.
