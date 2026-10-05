@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Generates testdata/sinh128.txt.
-# Each line contains the bits of x and the correctly rounded sinh(x) in hexadecimal.
+# Generates testdata/sinh128.txt and testdata/cosh128.txt.
+# Each line contains the bits of x and the correctly rounded sinh(x) or cosh(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_sinh_testdata.py
 
@@ -8,7 +8,7 @@ import random
 import mpmath
 
 
-def gen(name, P, EB, seed):
+def gen(names, P, EB, seed):
     B = (1 << (EB - 1)) - 1
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
@@ -75,22 +75,23 @@ def gen(name, P, EB, seed):
     # the largest finite value
     inputs.append(enc((1 << (P + 1)) - 1, B))
     inputs.append(enc((1 << (P + 1)) - 1, B, 1))
-    # around the threshold where sinh(x) rounds to x
+    # around the threshold where sinh(x) rounds to x and cosh(x) rounds to 1
     for e in range(-P // 2 - 3, -P // 2 + 4):
         for s in range(2):
             inputs += [enc(1 << P, e, s), enc((1 << P) + 1, e, s), enc((2 << P) - 1, e, s)]
 
-    with open(f"testdata/{name}.txt", "w") as f:
-        for v in inputs:
-            with mpmath.workprec(P + 64):
-                x = dec(v)
-            e = max(0, int(mpmath.floor(mpmath.log(abs(x), 2))))
-            if abs(x) > 2 ** (EB - 1):
-                y = round_bits(x * mpmath.mpf(2) ** B)  # ±Inf
-            else:
-                with mpmath.workprec(e + 4 * P + 64):
-                    y = round_bits(mpmath.sinh(x))
-            f.write(f"{v:0{width}x} {y:0{width}x}\n")
+    for name, fn in zip(names, (mpmath.sinh, mpmath.cosh)):
+        with open(f"testdata/{name}.txt", "w") as f:
+            for v in inputs:
+                with mpmath.workprec(P + 64):
+                    x = dec(v)
+                e = max(0, int(mpmath.floor(mpmath.log(abs(x), 2))))
+                if abs(x) > 2 ** (EB - 1):
+                    s = -1 if fn is mpmath.sinh and x < 0 else 1
+                    y = round_bits(s * abs(x) * mpmath.mpf(2) ** B)  # ±Inf
+                else:
+                    with mpmath.workprec(e + 4 * P + 64):
+                        y = round_bits(fn(x))
+                f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
-
-gen("sinh128", 112, 15, 128)
+gen(["sinh128", "cosh128"], 112, 15, 128)
