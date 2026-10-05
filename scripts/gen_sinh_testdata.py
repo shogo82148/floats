@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates testdata/sinh128.txt, testdata/cosh128.txt, testdata/tanh128.txt, testdata/sinh256.txt, and testdata/cosh256.txt.
+# Generates testdata/{sinh,cosh,tanh}128.txt and testdata/{sinh,cosh,tanh}256.txt.
 # Each line contains the bits of x and the correctly rounded sinh(x), cosh(x), or tanh(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_sinh_testdata.py
@@ -96,7 +96,7 @@ def gen(names, P, EB, seed):
                 with mpmath.workprec(P + 64):
                     x = dec(v)
                 e = max(0, int(mpmath.floor(mpmath.log(abs(x), 2))))
-                if fn is mpmath.tanh and abs(x) > 64:
+                if fn is mpmath.tanh and abs(x) > P:
                     y = round_bits(mpmath.sign(x))  # ±1
                 elif abs(x) > 2 ** (EB - 1):
                     s = -1 if fn is mpmath.sinh and x < 0 else 1
@@ -107,4 +107,4 @@ def gen(names, P, EB, seed):
                 f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
 gen(["sinh128", "cosh128", "tanh128"], 112, 15, 128)
-gen(["sinh256", "cosh256"], 236, 19, 256)
+gen(["sinh256", "cosh256", "tanh256"], 236, 19, 256)
