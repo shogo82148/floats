@@ -1,9 +1,13 @@
 package floats
 
 import (
+	"bufio"
 	"math"
 	"math/big"
 	"math/rand/v2"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -58,6 +62,40 @@ func TestFloat128_Cbrt(t *testing.T) {
 func TestFloat128_CbrtAccuracy(t *testing.T) {
 	t.Parallel()
 	testFloat128Accuracy(t, "testdata/cbrt128.txt", "Cbrt", Float128.Cbrt)
+}
+
+// TestFloat128_CbrtTestdata requires the correctly rounded result for every vector of the test data,
+// while testFloat128Accuracy tolerates 1% of the results that are not correctly rounded.
+func TestFloat128_CbrtTestdata(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/cbrt128.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) Float128 {
+		var x Float128
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		x, want := parse(fields[0]), parse(fields[1])
+		if got := x.Cbrt(); !eq128(got, want) {
+			t.Errorf("Cbrt(%v) = %v; want %v", x, got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // cbrt128Exact returns the correctly rounded cube root of a, which must be finite and not zero, with math/big.
