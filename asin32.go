@@ -45,7 +45,29 @@ func asinSeries32(z float64) float64 {
 //
 //	x.Acos() = NaN if x < -1 or x > 1
 func (a Float32) Acos() Float32 {
-	return NewFloat32(math.Acos(a.Float64().BuiltIn()))
+	ix := a.Bits() &^ signMask32
+	if ix > 0x3f800000 { // |a| > 1, Inf, or NaN
+		return NewFloat32NaN()
+	}
+
+	x := float64(math.Float32frombits(ix))
+	if x <= 0.5 {
+		// acos(x) = pi/2 - asin(x)
+		s := x * asinSeries32(x*x)
+		if a < 0 {
+			s = -s
+		}
+		return Float32(math.Pi/2 - s)
+	}
+
+	// acos(x) = 2 asin(sqrt((1-x)/2))
+	t := (1 - x) * 0.5 // exact
+	r := 2 * math.Sqrt(t) * asinSeries32(t)
+	if a < 0 {
+		// acos(-x) = pi - acos(x)
+		r = math.Pi - r
+	}
+	return Float32(r)
 }
 
 // Atan returns the arctangent, in radians, of a.
