@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates testdata/sinh128.txt, testdata/cosh128.txt, and testdata/tanh128.txt.
+# Generates testdata/sinh128.txt, testdata/cosh128.txt, testdata/tanh128.txt, and testdata/sinh256.txt.
 # Each line contains the bits of x and the correctly rounded sinh(x), cosh(x), or tanh(x) in hexadecimal.
 #
 # Usage: python3 scripts/gen_sinh_testdata.py
@@ -107,3 +107,4 @@ def gen(names, P, EB, seed):
                 f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
 gen(["sinh128", "cosh128", "tanh128"], 112, 15, 128)
+gen(["sinh256"], 236, 19, 256)

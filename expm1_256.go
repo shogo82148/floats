@@ -110,7 +110,14 @@ func expFix256(exp int, m ints.Uint256) ints.Uint256 {
 // and n = round(|a| × 64/ln(2)) is computed by expN256.
 // v × 2**-383 is in [0.99, 2), and its absolute error is about 2**-258.
 func expKernel256(sign uint64, exp int, m ints.Uint256, n uint64) (k int, v ints.Uint512) {
-	// reduce: a = ±n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
+	return expScale256(sign, n, expReduce256(exp, m, n))
+}
+
+// expReduce256 returns r = |a| - n × ln(2)/64 for a = ±m × 2**(exp-236),
+// where m is a 237-bit integer, and n = round(|a| × 64/ln(2)) is computed by expN256.
+// r × 2**-262 is a signed 256-bit fixed point number with |r| < 2**-7.
+func expReduce256(exp int, m ints.Uint256, n uint64) ints.Uint256 {
+	// reduce: |a| = n × ln(2)/64 + r, |r| <= ln(2)/128 < 2**-7.
 	// r = |a| - n×ln(2)/64 in fixed point with 262 fractional bits.
 	// |a|×2**262 and n×ln(2)/64×2**262 may not fit in 256 bits,
 	// but their difference does, so they are computed modulo 2**256.
@@ -131,8 +138,7 @@ func expKernel256(sign uint64, exp int, m ints.Uint256, n uint64) (k int, v ints
 	w2, c = bits.Add64(w2, 0, c)
 	w1, c = bits.Add64(w1, 0, c)
 	w0 += c
-	r := x.Sub(ints.Uint256{w0, w1, w2, w3})
-	return expScale256(sign, n, r)
+	return x.Sub(ints.Uint256{w0, w1, w2, w3})
 }
 
 // expScale256 returns e**a = 2**k × v × 2**-383
