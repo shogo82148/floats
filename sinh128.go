@@ -280,13 +280,11 @@ func (a Float128) Tanh() Float128 {
 
 	// ε in fixed point with 191 fractional bits, rounded up,
 	// so that the result 1 - ε is truncated and the sticky bit is valid.
-	sh := uint(k) - ld
-	tz := 64 + uint(bits.TrailingZeros64(q[1]))
-	if q[1] == 0 {
-		tz = 128 + uint(bits.TrailingZeros64(q[0]))
-	}
-	sticky := inexact || sh > tz
-	e2, e1, e0 := rsh192(q[0], q[1], 0, sh)
+	// The division is exact only if d and q are powers of two,
+	// and then no nonzero bits are shifted out because sh <= 184,
+	// so the shifted ε is exact if and only if the division is exact.
+	sticky := inexact
+	e2, e1, e0 := rsh192(q[0], q[1], 0, uint(k)-ld)
 	if sticky {
 		e0, c = bits.Add64(e0, 1, 0)
 		e1, c = bits.Add64(e1, 0, c)
