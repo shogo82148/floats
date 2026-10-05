@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates expm1_256_table.go, the fixed-point constants used by Float256 Exp, Exp2, Expm1, Sinh, and Cosh.
+# Generates expm1_256_table.go, the fixed-point constants used by Float256 Exp, Exp2, Expm1, Sinh, Cosh, and Tanh.
 #
 # Usage: python3 scripts/gen_expm1_256_table.py > expm1_256_table.go
 
@@ -61,4 +61,18 @@ print(f"// in the order of Horner's method: 1/(2i+2)! for i = {SINH_TERMS - 1}, 
 print("var coshCoeffs256 = [...][4]uint64{")
 for i in range(SINH_TERMS - 1, -1, -1):
     print(f"\t{{{limbs(fix(1 / mpmath.factorial(2 * i + 2), 255), 4)}}}, // 1/{2 * i + 2}!")
+print("}")
+
+# the number of the coefficients of tanh(r)/r in z = r**2 for |r| <= ln(2)/128
+TANH_TERMS = 17
+
+print()
+print("// tanhCoeffs256 are the absolute values of the coefficients of")
+print("// tanh(r)/r = 1 - z/3 + 2z**2/15 - ..., where z = r**2,")
+print(f"// in fixed point with 255 fractional bits, in the order of Horner's method: i = {TANH_TERMS - 1}, {TANH_TERMS - 2}, ..., 0.")
+print("// The sign of the coefficient of z**i is (-1)**i.")
+print("var tanhCoeffs256 = [...][4]uint64{")
+t = mpmath.taylor(mpmath.tanh, 0, 2 * TANH_TERMS)
+for i in range(TANH_TERMS - 1, -1, -1):
+    print(f"\t{{{limbs(fix(abs(t[2 * i + 1]), 255), 4)}}}, // z**{i}")
 print("}")

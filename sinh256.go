@@ -180,6 +180,42 @@ func sinhCoshPoly256(z ints.Uint256) (p, q ints.Uint256) {
 	return
 }
 
+// tanhPoly256 returns tanh(r)/r in fixed point with 255 fractional bits,
+// where z = r**2, z × 2**-268 < 2**-15.
+func tanhPoly256(z ints.Uint256) ints.Uint256 {
+	// The coefficients alternate in sign, and g×z is less than the next coefficient,
+	// so g = c - g×z stays positive.
+	// The partial sums are computed with 128, 192, and 256 bits as in sinhPoly256.
+	c := &tanhCoeffs256
+	const n = len(tanhCoeffs256)
+
+	// 128 bits: g in fixed point with 127 fractional bits, z with 140 fractional bits.
+	g1, g0 := c[0][0], c[0][1]
+	for i := 1; i < n-9; i++ {
+		p3, p2, _, _ := mul128x128(g1, g0, z[0], z[1])
+		var b uint64
+		g0, b = bits.Sub64(c[i][1], p3<<52|p2>>12, 0)
+		g1, _ = bits.Sub64(c[i][0], p3>>12, b)
+	}
+
+	// 192 bits: g in fixed point with 191 fractional bits, z with 204 fractional bits.
+	g := [3]uint64{g1, g0, 0}
+	for i := n - 9; i < n-5; i++ {
+		p := mul192x192(g, [3]uint64{z[0], z[1], z[2]})
+		var b uint64
+		g[2], b = bits.Sub64(c[i][2], p[1]<<52|p[2]>>12, 0)
+		g[1], b = bits.Sub64(c[i][1], p[0]<<52|p[1]>>12, b)
+		g[0], _ = bits.Sub64(c[i][0], p[0]>>12, b)
+	}
+
+	// 256 bits: g in fixed point with 255 fractional bits, z with 268 fractional bits.
+	g256 := ints.Uint256{g[0], g[1], g[2], 0}
+	for i := n - 5; i < n; i++ {
+		g256 = ints.Uint256(c[i]).Sub(mulShr268(g256, z))
+	}
+	return g256
+}
+
 // mulShr268 returns about (a × b) >> 268, truncated to 256 bits.
 // See mulHi256 for its error.
 func mulShr268(a, b ints.Uint256) ints.Uint256 {
@@ -306,53 +342,94 @@ func (a Float256) Cosh() Float256 {
 //	±Inf.Tanh() = ±1
 //	NaN.Tanh() = NaN
 func (a Float256) Tanh() Float256 {
-	var (
-		// ln(max float256 + 0.5ulp)/2 = ln(2²⁶²¹⁴³×(2-2⁻²³⁷))/2
-		// ~ 90852.18725035315159593544862376611913079195361086737666810577020431809
-		Overflow = Float256{
-			0x4000_f62e_42fe_fa39, 0xef35_793c_7673_007e,
-			0x5ed5_e81e_6864_ce53, 0x16c5_b141_a2eb_7177,
-		}
+	sign := a[0] & signMask256[0]
+	exp := int((a[0]>>(shift256-192))&mask256) - bias256
 
-		// One = 1.0
-		One = Float256{
-			0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-
-		// Two = 2.0
-		Two = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-
-		// NearZero = 0.625
-		NearZero = Float256{
-			0x3fff_e400_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
-	z := a.Abs()
 	switch {
-	case z.Gt(Overflow):
-		if a.Signbit() {
-			return One.Neg()
-		}
-		return One
-	case z.Ge(NearZero):
-		s := z.Add(z).Exp()
-		z = One.Sub(Two.Quo(s.Add(One)))
-		if a.Signbit() {
-			z = z.Neg()
-		}
-	case z.IsZero():
+	case exp < -119:
+		// tanh(a) = a - a**3/3 + ... ~ a when |a| < 2**-119,
+		// including ±0 and subnormal values.
 		return a
-	default:
-		// TODO: optimize using minimax approximation
-		z = z.Sinh().Quo(z.Cosh())
-		if a.Signbit() {
-			z = z.Neg()
+	case exp >= 7:
+		// 1 - tanh(|a|) ~ 2e**-2|a| < 2**-238 when |a| > 239×ln(2)/2 ~ 82.8,
+		// so tanh(a) rounds to ±1.
+		if a.IsNaN() {
+			return a
 		}
+		return Float256{sign | uvone256[0], uvone256[1], uvone256[2], uvone256[3]}
 	}
-	return z
+
+	// a = ±m × 2**(exp-236), where m is a 237-bit integer.
+	m := ints.Uint256{a[0]&fracMask256[0] | 1<<(shift256-192), a[1], a[2], a[3]}
+
+	n := expN256(exp, m)
+	if n == 0 {
+		// |a| < ln(2)/128. tanh(a) = a × tanh(a)/a.
+		x := expFix256(exp, m)
+		z := shr512to256(x.Mul512(x), 256) // a**2 × 2**268
+		g := tanhPoly256(z)
+		return fixToFloat256(sign, m.Mul512(g), false, exp-236-255)
+	}
+
+	// e**2|a| = 2**k × v, where v × 2**-383 is in [0.99, 2).
+	// 2|a| = m × 2**(exp+1-236), and k >= 0 because |a| >= ln(2)/128.
+	k, v := expKernel256(0, exp+1, m, expN256(exp+1, m))
+	one := ints.Uint512{0, 0, 1 << 63, 0, 0, 0, 0, 0}
+	if k == 0 {
+		// e**2|a| < 2, so tanh(|a|) < 1/3.
+		// tanh(|a|) = (e**2|a| - 1) / (e**2|a| + 1) = (v - 1) / (v + 1).
+		// v - 1 > 0 because e**2|a| >= e**(ln(2)/64).
+		q, e, inexact := quo512(v.Sub(one), v.Add(one))
+		return fixToFloat256(sign, ints.Uint512{0, 0, 0, 0, q[0], q[1], q[2], q[3]}, inexact, e-256)
+	}
+
+	// tanh(|a|) = 1 - ε, where ε = 2 / (e**2|a| + 1) = 2**-k / h, and h = (v + 2**-k)/2.
+	// ε is computed with a small relative error,
+	// so that 1 - ε rounds correctly even when it is very close to a midpoint.
+	// h is in [0.49, 1.25) in fixed point with 383 fractional bits. k <= 370 because |a| < 128.
+	var t ints.Uint512
+	b := uint(382 - k)
+	t[7-b/64] = 1 << (b % 64)
+	h := shr512(v, 1).Add(t)
+	// h = hn × 2**(-127-lh), where hn is the top 256 bits of h, normalized and truncated.
+	lh := h.LeadingZeros()
+	hs := lsh512(h, uint(lh))
+	// q = 2**510/hn = 2**(-127-lh)/h × 2**383, so ε = q × 2**(lh-k-383).
+	q, inexact := quo512by256(ints.Uint256{1 << 62, 0, 0, 0}, ints.Uint256{hs[0], hs[1], hs[2], hs[3]})
+
+	// ε in fixed point with 383 fractional bits, rounded up,
+	// so that the result 1 - ε is truncated and the sticky bit is valid.
+	// The division is exact only if hn and q are powers of two,
+	// and then no nonzero bits are shifted out because k <= 370,
+	// so the shifted ε is exact if and only if the division is exact.
+	eps := ints.Uint512{0, 0, 0, 0, q[0], q[1], q[2], q[3]}
+	if sh := lh - k; sh >= 0 {
+		eps = lsh512(eps, uint(sh))
+	} else {
+		eps = shr512(eps, uint(-sh))
+	}
+	if inexact {
+		eps = eps.Add(ints.Uint512{0, 0, 0, 0, 0, 0, 0, 1})
+	}
+	return fixToFloat256(sign, one.Sub(eps), inexact, -383)
+}
+
+// quo512 returns y/x = q × 2**(e-256) for positive 512-bit fixed point numbers y and x with the same scale.
+// inexact reports whether the quotient of the normalized 256-bit operands is not exact;
+// the bits below them are ignored.
+func quo512(y, x ints.Uint512) (q ints.Uint256, e int, inexact bool) {
+	// normalize x and y so that their most significant bits are set.
+	lx := uint(x.LeadingZeros())
+	ly := uint(y.LeadingZeros())
+	xn := lsh512(x, lx)
+	yn := lsh512(y, ly)
+	x256 := ints.Uint256{xn[0], xn[1], xn[2], xn[3]}
+	y256 := ints.Uint256{yn[0], yn[1], yn[2], yn[3]}
+	e = int(lx) - int(ly)
+	if y256.Cmp(x256) >= 0 {
+		y256 = y256.Rsh(1)
+		e++
+	}
+	q, inexact = quo512by256(y256, x256)
+	return
 }
