@@ -1,9 +1,15 @@
 package floats
 
 import (
+	"bufio"
 	"math"
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/shogo82148/ints"
 )
 
 func TestFloat128_Erf(t *testing.T) {
@@ -38,6 +44,18 @@ func TestFloat128_Erf(t *testing.T) {
 		{exact128(math.Inf(1)), exact128(1)},
 		{exact128(math.Inf(-1)), exact128(-1)},
 		{exact128(math.NaN()), exact128(math.NaN())},
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+		{Float128{0, 1}, Float128{0, 1}},
+		{Float128{0x8000_0000_0000_0000, 1}, Float128{0x8000_0000_0000_0000, 1}},
+		{exact128(100), exact128(1)},
+		{exact128(-100), exact128(-1)},
+
+		// erf(x) is rounded to 1 for |x| >= 8.7334
+		{Float128{0x4002_1778_42bc_e674, 0x48bc_471e_ea54_0734}, Float128{0x3ffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+		{Float128{0x4002_1778_42bc_e674, 0x48bc_471e_ea54_0735}, exact128(1)},
+		{Float128{0xc002_1778_42bc_e674, 0x48bc_471e_ea54_0734}, Float128{0xbffe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}},
+		{Float128{0xc002_1778_42bc_e674, 0x48bc_471e_ea54_0735}, exact128(-1)},
 	}
 
 	for _, tt := range strictTests {
@@ -48,10 +66,140 @@ func TestFloat128_Erf(t *testing.T) {
 	}
 }
 
+// TestFloat128_ErfAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat128_ErfAccuracy(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erf128.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) Float128 {
+		var x Float128
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 2 || len(fields[0]) != 32 || len(fields[1]) != 32 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		x, want := parse(fields[0]), parse(fields[1])
+		if got := x.Erf(); !eq128(got, want) {
+			t.Errorf("Erf(%v) = %v; want %v", x, got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFloat128_ErfKernel checks the accuracy of the kernel of Erf with the reference values calculated by mpmath.
+// The kernel is more accurate than Float128, so that its errors are hidden by the rounding.
+func TestFloat128_ErfKernel(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erf128_kernels.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) ints.Uint256 {
+		if len(s) != 64 {
+			t.Fatalf("malformed number: %q", s)
+		}
+		var x ints.Uint256
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 3 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		x, want := parse(fields[0]), parse(fields[1])
+		got, scaled := erf128Cell(x)
+		if scaled != (fields[2] == "1") {
+			t.Errorf("erf128Cell(%v): scaled is %v; want %v", fields[0], scaled, fields[2] == "1")
+		}
+		d := got.Sub(want)
+		if got.Cmp(want) < 0 {
+			d = want.Sub(got)
+		}
+		// the relative error is less than 2**-170
+		if d.BitLen()+170 > want.BitLen() {
+			t.Errorf("erf128Cell(%v) = %v; want %v", fields[0], got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFloat128_ErfRound(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		v    ints.Uint256
+		want uint64
+	}{
+		{ints.Uint256{5, 0, 0, 0}, 5},
+		{ints.Uint256{5, 1<<63 - 1, ^uint64(0), ^uint64(0)}, 5},
+		{ints.Uint256{5, 1 << 63, 0, 0}, 6},   // a tie, the even number
+		{ints.Uint256{6, 1 << 63, 0, 0}, 6},   // a tie, the even number
+		{ints.Uint256{6, 1 << 63, 1, 0}, 7},   // a little larger than a tie
+		{ints.Uint256{6, 1 << 63, 0, 1}, 7},   // a little larger than a tie
+		{ints.Uint256{6, 1<<63 + 1, 0, 0}, 7}, // a little larger than a tie
+		{ints.Uint256{6, ^uint64(0), ^uint64(0), ^uint64(0)}, 7},
+		{ints.Uint256{0, 1 << 63, 0, 0}, 0}, // a tie, the even number
+		{ints.Uint256{0, 1<<63 - 1, 0, 0}, 0},
+		{ints.Uint256{0, 1<<63 + 1, 0, 0}, 1},
+	}
+	for _, tt := range tests {
+		if got := erf128Round(tt.v); got != tt.want {
+			t.Errorf("erf128Round(%v) = %d; want %d", tt.v, got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat128_Erf(b *testing.B) {
-	x := exact128(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erf())
+	for _, tt := range []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(1e-300)},    // erf(x) ~ 2 x / sqrt(pi)
+		{"small", exact128(0.001)},    // |x| < 2**-8
+		{"medium", exact128(1.5)},     // 2**-8 <= |x| < 7
+		{"large", exact128(5.5)},      // the series has many terms
+		{"asymptotic", exact128(7.5)}, // 7 <= |x| < 8.74
+		{"negative", exact128(-1.5)},  // the sign is restored
+		{"saturated", exact128(10)},   // the result is 1
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erf())
+			}
+		})
 	}
 }
 
