@@ -64,7 +64,8 @@ def gen(name, P, EB, seed):
             for d in range(-3, 4):
                 inputs.append(round_bits(t + d * u, P, EB))
     inputs += [1]  # the smallest subnormal number
-    inputs = [v for v in inputs if abs(to_mpf(v, P, EB)) < 1]
+    # |x| < 1, which must be compared exactly, not with the floating-point numbers of the default precision of mpmath.
+    inputs = [v for v in inputs if ((v >> P) & ((1 << EB) - 1)) < B]
 
     with Pool() as p:
         results = p.map(functools.partial(compute, P=P, EB=EB), inputs, chunksize=4)
