@@ -325,14 +325,7 @@ func (a Float256) Erfinv() Float256 {
 	default:
 		// 1/2 < |a| < 1. Newton's method for erfc(y) = 1 - x, which is exact. It keeps the relative accuracy
 		// if x is close to 1.
-		c := one.Sub(x)
-		y0 := erfcinv64(c.Float64().BuiltIn())
-		y1 := NewFloat128(y0)
-		y1 = y1.Add(y1.Erfc().Sub(c.Float128()).Mul(sqrtPiOverTwo).Mul(NewFloat128(math.Exp(y0 * y0))))
-		y2 := y1.Float256()
-		y2 = y2.Add(y2.Erfc().Sub(c).Mul(sqrtPiOverTwo.Mul(y1.Mul(y1).Exp()).Float256()))
-		factor := sqrtPiOverTwo.Mul(y2.Float128().Mul(y2.Float128()).Exp()).Float256()
-		y = y2.Add(erf256Defect(y2, c, true).Mul(factor))
+		y = erfcinv256Pos(one.Sub(x))
 	}
 	if a.Signbit() {
 		return y.Neg()
@@ -340,14 +333,58 @@ func (a Float256) Erfinv() Float256 {
 	return y
 }
 
+// erfcinv256Pos returns erfcinv(c) for 0 < c <= 1/2, which is correctly rounded except for the extremely rare cases.
+func erfcinv256Pos(c Float256) Float256 {
+	var (
+		// SqrtPiOverTwo is sqrt(π)/2
+		sqrtPiOverTwo    = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+		sqrtPiOverTwo256 = Float256{
+			0x3fff_ec5b_f891_b4ef, 0x6aa7_9c3b_0520_d5db,
+			0x9383_fe39_2154_6f63, 0xb252_dca1_00bd_3ea1,
+		}
+	)
+
+	if c.Ge(Float256{0x3ff8_e000_0000_0000}) {
+		// c >= 2**-113. Newton's method for erfc(y) = c. The initial approximation has about 50 correct bits, and each
+		// iteration doubles them. The iterations are calculated in Float128 (the error is about 2**-104),
+		// in Float256 (2**-208), and in the fixed point arithmetic (less than 2**-300), with the factor
+		// sqrt(π)/2 exp(y**2) whose precision is enough for each iteration.
+		y0 := erfcinv64(c.Float64().BuiltIn())
+		y1 := NewFloat128(y0)
+		y1 = y1.Add(y1.Erfc().Sub(c.Float128()).Mul(sqrtPiOverTwo).Mul(NewFloat128(math.Exp(y0 * y0))))
+		y2 := y1.Float256()
+		y2 = y2.Add(y2.Erfc().Sub(c).Mul(sqrtPiOverTwo.Mul(y1.Mul(y1).Exp()).Float256()))
+		factor := sqrtPiOverTwo.Mul(y2.Float128().Mul(y2.Float128()).Exp()).Float256()
+		return y2.Add(erf256Defect(y2, c, true).Mul(factor))
+	}
+
+	// c < 2**-113, down to the subnormal numbers. y is up to 427, and exp(y**2) is out of the range of float64 and
+	// Float128, and even of Float256, and erfc(y) and its defect from c underflow, so that Newton's method is
+	// calculated with the logarithm and the ratio: y' = y + (erfc(y)/c - 1) sqrt(π)/2 exp(y**2 + ln c).
+	// erfc(y)/c - 1 is calculated by the fixed point arithmetic (less than 2**-300), and each iteration doubles
+	// the correct bits from about 50 bits. The error of the third iteration is less than 2**-300.
+	lc := c.Log()
+	y := NewFloat256(erfcinv64Log(lc.Float64().BuiltIn()))
+	for range 3 {
+		v, t, _ := erf256DefectPair(y, c, true)
+		y = y.Add(erf256FixRatio(v, t).Mul(sqrtPiOverTwo256).Mul(y.Mul(y).Add(lc).Exp()))
+	}
+	return y
+}
+
 // erf256Defect returns erf(y) - target if complement is false, or erfc(y) - target if complement is true,
 // which is calculated with the relative accuracy about 2**-300 of the values of the functions,
-// for 2**-125 <= y < 0.48 (erf) or 0.47 < y < 13 (erfc), and the target is close to the value of the function.
+// for 2**-125 <= y < 0.48 (erf) or 0.47 < y < 512 (erfc), and the target is close to the value of the function.
 func erf256Defect(y, target Float256, complement bool) Float256 {
+	v, t, e := erf256DefectPair(y, target, complement)
+	return erf256FixDiff(v, t, e)
+}
+
+// erf256DefectPair returns the value of erf(y) (if complement is false) or erfc(y) (if complement is true) and
+// the target in fixed point with 320 fractional bits in the same unit 2**e, whose accuracy is described in erf256Defect.
+func erf256DefectPair(y, target Float256, complement bool) (v, t gammaFix256, e int) {
 	_, exp, m := y.normalize()
 	// the value of the function is v × 2**e.
-	var v gammaFix256
-	var e int
 	switch {
 	case !complement && exp < -8:
 		v, e = erf256SmallSeries(exp, m), exp
@@ -357,13 +394,24 @@ func erf256Defect(y, target Float256, complement bool) Float256 {
 		// erfc(y) is larger than 2**-26, so that 1 - erf(y) is accurate enough.
 		v, _, _ = erf256Cell(gammaFix256FromUint256(m, uint(exp+84)))
 		v = gammaOne256.sub(v)
-	default:
+	case exp < 4:
 		v, e = erf256Scaled(gammaFix256FromUint256(m, uint(exp+84)))
+	default:
+		v, e = erfc256Large(gammaFix256FromUint256(m, uint(exp+84)), exp, m)
 	}
 
 	// the target in the same unit, which is close to the value, so that the shift is positive.
 	_, texp, tm := target.normalize()
-	return erf256FixDiff(v, gammaFix256FromUint256(tm, uint(84+texp-e)), e)
+	return v, gammaFix256FromUint256(tm, uint(84+texp-e)), e
+}
+
+// erf256FixRatio returns (v - t)/t as Float256, where v and t are in the same unit.
+func erf256FixRatio(v, t gammaFix256) Float256 {
+	d := erf256FixDiff(v, t, 0)
+	if d.IsZero() {
+		return d
+	}
+	return d.Quo(lgamma256FromPair(false, t, 0))
 }
 
 // erf256FixDiff returns (v - t) × 2**e as Float256.
@@ -386,5 +434,38 @@ func erf256FixDiff(v, t gammaFix256, e int) Float256 {
 //	x.Erfcinv() = NaN if x < 0 or x > 2
 //	NaN.Erfcinv() = NaN
 func (a Float256) Erfcinv() Float256 {
-	return (Float256(uvone256).Sub(a)).Erfinv()
+	var (
+		one = Float256(uvone256)
+		two = Float256{0x4000_0000_0000_0000, 0, 0, 0}
+	)
+
+	switch {
+	case a.IsNaN():
+		return NewFloat256NaN()
+	case a.IsZero():
+		return NewFloat256Inf(1)
+	case a.Lt(Float256{}) || a.Gt(two):
+		return NewFloat256NaN()
+	case a.Eq(two):
+		return NewFloat256Inf(-1)
+	}
+
+	// erfcinv(x) = -erfcinv(2-x), where 2 - x is exact.
+	c := a
+	neg := a.Gt(one)
+	if neg {
+		c = two.Sub(a)
+	}
+
+	var y Float256
+	if c.Gt(Float256{0x3fff_e000_0000_0000}) {
+		// erfcinv(c) = erfinv(1-c), where 1 - c is exact.
+		y = one.Sub(c).Erfinv()
+	} else {
+		y = erfcinv256Pos(c)
+	}
+	if neg {
+		return y.Neg()
+	}
+	return y
 }
