@@ -1,9 +1,15 @@
 package floats
 
 import (
+	"bufio"
 	"math"
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/shogo82148/ints"
 )
 
 func TestFloat256_Erf(t *testing.T) {
@@ -38,6 +44,16 @@ func TestFloat256_Erf(t *testing.T) {
 		{exact256(math.Inf(1)), exact256(1)},
 		{exact256(math.Inf(-1)), exact256(-1)},
 		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
+		{exact256(100), exact256(1)},
+		{exact256(-100), exact256(-1)},
+
+		// erf(x) is rounded to 1 for |x| >= 12.722
+		{Float256{0x4000_2971_af06_3fb1, 0x3a98_f6a7_2e5f_b545, 0x635d_1d72_2ec8_07a0, 0xaca2_ae63_3fc9_898b}, exact256(1).Nextafter(exact256(0))},
+		{Float256{0x4000_2971_af06_3fb1, 0x3a98_f6a7_2e5f_b545, 0x635d_1d72_2ec8_07a0, 0xaca2_ae63_3fc9_898c}, exact256(1)},
+		{Float256{0xc000_2971_af06_3fb1, 0x3a98_f6a7_2e5f_b545, 0x635d_1d72_2ec8_07a0, 0xaca2_ae63_3fc9_898b}, exact256(-1).Nextafter(exact256(0))},
+		{Float256{0xc000_2971_af06_3fb1, 0x3a98_f6a7_2e5f_b545, 0x635d_1d72_2ec8_07a0, 0xaca2_ae63_3fc9_898c}, exact256(-1)},
 	}
 
 	for _, tt := range strictTests {
@@ -48,10 +64,152 @@ func TestFloat256_Erf(t *testing.T) {
 	}
 }
 
+// TestFloat256_ErfAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_ErfAccuracy(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erf256.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) Float256 {
+		var x Float256
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 2 || len(fields[0]) != 64 || len(fields[1]) != 64 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		x, want := parse(fields[0]), parse(fields[1])
+		if got := x.Erf(); !eq256(got, want) {
+			t.Errorf("Erf(%v) = %v; want %v", x, got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestFloat256_ErfKernel checks the accuracy of the kernel of Erf with the reference values calculated by mpmath.
+// The kernel is more accurate than Float256, so that its errors are hidden by the rounding.
+func TestFloat256_ErfKernel(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erf256_kernels.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) gammaFix256 {
+		if len(s) != 96 {
+			t.Fatalf("malformed number: %q", s)
+		}
+		var x gammaFix256
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 4 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		x, want := parse(fields[0]), parse(fields[1])
+		wantExp, err := strconv.Atoi(fields[3])
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, e, scaled := erf256Cell(x)
+		if scaled != (fields[2] == "1") || e != wantExp {
+			t.Errorf("erf256Cell(%v): (%d, %v); want (%d, %v)", fields[0], e, scaled, wantExp, fields[2] == "1")
+			continue
+		}
+		d := got.sub(want)
+		if got.cmp(want) < 0 {
+			d = want.sub(got)
+		}
+		// the relative error is less than 2**-310
+		if d.bitLen()+310 > want.bitLen() {
+			t.Errorf("erf256Cell(%v) = %v; want %v", fields[0], got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFloat256_ErfRound(t *testing.T) {
+	t.Parallel()
+	// v × 2**(e-320) with v = (m: the fraction part × 2**320)
+	half := ints.Uint512{3: 1 << 63}                                     // 1/2 in fixed point with 320 fractional bits
+	integer := func(n uint64) ints.Uint512 { return ints.Uint512{2: n} } // n × 2**320
+	tests := []struct {
+		v    ints.Uint512
+		e    int
+		want uint64
+	}{
+		{integer(5), 0, 5},
+		{integer(5).Add(half).Sub(ints.Uint512{7: 1}), 0, 5},
+		{integer(5).Add(half), 0, 6},                         // a tie, the even number
+		{integer(6).Add(half), 0, 6},                         // a tie, the even number
+		{integer(6).Add(half).Add(ints.Uint512{7: 1}), 0, 7}, // a little larger than a tie
+		{integer(6).Add(half).Add(ints.Uint512{3: 1}), 0, 7},
+		{integer(3), 1, 6},
+		{integer(3).Add(half), 1, 7}, // 7 exactly
+		{integer(3).Add(half).Add(half), 2, 16},
+		{half.Add(ints.Uint512{7: 1}), 1, 1},        // slightly more than 1/2 × 2 = 1
+		{integer(1).Add(half), -1, 1},               // 3/4
+		{integer(1), -1, 0},                         // 1/2, a tie, the even number
+		{integer(1).Add(ints.Uint512{7: 1}), -1, 1}, // a little larger than a tie
+	}
+	for _, tt := range tests {
+		got := erf256Round(tt.v, tt.e)
+		if got != (ints.Uint256{3: tt.want}) {
+			t.Errorf("erf256Round(%v, %d) = %v; want %d", tt.v, tt.e, got, tt.want)
+		}
+	}
+}
+
 func BenchmarkFloat256_Erf(b *testing.B) {
-	x := exact256(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erf())
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(1e-300)},     // erf(x) ~ 2 x / sqrt(pi)
+		{"small", exact256(0.001)},     // |x| < 2**-8
+		{"medium", exact256(1.5)},      // 2**-8 <= |x| < 7
+		{"large", exact256(5.5)},       // the series has many terms
+		{"asymptotic", exact256(10.5)}, // 7 <= |x| < 12.72
+		{"negative", exact256(-1.5)},   // the sign is restored
+		{"saturated", exact256(20)},    // the result is 1
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erf())
+			}
+		})
 	}
 }
 

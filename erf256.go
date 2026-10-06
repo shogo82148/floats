@@ -2,6 +2,9 @@ package floats
 
 import (
 	"math"
+	"math/bits"
+
+	"github.com/shogo82148/ints"
 )
 
 // Erf returns the error function of a.
@@ -12,79 +15,134 @@ import (
 //	-Inf.Erf() = -1
 //	NaN.Erf() = NaN
 func (a Float256) Erf() Float256 {
-	var (
-		// One is 1
-		One = Float256(uvone256)
-		// TwoOverSqrtPi is 2/sqrt(π)
-		TwoOverSqrtPi = Float256{
-			0x3fff_f20d_d750_429b, 0x6d11_ae3a_914f_ed7f,
-			0xd868_8281_341d_7587, 0xcea2_e734_2b06_199d,
-		}
-		// TwoPointFour is 2.4
-		TwoPointFour = Float256{
-			0x4000_0333_3333_3333, 0x3333_3333_3333_3333,
-			0x3333_3333_3333_3333, 0x3333_3333_3333_3333,
-		}
-		// Thirteen is 13
-		Thirteen = Float256{
-			0x4000_2a00_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		// Sqrt2 is sqrt(2)
-		Sqrt2 = Float256{
-			0x3fff_f6a0_9e66_7f3b, 0xcc90_8b2f_b136_6ea9,
-			0x57d3_e3ad_ec17_5127, 0x7509_9da2_f590_b066,
-		}
-		// SqrtTwoOverPi is sqrt(2/π)
-		SqrtTwoOverPi = Float256{
-			0x3fff_e988_4533_d436, 0x508d_0fcb_3c50_0bab,
-			0x8e2f_f4e0_a7cc_1449, 0xc1b6_3011_c6d2_0099,
-		}
-	)
-
-	// special cases
 	switch {
 	case a.IsInf(0):
 		return Float256(uvone256).Copysign(a)
 	case a.IsNaN():
 		return NewFloat256NaN()
+	case a.IsZero():
+		return a
 	}
 
-	sign := false
-	if a.Signbit() {
-		sign = true
-		a = a.Neg()
+	// |a| = m × 2**(exp-236), where m is a 237-bit integer in [2**236, 2**237).
+	sign, exp, m := a.normalize()
+	neg := sign != 0
+	if exp >= 3 && (exp > 3 || a.Abs().Ge(Float256{0x4000_2971_af06_3fb1, 0x3a98_f6a7_2e5f_b545, 0x635d_1d72_2ec8_07a0, 0xaca2_ae63_3fc9_898c})) {
+		// erf(x) is rounded to 1 for |x| >= 12.722.
+		return Float256(uvone256).Copysign(a)
 	}
 
-	var y Float256
-	switch {
-	case a.Lt(TwoPointFour):
-		// use Taylor series expansion
-		// erf(x) = 2/sqrt(π) * Σ[n=0..∞] (-1)^n * x^(2n+1) / (n! * (2n+1))
-		for n := 80; n >= 0; n-- {
-			term := power256(a, 2*n+1).Quo(factorial256(n).Mul(NewFloat256(float64(2*n + 1))))
-			if n%2 != 0 {
-				term = term.Neg()
-			}
-			y = y.Add(term)
+	if exp < -8 {
+		// |x| < 2**-8. erf(x) = 2/sqrt(pi) x sum (-x**2)**n/(n! (2n+1)), and the terms decrease fast.
+		// |x| in fixed point with 320 fractional bits, which is not accurate if |x| is tiny, but its square is negligible then.
+		var x gammaFix256
+		if s := exp + 84; s >= 0 {
+			x = gammaFix256FromUint256(m, uint(s))
+		} else if s > -384 {
+			x = gammaFix256{0, 0, m[0], m[1], m[2], m[3]}.shr(uint(-s))
 		}
-		y = y.Mul(TwoOverSqrtPi)
-
-	case a.Gt(Thirteen):
-		y = One
-
-	default:
-		// use continued fraction expansion
-		x := Sqrt2.Mul(a)
-		for n := 400; n >= 1; n-- {
-			y = NewFloat256(float64(n)).Quo(x.Add(y))
+		u := gammaMul6(x, x)
+		c := &erf256Small
+		n := len(c)
+		p := gammaFix256(c[n-1])
+		for i := n - 2; i >= 0; i-- {
+			p = gammaFix256(c[i]).sub(gammaMul6(u, p))
 		}
-		y = One.Sub(a.Mul(a).Neg().Exp().Quo(x.Add(y)).Mul(SqrtTwoOverPi))
+		// the product of the mantissa of x and the series is exact except for the last bits.
+		v := gammaMul6(gammaFix256FromUint256(m, 84), gammaMul6(gammaFix256(erf256TwoOverSqrtPi), p))
+		return lgamma256FromPair(neg, v, exp)
 	}
-	if sign {
-		y = y.Neg()
+
+	// |x| in fixed point with 320 fractional bits. It is exact.
+	v, e, scaled := erf256Cell(gammaFix256FromUint256(m, uint(exp+84)))
+	if !scaled {
+		return lgamma256FromFix(lgammaFix256{neg, v})
 	}
-	return y
+
+	// erfc(x) × 2**237 = v × 2**e, where v is in [1, 2). erf(x) = 1 - erfc(x) is rounded to a multiple of 2**-237,
+	// that is, 1 - j 2**-237 for the integer j nearest to erfc(x) × 2**237.
+	// j is not zero since |x| < 12.722 here and erfc(x) × 2**237 is larger than 1/2.
+	j := erf256Round(ints.Uint512{2: v[0], 3: v[1], 4: v[2], 5: v[3], 6: v[4], 7: v[5]}, e)
+	// 2**237 - j is the mantissa of the result in [1/2, 1).
+	mant := ints.Uint256{1 << 45, 0, 0, 0}.Sub(j)
+	return fixToFloat256(sign, mant.Uint512(), false, -237)
+}
+
+// erf256Round returns the integer nearest to v × 2**(e-320), where v is a 384-bit integer, and the result is
+// less than 2**200. If it is exactly half-way between two integers, it returns the even one.
+func erf256Round(v ints.Uint512, e int) ints.Uint256 {
+	// v × 2**(e-320) = v / 2**sh
+	sh := uint(320 - e)
+	j := v.Rsh(sh).Uint256()
+	half := v.Rsh(sh - 1)[7]&1 != 0
+	rest := v.Lsh(512-(sh-1)) != ints.Uint512{}
+	if half && (rest || j[3]&1 != 0) {
+		j = j.Add(ints.Uint256{3: 1})
+	}
+	return j
+}
+
+// erf256Cell returns erf(x) in fixed point with 320 fractional bits for 2**-8 <= x < 7 (scaled is false),
+// and erfc(x) × 2**237 = v × 2**e, where v is in [1, 2), otherwise for x < 12.722 (scaled is true),
+// where x is in fixed point with 320 fractional bits. The relative error is less than 2**-310.
+func erf256Cell(x gammaFix256) (v gammaFix256, e int, scaled bool) {
+	// erf(x0+h) = erf(x0) + 2/sqrt(pi) exp(-x0**2) sum b_n h**(n+1)/(n+1), where x0 = (k + 1/2)/16 is the center of the cell
+	// that includes x, and exp(-2 x0 h - h**2) = sum b_n h**n. The recurrence is
+	// b_0 = 1, b_1 = -2 x0, and b_(n+1) = -(2 x0 b_n + 2 b_(n-1))/(n+1).
+	k := int(x[0]<<4 | x[1]>>60)
+	// x0 = (2k+1)/32
+	x0 := gammaFix256{uint64(2*k+1) >> 5, uint64(2*k+1) << 59}
+	var h lgammaFix256
+	if x.cmp(x0) >= 0 {
+		h = lgammaFix256{false, x.sub(x0)}
+	} else {
+		h = lgammaFix256{true, x0.sub(x)}
+	}
+	n := int(erf256Terms[k])
+	var c [80]lgammaFix256 // c[i] = b_i/(i+1)
+	bp, b := lgammaFix256{}, lgammaFix256{false, gammaOne256}
+	c[0] = b
+	for i := range n {
+		// b_(i+1) = -(2 x0 b_i + 2 b_(i-1))/(i+1), and 2 x0 = (2k+1)/16.
+		t := lgammaFix256{b.neg, b.v.mulUint(uint64(2*k + 1)).shr(4)}
+		t = t.add(lgammaFix256{bp.neg, bp.v.shl(1)})
+		bp, b = b, lgammaFix256{!t.neg, t.v.divUint(uint64(i + 1))}
+		c[i+1] = lgammaFix256{b.neg, b.v.divUint(uint64(i + 2))}
+	}
+	// sum c_i h**i by Horner's method.
+	p := c[n]
+	for i := n - 1; i >= 0; i-- {
+		p = c[i].add(lgammaFix256{p.neg != h.neg, gammaMul6(p.v, h.v)})
+	}
+	hp := lgammaFix256{p.neg != h.neg, gammaMul6(p.v, h.v)}
+
+	if k >= 112 {
+		// erfc(x) = erfc(x0) - 2/sqrt(pi) exp(-x0**2) h p = erfc(x0) (1 - R h p) is calculated in a relative accuracy,
+		// where R = 2/sqrt(pi) exp(-x0**2)/erfc(x0).
+		t := lgammaFix256{hp.neg, gammaMul6(hp.v, gammaFix256(erf256R[k-112]))}
+		w := lgammaFix256{false, gammaOne256}.add(t.negate())
+		m, de := gammaNormalize256(gammaMul6(gammaFix256(erf256Es[k-112]), w.v), 0)
+		return m, int(erf256EsExp[k-112]) + de, true
+	}
+
+	// the correction is 2/sqrt(pi) exp(-x0**2) h p = m0 × 2**e0 × h p.
+	corr := lgammaFix256{hp.neg, gammaMul6(hp.v, gammaFix256(erf256E0[k]))}
+	if e0 := int(erf256E0Exp[k]); e0 < 0 {
+		corr.v = corr.v.shr(uint(-e0))
+	} else {
+		corr.v = corr.v.shl(uint(e0))
+	}
+	return lgammaFix256{false, gammaFix256(erf256Erf[k])}.add(corr).v, 0, false
+}
+
+// divUint returns v/d for the fixed point number v.
+func (v gammaFix256) divUint(d uint64) gammaFix256 {
+	var r gammaFix256
+	var rem uint64
+	for i := range v {
+		r[i], rem = bits.Div64(rem, v[i], d)
+	}
+	return r
 }
 
 // Erfinv returns the inverse error function of a.

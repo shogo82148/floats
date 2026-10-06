@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/erf128.txt.
+# Generates testdata/erf128.txt and testdata/erf256.txt.
 # Each line contains the bits of x and the correctly rounded erf(x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_erf_testdata.py
+# Usage: python3 scripts/gen_erf_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -26,6 +27,7 @@ def gen(name, P, EB, seed):
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
     prec = 4 * P + 256
+    big = P == 236
 
     def enc(m, e, s=0):
         return (s << (P + EB)) | ((e + B) << P) | (m - (1 << P))
@@ -51,11 +53,11 @@ def gen(name, P, EB, seed):
     inputs += [random_value(1, 1) for _ in range(120)]
     inputs += [random_value(2, 2) for _ in range(100)]
     inputs += [from_real(mpmath.mpf(4) + mpmath.mpf(rnd.random()) * 3) for _ in range(100)]
-    inputs += [from_real(mpmath.mpf(7) + mpmath.mpf(rnd.random()) * 1.8) for _ in range(100)]
+    inputs += [from_real(mpmath.mpf(7) + mpmath.mpf(rnd.random()) * (6 if big else 1.8)) for _ in range(100 if not big else 200)]
     inputs += [random_value(4, 12) for _ in range(20)]
     with mpmath.workprec(prec):
         # around the boundaries of the ranges
-        for t in (mpmath.mpf(2) ** -8, mpmath.mpf(1), mpmath.mpf(2), mpmath.mpf(4), mpmath.mpf(6), mpmath.mpf(7), mpmath.mpf(8)):
+        for t in (mpmath.mpf(2) ** -8, mpmath.mpf(1), mpmath.mpf(2), mpmath.mpf(4), mpmath.mpf(6), mpmath.mpf(7), mpmath.mpf(8)) + ((mpmath.mpf(12),) if big else ()):
             u = mpmath.mpf(2) ** (int(mpmath.floor(mpmath.log(t, 2))) - P)
             for d in range(-3, 4):
                 inputs.append(round_bits(t + d * u, P, EB))
@@ -81,4 +83,7 @@ def gen(name, P, EB, seed):
 
 
 if __name__ == "__main__":
-    gen("erf128", 112, 15, 128)
+    if (sys.argv[1] if len(sys.argv) > 1 else "128") == "128":
+        gen("erf128", 112, 15, 128)
+    else:
+        gen("erf256", 236, 19, 256)
