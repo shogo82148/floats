@@ -121,6 +121,9 @@ func TestFloat16_Erfc(t *testing.T) {
 		{exact16(0x1p-14), math.Erfc(0x1p-14)},
 		{exact16(1), math.Erfc(1)},
 		{exact16(2), math.Erfc(2)},
+		{exact16(-1), math.Erfc(-1)},
+		{exact16(-2), math.Erfc(-2)},
+		{exact16(0.5), math.Erfc(0.5)},
 	}
 
 	for _, tt := range tests {
@@ -138,6 +141,18 @@ func TestFloat16_Erfc(t *testing.T) {
 		{exact16(math.Inf(1)), exact16(0)},
 		{exact16(math.Inf(-1)), exact16(2)},
 		{exact16(math.NaN()), exact16(math.NaN())},
+		{exact16(0), exact16(1)},
+		{exact16(math.Copysign(0, -1)), exact16(1)},
+
+		// erfc(x) is rounded to 0 for x >= 3.9199
+		{NewFloat16FromBits(0x43d6), NewFloat16FromBits(0x0001)},
+		{NewFloat16FromBits(0x43d7), exact16(0)},
+		{NewFloat16FromBits(0x7bff), exact16(0)},
+
+		// erfc(x) is rounded to 2 for x <= -2.4668
+		{NewFloat16FromBits(0xc0ee), NewFloat16FromBits(0x3fff)},
+		{NewFloat16FromBits(0xc0ef), exact16(2)},
+		{NewFloat16FromBits(0xfbff), exact16(2)},
 	}
 
 	for _, tt := range strictTests {
@@ -148,10 +163,48 @@ func TestFloat16_Erfc(t *testing.T) {
 	}
 }
 
+// TestFloat16_ErfcAll checks Erfc for all bit patterns of Float16.
+// For every finite Float16 value, the exact erfc is at least 2**-30 (relative) away from the midpoint of two adjacent
+// Float16 values (checked with mpmath), so math.Erfc rounded to Float16 is correctly rounded.
+func TestFloat16_ErfcAll(t *testing.T) {
+	t.Parallel()
+	for i := range 1 << 16 {
+		x := NewFloat16FromBits(uint16(i))
+		got, want := x.Erfc(), NewFloat16(math.Erfc(x.Float64().BuiltIn()))
+		if uint16(got) != uint16(want) && !(got.IsNaN() && want.IsNaN()) {
+			t.Errorf("Erfc(%#04x) = %#04x; want %#04x", i, uint16(got), uint16(want))
+		}
+	}
+}
+
+// TestFloat16_ErfcPoly checks the polynomials of Erfc, whose errors are hidden by the rounding to Float16, with the math package.
+func TestFloat16_ErfcPoly(t *testing.T) {
+	t.Parallel()
+	const bound = 0x1p-35 // the relative errors of the polynomials are less than 2**-36
+	rnd := rand.New(rand.NewPCG(1, 2))
+	for range 100000 {
+		x := 0.125 + 3.79*rnd.Float64() // [1/8, 3.915)
+		if got, want := erfc16Poly(x), math.Erfc(x); math.Abs(got-want) > bound*want {
+			t.Errorf("erfc16Poly(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
 func BenchmarkFloat16_Erfc(b *testing.B) {
-	x := exact16(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfc())
+	for _, tt := range []struct {
+		name string
+		x    Float16
+	}{
+		{"small", NewFloat16(0.1)},  // |x| < 1/8
+		{"medium", exact16(1.5)},    // 1/8 <= x < 3.92
+		{"negative", exact16(-1.5)}, // 2 - erfc(-x)
+		{"saturated", exact16(5)},   // the result is 0
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfc())
+			}
+		})
 	}
 }
 
