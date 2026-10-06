@@ -140,26 +140,7 @@ func gammaTiny128(neg bool, exp int, m ints.Uint128) (mant ints.Uint256, e int) 
 
 // gammaPos128 returns Gamma(y) = mant × 2**(e-192) for y = Y × 2**-192, 2**-40 <= y < 2049, where mant is in [2**192, 2**193).
 func gammaPos128(y ints.Uint256) (mant ints.Uint256, e int) {
-	// Gamma(y) = Gamma(z) / (y (y+1) ... (z-1)), where z = y + n >= 24.
-	// The product is calculated as mantissa × 2**pe.
-	n := 0
-	if y[0] < 24 {
-		n = 24 - int(y[0])
-	}
-	pm, pe := gammaOne, 0
-	y2 := gammaMul(y, y)
-	j := 0
-	for ; j+4 <= n; j += 4 {
-		// The product of the four factors is u (u+2), where u = y (y+3) + j (2y+j+3) = (y+j)(y+j+3).
-		u := y2.Add(y.Mul(ints.Uint256{3: uint64(2*j + 3)})).Add(ints.Uint256{uint64(j * (j + 3)), 0, 0, 0})
-		g := gammaMul(u, u).Add(u).Add(u)
-		pm, pe = gammaNormalize(gammaMul(pm, g), pe)
-	}
-	z := y.Add(ints.Uint256{uint64(j), 0, 0, 0})
-	for ; j < n; j++ {
-		pm, pe = gammaNormalize(gammaMul(pm, z), pe)
-		z = z.Add(gammaOne)
-	}
+	z, pm, pe := gammaRecur128(y)
 
 	// log(z) is not accurate for 1 <= z/2**k < 1 + 2**-8, so z is moved out of the range.
 	for gammaLogBucket0(z) {
@@ -170,6 +151,30 @@ func gammaPos128(y ints.Uint256) (mant ints.Uint256, e int) {
 	em, ee := gammaExp192(gammaLogGamma192(z))
 	q := em.Uint512().Lsh(192).Quo(pm.Uint512())
 	return gammaNormalize(q.Uint256(), ee-pe)
+}
+
+// gammaRecur128 returns z >= 24 and P = pm × 2**(pe-192) = y (y+1) ... (z-1) for y = Y × 2**-192,
+// where pm is in [2**192, 2**193). Gamma(y) = Gamma(z)/P.
+func gammaRecur128(y ints.Uint256) (z, pm ints.Uint256, pe int) {
+	n := 0
+	if y[0] < 24 {
+		n = 24 - int(y[0])
+	}
+	pm, pe = gammaOne, 0
+	y2 := gammaMul(y, y)
+	j := 0
+	for ; j+4 <= n; j += 4 {
+		// The product of the four factors is u (u+2), where u = y (y+3) + j (2y+j+3) = (y+j)(y+j+3).
+		u := y2.Add(y.Mul(ints.Uint256{3: uint64(2*j + 3)})).Add(ints.Uint256{uint64(j * (j + 3)), 0, 0, 0})
+		g := gammaMul(u, u).Add(u).Add(u)
+		pm, pe = gammaNormalize(gammaMul(pm, g), pe)
+	}
+	z = y.Add(ints.Uint256{uint64(j), 0, 0, 0})
+	for ; j < n; j++ {
+		pm, pe = gammaNormalize(gammaMul(pm, z), pe)
+		z = z.Add(gammaOne)
+	}
+	return z, pm, pe
 }
 
 // gammaLogBucket0 reports whether z is in [2**k, 2**k × (1 + 2**-8)) for an integer k.

@@ -255,13 +255,19 @@ func gammaTiny256(neg bool, exp int, m ints.Uint256) (mant gammaFix256, e int) {
 
 // gammaPos256 returns Gamma(y) = mant × 2**e for 2**-40 <= y < 2**15 + 1, where mant is in [1, 2).
 func gammaPos256(y gammaFix256) (mant gammaFix256, e int) {
-	// Gamma(y) = Gamma(z) / (y (y+1) ... (z-1)), where z = y + n >= 48.
-	// The product is calculated as pm × 2**pe.
+	z, pm, pe := gammaRecur256(y)
+	em, ee := gammaExp256(gammaLogGamma256(z))
+	return gammaNormalize256(gammaMul6(em, gammaRecip256(pm)), ee-pe)
+}
+
+// gammaRecur256 returns z >= 48 and P = pm × 2**pe = y (y+1) ... (z-1), where pm is in [1, 2).
+// Gamma(y) = Gamma(z)/P.
+func gammaRecur256(y gammaFix256) (z, pm gammaFix256, pe int) {
 	n := 0
 	if y[0] < 48 {
 		n = 48 - int(y[0])
 	}
-	pm, pe := gammaOne256, 0
+	pm = gammaOne256
 	y2 := gammaMul256(&y, &y, 6)
 	j := 0
 	for ; j+4 <= n; j += 4 {
@@ -270,14 +276,12 @@ func gammaPos256(y gammaFix256) (mant gammaFix256, e int) {
 		g := gammaMul256(&u, &u, 6).add(u).add(u)
 		pm, pe = gammaNormalize256(gammaMul256(&pm, &g, 6), pe)
 	}
-	z := y.add(gammaFix256{uint64(j)})
+	z = y.add(gammaFix256{uint64(j)})
 	for ; j < n; j++ {
 		pm, pe = gammaNormalize256(gammaMul256(&pm, &z, 6), pe)
 		z = z.add(gammaOne256)
 	}
-
-	em, ee := gammaExp256(gammaLogGamma256(z))
-	return gammaNormalize256(gammaMul6(em, gammaRecip256(pm)), ee-pe)
+	return z, pm, pe
 }
 
 // gammaNeg256 returns the sign bit and |Gamma(x)| = mant × 2**e for x = -m × 2**(exp-236), where m is a 237-bit integer,
