@@ -1,8 +1,11 @@
 package floats
 
 import (
+	"bufio"
+	"fmt"
 	"math"
 	"math/rand/v2"
+	"os"
 	"runtime"
 	"testing"
 )
@@ -239,6 +242,10 @@ func TestFloat16_Erfinv(t *testing.T) {
 		{exact16(-1), exact16(math.Inf(-1))},
 		{exact16(2), exact16(math.NaN())},
 		{exact16(-2), exact16(math.NaN())},
+		{exact16(math.Inf(1)), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(0), exact16(0)},
+		{exact16(math.Copysign(0, -1)), exact16(math.Copysign(0, -1))},
 		{exact16(math.NaN()), exact16(math.NaN())},
 	}
 
@@ -250,10 +257,90 @@ func TestFloat16_Erfinv(t *testing.T) {
 	}
 }
 
+// TestFloat16_ErfinvAll requires the correctly rounded result for all the Float16 values in the test data,
+// and checks that Erfinv is an odd function.
+func TestFloat16_ErfinvAll(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erfinv16.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	n := 0
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		var x, want uint16
+		if _, err := fmt.Sscanf(sc.Text(), "%x %x", &x, &want); err != nil {
+			t.Fatalf("malformed line %q: %v", sc.Text(), err)
+		}
+		if got := NewFloat16FromBits(x).Erfinv(); uint16(got) != want {
+			t.Errorf("Erfinv(%#04x) = %#04x; want %#04x", x, uint16(got), want)
+		}
+		if got := NewFloat16FromBits(x | 1<<15).Erfinv(); uint16(got) != want|1<<15 {
+			t.Errorf("Erfinv(%#04x) = %#04x; want %#04x", x|1<<15, uint16(got), want|1<<15)
+		}
+		n++
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0x3c00 {
+		t.Errorf("the number of the test vectors is %d; want %d", n, 0x3c00)
+	}
+
+	// |x| > 1 is NaN.
+	for i := 0x3c01; i < 0x8000; i++ {
+		for _, sign := range []uint16{0, 1 << 15} {
+			if got := NewFloat16FromBits(uint16(i) | sign).Erfinv(); !got.IsNaN() {
+				t.Errorf("Erfinv(%#04x) = %v; want NaN", uint16(i)|sign, got)
+			}
+		}
+	}
+}
+
+// TestFloat16_ErfinvPoly checks the polynomials of Erfinv, whose errors are hidden by the rounding to Float16, with the math package.
+func TestFloat16_ErfinvPoly(t *testing.T) {
+	t.Parallel()
+	const bound = 0x1p-36 // the relative errors of the polynomials are less than 2**-38
+	rnd := rand.New(rand.NewPCG(1, 2))
+	for range 100000 {
+		x := 0.125 + 0.375*rnd.Float64() // [1/8, 1/2)
+		if got, want := erfinv16Poly(&erfinv16MidCoeffs[math.Float64bits(x)>>49-8160], x), math.Erfinv(x); math.Abs(got-want) > bound*want {
+			t.Errorf("erfinv16Mid(%v) = %v; want %v", x, got, want)
+		}
+
+		tt := 0x1p-11 + (0.5-0x1p-11)*rnd.Float64() // t = 1 - x in [2**-11, 1/2)
+		if got, want := erfinv16Poly(&erfinv16HiCoeffs[math.Float64bits(tt)>>49-8096], tt), math.Erfinv(1-tt); math.Abs(got-want) > bound*want {
+			t.Errorf("erfinv16Hi(%v) = %v; want %v", tt, got, want)
+		}
+
+		x = 0.125 * rnd.Float64() // [0, 1/8)
+		c := &erfinv16SmallCoeffs
+		u := x * x
+		got := x * (c[0] + u*(c[1]+u*(c[2]+u*(c[3]+u*(c[4]+u*c[5])))))
+		if want := math.Erfinv(x); math.Abs(got-want) > bound*want {
+			t.Errorf("erfinv16SmallCoeffs(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
 func BenchmarkFloat16_Erfinv(b *testing.B) {
-	x := exact16(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+	for _, tt := range []struct {
+		name string
+		x    Float16
+	}{
+		{"small", NewFloat16(0.1)},           // |x| < 1/8
+		{"medium", exact16(0.25)},            // 1/8 <= |x| < 1/2
+		{"large", exact16(0.75)},             // 1/2 <= |x| < 1
+		{"close-to-one", NewFloat16(0.9995)}, // the polynomial of the shortest segment
+		{"negative", exact16(-0.75)},         // the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfinv())
+			}
+		})
 	}
 }
 
