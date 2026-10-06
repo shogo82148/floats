@@ -174,5 +174,57 @@ func erfinv32Poly(t float64) float64 {
 //	x.Erfcinv() = NaN if x < 0 or x > 2
 //	NaN.Erfcinv() = NaN
 func (a Float32) Erfcinv() Float32 {
-	return NewFloat32(math.Erfcinv(a.Float64().BuiltIn()))
+	b := a.Bits()
+	switch {
+	case b&^signMask32 == 0:
+		return NewFloat32FromBits(0x7f80_0000) // +Inf for ±0
+	case b&signMask32 != 0 || b > 0x4000_0000:
+		return NewFloat32(math.NaN()) // x < 0, x > 2, and NaN
+	case b == 0x4000_0000:
+		return NewFloat32FromBits(0xff80_0000) // -Inf for 2
+	}
+
+	// erfcinv(x) = -erfcinv(2-x), where 2 - x is exact.
+	x := float64(a)
+	neg := b > 0x3f80_0000
+	if neg {
+		x = 2 - x
+	}
+	sign := uint32(0)
+	if neg {
+		sign = signMask32
+	}
+
+	if x >= 0.5 {
+		// erfcinv(x) = erfinv(1-x), where 1 - x is exact.
+		return NewFloat32FromBits(Float32(1-x).Erfinv().Bits() | sign)
+	}
+
+	// 0 < x < 1/2. erfcinv(x) is calculated by the polynomials of t = x.
+	var y float64
+	if x >= 0x1p-24 {
+		y = erfinv32Poly(x)
+	} else {
+		y = erfcinv32Poly(x)
+	}
+	// The relative error of y is less than 2**-43, that is, 2**9 ulps of float64.
+	if z, ok := float32Round(y, 1<<11); ok {
+		return NewFloat32FromBits(z.Bits() | sign)
+	}
+	// The result may not be correctly rounded because it is close to the midpoint of two adjacent Float32 values.
+	// 1 - x is exact in Float256, and its Erfinv is correctly rounded.
+	return NewFloat32FromBits(Float256(uvone256).Sub(NewFloat256(x)).Erfinv().Float32().Bits() | sign)
+}
+
+// erfcinv32Poly returns erfcinv(t) for t in [2**-149, 2**-24) with the relative error less than 2**-47,
+// by the polynomial of the segment that includes t.
+func erfcinv32Poly(t float64) float64 {
+	b := math.Float64bits(t)
+	c := &erfcinv32Coeffs[b>>49-6992]
+	// z = 16 (t - the center of the segment)/2**e is in [-1, 1]. 16/2**e is a power of two, so that z is exact.
+	z := (t - math.Float64frombits(b&^(1<<49-1)|1<<48)) * math.Float64frombits(uint64(2050-b>>52)<<52)
+	z2 := z * z
+	z4 := z2 * z2
+	// Estrin's scheme: the dependency chain is shorter than Horner's method.
+	return ((c[0] + z*c[1]) + z2*(c[2]+z*c[3])) + z4*((c[4]+z*c[5])+z2*(c[6]+z*c[7]))
 }

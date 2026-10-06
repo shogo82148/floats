@@ -580,6 +580,11 @@ func TestFloat32_Erfcinv(t *testing.T) {
 		{exact32(3), exact32(math.NaN())},
 		{exact32(-1), exact32(math.NaN())},
 		{exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{exact32(math.Copysign(0, -1)), exact32(math.Inf(1))},
+		{NewFloat32FromBits(0x4000_0001), exact32(math.NaN())},
+		{exact32(1), exact32(0)},
 	}
 
 	for _, tt := range strictTests {
@@ -590,9 +595,171 @@ func TestFloat32_Erfcinv(t *testing.T) {
 	}
 }
 
+// TestFloat32_ErfcinvHardCases checks Erfcinv on the inputs whose results are very close to the midpoint of two adjacent
+// Float32 values, and some others. They are found by checking all Float32 values less than 1/2 with the polynomials,
+// and the correctly rounded results were calculated with mpmath.
+// TestFloat32_ErfcinvHardCasesGreaterThanOne checks Erfcinv(x) for 1 < x < 2 on the inputs whose results are very close to
+// the midpoint of two adjacent Float32 values. The correctly rounded results were calculated with mpmath.
+func TestFloat32_ErfcinvHardCasesGreaterThanOne(t *testing.T) {
+	t.Parallel()
+	// x, and the correctly rounded Erfcinv(x)
+	tests := [][2]uint32{
+		{0x3fff369a, 0xbff7fc48},
+		{0x3ff2e4f4, 0xbf93d652},
+		{0x3fe3fc33, 0xbf5e9279},
+		{0x3fd88202, 0xbf385547},
+	}
+	for _, tt := range tests {
+		x, want := NewFloat32FromBits(tt[0]), NewFloat32FromBits(tt[1])
+		if got := x.Erfcinv(); !eq32(got, want) {
+			t.Errorf("Erfcinv(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+func TestFloat32_ErfcinvHardCases(t *testing.T) {
+	t.Parallel()
+	// x, and the correctly rounded Erfcinv(x)
+	tests := [][2]uint32{
+		{0x0000168b, 0x411948a4},
+		{0x027fab02, 0x4110b229},
+		{0x04e90404, 0x410db30e},
+		{0x076f1e23, 0x410a87b7},
+		{0x09d8ae0c, 0x41076789},
+		{0x0c683da5, 0x41040b5d},
+		{0x0eda2fde, 0x4100ba5c},
+		{0x1144b05b, 0x40fabbe8},
+		{0x13c3b590, 0x40f39fc9},
+		{0x1645614b, 0x40ec466f},
+		{0x18d0f8f0, 0x40e4962d},
+		{0x1b47cc56, 0x40dcdea0},
+		{0x1dcdb927, 0x40d4b3d5},
+		{0x2051d2ff, 0x40cc3d5e},
+		{0x22ddd8e7, 0x40c3539c},
+		{0x254fcd89, 0x40ba5396},
+		{0x27cd7b20, 0x40b0ba57},
+		{0x2a4715b6, 0x40a6a80d},
+		{0x2cc8c9bf, 0x409bd485},
+		{0x2f3a2009, 0x409084e4},
+		{0x31ab7827, 0x4084504a},
+		{0x34303f1a, 0x406cf3ac},
+		{0x36b09334, 0x404e17b9},
+		{0x391b046c, 0x402bba3b},
+		{0x3ba51b85, 0x3ffdd6c4},
+		{0x3e146d41, 0x3f83ed85},
+		{0x34800531, 0x4069cfb1},
+		{0x35d7f845, 0x4059188a},
+		{0x3723f946, 0x40481f57},
+		{0x38698174, 0x403665a0},
+		{0x39b83668, 0x4021bf76},
+		{0x3b091260, 0x400b3ecb},
+		{0x3c65043f, 0x3fde7503},
+		{0x3da8fb47, 0x3f9d26ef},
+		{0x35bbd003, 0x405a5bf6},
+		{0x36e1f5a8, 0x404bbbda},
+		{0x37eced1d, 0x403d7d82},
+		{0x390b6eed, 0x402ce9db},
+		{0x3a2e13db, 0x401a0c37},
+		{0x3b623aea, 0x4004570c},
+		{0x3c9ec729, 0x3fd39ee1},
+		{0x3dc666ef, 0x3f96436b},
+		{0x3ef682df, 0x3efedaef},
+	}
+	for _, tt := range tests {
+		x, want := NewFloat32FromBits(tt[0]), NewFloat32FromBits(tt[1])
+		if got := x.Erfcinv(); !eq32(got, want) {
+			t.Errorf("Erfcinv(%v) = %v; want %v", x, got, want)
+		}
+		// erfcinv(x) = -erfcinv(2-x) if 2 - x is exactly representable.
+		y := NewFloat32(2 - float64(x))
+		if x < 0x1p-22 || float64(y) != 2-float64(x) { // 2 - x is exact in float64 for x >= 2**-22
+			continue
+		}
+		if got := y.Erfcinv(); !eq32(got, -want) {
+			t.Errorf("Erfcinv(%v) = %v; want %v", y, got, -want)
+		}
+	}
+}
+
+// erfcinv32Reference returns the correctly rounded Erfcinv(x) for 2**-149 <= x <= 2 by Float256.
+func erfcinv32Reference(x Float32) Float32 {
+	return Float256(uvone256).Sub(NewFloat256(float64(x))).Erfinv().Float32()
+}
+
+// TestFloat32_ErfcinvBoundaries checks Erfcinv on the both sides of the boundaries of the segments of the calculation.
+func TestFloat32_ErfcinvBoundaries(t *testing.T) {
+	t.Parallel()
+	for _, x := range []float32{0x1p-149, 0x1p-126, 0x1p-100, 0x1p-25, 0x1p-24, 0.125, 0.25, 0.5, 0.75, 1, 1.5, 2} {
+		for d := -3; d <= 3; d++ {
+			a := NewFloat32FromBits(math.Float32bits(x) + uint32(d))
+			if a.IsNaN() || a.IsInf(0) || a <= 0 || a > 2 {
+				continue
+			}
+			if got, want := a.Erfcinv(), erfcinv32Reference(a); !eq32(got, want) {
+				t.Errorf("Erfcinv(%v) = %v; want %v", a, got, want)
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfcinvRandom compares Erfcinv with Float256 on random inputs.
+func TestFloat32_ErfcinvRandom(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(1, 2))
+	gens := []struct {
+		name string
+		gen  func() Float32
+	}{
+		{"uniform", func() Float32 { return NewFloat32(r.Float64() * 2) }},
+		{"small", func() Float32 { return NewFloat32(r.Float64() * 0.5) }},
+		{"exponent", func() Float32 {
+			// uniformly distributed exponent in [-149, 1)
+			return NewFloat32FromBits(r.Uint32()&fracMask32 | uint32(r.IntN(126)+1)<<shift32)
+		}},
+		{"subnormal", func() Float32 { return NewFloat32FromBits(r.Uint32()&fracMask32 | 1) }},
+	}
+	for _, g := range gens {
+		for range 3000 {
+			x := g.gen()
+			if x.IsZero() || x.Gt(2) {
+				continue
+			}
+			if got, want := x.Erfcinv(), erfcinv32Reference(x); !eq32(got, want) {
+				t.Fatalf("%s: Erfcinv(%v) = %v; want %v", g.name, x, got, want)
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfcinvPoly checks the polynomials of Erfcinv, whose errors are hidden by the rounding to Float32, with Float256.
+func TestFloat32_ErfcinvPoly(t *testing.T) {
+	t.Parallel()
+	const bound = 0x1p-44 // the relative error of the polynomial is less than 2**-47
+	r := rand.New(rand.NewPCG(3, 4))
+	for range 3000 {
+		// t is distributed uniformly in the exponent: [2**-149, 2**-24)
+		tt := math.Ldexp(1+r.Float64(), -149+r.IntN(125))
+		want := Float256(uvone256).Sub(NewFloat256(tt)).Erfinv().Float64().BuiltIn()
+		if got := erfcinv32Poly(tt); math.Abs(got-want) > bound*want {
+			t.Errorf("erfcinv32Poly(%v) = %v; want %v", tt, got, want)
+		}
+	}
+}
+
 func BenchmarkFloat32_Erfcinv(b *testing.B) {
-	x := exact32(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfcinv())
+	for _, tt := range []struct {
+		name string
+		x    Float32
+	}{
+		{"tiny", NewFloat32(1e-30)}, // x < 2**-24
+		{"small", exact32(0.25)},    // 2**-24 <= x < 1/2
+		{"medium", exact32(0.75)},   // 1/2 <= x <= 1
+		{"large", exact32(1.5)},     // 1 < x < 2, the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfcinv())
+			}
+		})
 	}
 }
