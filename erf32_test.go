@@ -205,6 +205,10 @@ func TestFloat32_Erfc(t *testing.T) {
 		{exact32(0x1p-14), math.Erfc(0x1p-14)},
 		{exact32(1), math.Erfc(1)},
 		{exact32(2), math.Erfc(2)},
+		{exact32(-1), math.Erfc(-1)},
+		{exact32(-3), math.Erfc(-3)},
+		{exact32(5), math.Erfc(5)},
+		{exact32(9), math.Erfc(9)},
 	}
 
 	for _, tt := range tests {
@@ -222,6 +226,18 @@ func TestFloat32_Erfc(t *testing.T) {
 		{exact32(math.Inf(1)), exact32(0)},
 		{exact32(math.Inf(-1)), exact32(2)},
 		{exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(0), exact32(1)},
+		{exact32(math.Copysign(0, -1)), exact32(1)},
+
+		// erfc(x) is rounded to 0 for x >= 10.0541
+		{NewFloat32FromBits(0x4120ddfb), NewFloat32FromBits(0x00000001)},
+		{NewFloat32FromBits(0x4120ddfc), exact32(0)},
+		{NewFloat32FromBits(0x7f7fffff), exact32(0)},
+
+		// erfc(x) is rounded to 2 for x <= -3.8325
+		{NewFloat32FromBits(0xc07547ca), NewFloat32FromBits(0x3fffffff)},
+		{NewFloat32FromBits(0xc07547cb), exact32(2)},
+		{NewFloat32FromBits(0xff7fffff), exact32(2)},
 	}
 
 	for _, tt := range strictTests {
@@ -232,10 +248,120 @@ func TestFloat32_Erfc(t *testing.T) {
 	}
 }
 
+// TestFloat32_ErfcHardCases checks Erfc on the inputs whose results are very close to the midpoint of two adjacent
+// Float32 values, which are found by checking all Float32 values with math.Erfc in float64.
+// The correctly rounded results were calculated with mpmath.
+func TestFloat32_ErfcHardCases(t *testing.T) {
+	t.Parallel()
+	// x, and the correctly rounded Erfc(x)
+	tests := [][2]uint32{
+		{0x32e2d197, 0x3f800000},
+		{0x32e2e907, 0x3f7fffff},
+		{0x34d4b27d, 0x3f7ffff8},
+		{0x3886353e, 0x3f7ffb45},
+		{0x3941c770, 0x3f7ff256},
+		{0x3b71cde7, 0x3f7eef27},
+		{0x3c2e50df, 0x3f7ced41},
+		{0x3dabbd85, 0x3f67d549},
+		{0x3f26187d, 0x3eb7bb42},
+		{0x40bc972b, 0x24b34d41},
+		{0xb362e41b, 0x3f800001},
+		{0xb42a273e, 0x3f800001},
+		{0xb594e30f, 0x3f80000b},
+		{0xb6512676, 0x3f80001e},
+		{0xb70eaec0, 0x3f800051},
+		{0xb76c9f62, 0x3f800085},
+		{0xb7ca80be, 0x3f8000e5},
+		{0xb9fcef4a, 0x3f8011d6},
+		{0xbab8309f, 0x3f8033f6},
+		{0xbceedc0a, 0x3f8435cb},
+		{0xbe67faf8, 0x3fa02b43},
+		{0xbfdde4a2, 0x3ffe2df5},
+	}
+	for _, tt := range tests {
+		x, want := NewFloat32FromBits(tt[0]), NewFloat32FromBits(tt[1])
+		if got := x.Erfc(); !eq32(got, want) {
+			t.Errorf("Erfc(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
+// TestFloat32_ErfcBoundaries checks Erfc on the both sides of the boundaries of the segments of the calculation.
+func TestFloat32_ErfcBoundaries(t *testing.T) {
+	t.Parallel()
+	for _, x := range []float32{0x1p-149, 0x1p-126, 0x1p-25, 0x1p-24, 1.0 / 32, 0.125, 0.25, 1, 2, 3.8325, 4, 9.1875, 10.0541} {
+		for d := -3; d <= 3; d++ {
+			for _, neg := range []bool{false, true} {
+				a := NewFloat32FromBits(math.Float32bits(x) + uint32(d))
+				if neg {
+					a = -a
+				}
+				if got, want := a.Erfc(), NewFloat32(math.Erfc(float64(a))); !eq32(got, want) {
+					t.Errorf("Erfc(%v) = %v; want %v", a, got, want)
+				}
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfcRandom compares Erfc with math.Erfc on random inputs.
+// math.Erfc rounded to Float32 is correctly rounded for all Float32 values but one (0xb76c9f62, which is
+// checked by TestFloat32_ErfcHardCases), so the results must match.
+func TestFloat32_ErfcRandom(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(1, 2))
+	gens := []struct {
+		name string
+		gen  func() Float32
+	}{
+		{"bits", func() Float32 { return NewFloat32FromBits(r.Uint32()) }},
+		{"uniform", func() Float32 { return NewFloat32(r.Float64()*20 - 6) }},
+		{"positive", func() Float32 { return NewFloat32(r.Float64() * 10.1) }},
+		{"exponent", func() Float32 {
+			// uniformly distributed exponent in [-40, 4]
+			return NewFloat32FromBits(r.Uint32()&(signMask32|fracMask32) | uint32(r.IntN(45)+bias32-40)<<shift32)
+		}},
+	}
+	for _, g := range gens {
+		for range 300000 {
+			x := g.gen()
+			got, want := x.Erfc(), NewFloat32(math.Erfc(float64(x)))
+			if !eq32(got, want) && !(got.IsNaN() && want.IsNaN()) {
+				t.Fatalf("%s: Erfc(%v) = %v; want %v", g.name, x, got, want)
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfcPoly checks the polynomials of Erfc, whose errors are hidden by the rounding to Float32, with math.Erfc.
+func TestFloat32_ErfcPoly(t *testing.T) {
+	t.Parallel()
+	const bound = 0x1p-40 // the relative error of the polynomial is less than 2**-41
+	r := rand.New(rand.NewPCG(3, 4))
+	for range 200000 {
+		x := 10.05 * r.Float64() // [0, 10.05)
+		if got, want := erfc32Poly(x), math.Erfc(x); math.Abs(got-want) > bound*want {
+			t.Errorf("erfc32Poly(%v) = %v; want %v", x, got, want)
+		}
+	}
+}
+
 func BenchmarkFloat32_Erfc(b *testing.B) {
-	x := exact32(1.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfc())
+	for _, tt := range []struct {
+		name string
+		x    Float32
+	}{
+		{"small", NewFloat32(0.01)}, // close to 1
+		{"medium", exact32(1.5)},    // 0 < x < 10.05
+		{"large", exact32(8.5)},     // 2**-100
+		{"negative", exact32(-1.5)}, // 2 - erfc(-x)
+		{"saturated", exact32(12)},  // the result is 0
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfc())
+			}
+		})
 	}
 }
 
