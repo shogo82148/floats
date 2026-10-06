@@ -86,7 +86,7 @@ func lgamma16Round(a Float16, y float64) Float16 {
 	return NewFloat16(y)
 }
 
-// lgamma16Poly returns Lgamma(x) for x in [1/2, 8184] with the relative error less than 2**-39,
+// lgamma16Poly returns Lgamma(x) for x in [1/2, 8192) with the relative error less than 2**-39,
 // by the polynomial of the segment that includes x.
 func lgamma16Poly(x float64) float64 {
 	b := math.Float64bits(x)
