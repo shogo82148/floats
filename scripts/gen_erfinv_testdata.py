@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/erfinv128.txt, the correctly rounded erfinv(x) for various x.
+# Generates testdata/erfinv128.txt and testdata/erfinv256.txt, the correctly rounded erfinv(x) for various x.
 # Each line contains the bits of x and the result in hexadecimal.
 #
-# Usage: python3 scripts/gen_erfinv_testdata.py
+# Usage: python3 scripts/gen_erfinv_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -41,12 +42,13 @@ def gen(name, P, EB, seed):
     inputs = []
     # tiny arguments: erfinv(x) ~ sqrt(pi)/2 x
     inputs += [random_value(-B + 1, -P - 3) for _ in range(40)]
-    inputs += [random_value(-P - 2, -62) for _ in range(40)]
+    inputs += [random_value(-P - 2, -64 if P == 112 else -130) for _ in range(40)]
     inputs += [rnd.getrandbits(rnd.randint(1, P)) | 1 for _ in range(10)]  # subnormal numbers
-    # |x| < 2**-60 and the boundary
-    inputs += [random_value(-62, -58) for _ in range(40)]
-    # the ranges of the calculation: [2**-58, 1/2), [1/2, 1)
-    inputs += [random_value(-58, -2) for _ in range(150)]
+    # the boundary of the series: 2**-60 for Float128, and 2**-125 for Float256
+    b0 = -125 if P == 236 else -60
+    inputs += [random_value(b0 - 2, b0 + 2) for _ in range(40)]
+    # the ranges of the calculation: [2**b0, 1/2), [1/2, 1)
+    inputs += [random_value(b0 + 2, -2) for _ in range(150)]
     inputs += [random_value(-2, -1) for _ in range(100)]
     inputs += [random_value(-1, -1) for _ in range(150)]
     # close to 1
@@ -57,12 +59,13 @@ def gen(name, P, EB, seed):
                 continue
             inputs.append(round_bits(1 - t, P, EB) ^ (rnd.getrandbits(1) << (P + EB)))
         # around the boundaries
-        for t in (mpmath.mpf(2) ** -60, mpmath.mpf(1) / 2, mpmath.mpf(1) - mpmath.mpf(2) ** -(P + 1)):
+        for t in (mpmath.mpf(2) ** b0, mpmath.mpf(1) / 2, mpmath.mpf(1) - mpmath.mpf(2) ** -(P + 1)):
             u = mpmath.mpf(2) ** (int(mpmath.floor(mpmath.log(t, 2))) - P)
             for d in range(-3, 4):
                 inputs.append(round_bits(t + d * u, P, EB))
     inputs += [1]  # the smallest subnormal number
-    inputs = [v for v in inputs if abs(to_mpf(v, P, EB)) < 1]
+    # |x| < 1, which must be compared exactly, not with the floating-point numbers of the default precision of mpmath.
+    inputs = [v for v in inputs if ((v >> P) & ((1 << EB) - 1)) < B]
 
     with Pool() as p:
         results = p.map(functools.partial(compute, P=P, EB=EB), inputs, chunksize=4)
@@ -72,4 +75,7 @@ def gen(name, P, EB, seed):
 
 
 if __name__ == "__main__":
-    gen("erfinv128", 112, 15, 1280)
+    if (sys.argv[1] if len(sys.argv) > 1 else "128") == "128":
+        gen("erfinv128", 112, 15, 1280)
+    else:
+        gen("erfinv256", 236, 19, 2560)

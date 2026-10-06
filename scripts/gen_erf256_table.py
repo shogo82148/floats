@@ -142,6 +142,11 @@ def main():
     print(f"var erf256InvSqrtPi = [6]uint64{{{limbs(fix(1 / mpmath.sqrt(mpmath.pi)))}}}")
     print()
 
+    print("// erf256SqrtPiOverTwo is sqrt(pi)/2, and erf256PiOver12 is pi/12.")
+    print(f"var erf256SqrtPiOverTwo = [6]uint64{{{limbs(fix(mpmath.sqrt(mpmath.pi) / 2))}}}")
+    print(f"var erf256PiOver12 = [6]uint64{{{limbs(fix(mpmath.pi / 12))}}}")
+    print()
+
     print(f"// erf256Terms[k] is the number of the terms of the Taylor series of the cell k < {LARGE_CELL} for erf(x).")
     print("var erf256Terms = [...]uint8{")
     print("\t" + ", ".join(str(terms(k, False)) for k in range(LARGE_CELL)) + ",")
