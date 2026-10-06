@@ -376,6 +376,10 @@ func TestFloat16_Erfcinv(t *testing.T) {
 		{exact16(3), exact16(math.NaN())},
 		{exact16(-1), exact16(math.NaN())},
 		{exact16(math.NaN()), exact16(math.NaN())},
+		{exact16(math.Inf(1)), exact16(math.NaN())},
+		{exact16(math.Inf(-1)), exact16(math.NaN())},
+		{exact16(math.Copysign(0, -1)), exact16(math.Inf(1))},
+		{exact16(1), exact16(0)},
 	}
 
 	for _, tt := range strictTests {
@@ -386,9 +390,74 @@ func TestFloat16_Erfcinv(t *testing.T) {
 	}
 }
 
+// TestFloat16_ErfcinvAll requires the correctly rounded result for all the Float16 values in the test data,
+// and checks Erfcinv(x) = -Erfcinv(2-x).
+func TestFloat16_ErfcinvAll(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erfcinv16.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	n := 0
+	wants := make(map[uint16]uint16)
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		var x, want uint16
+		if _, err := fmt.Sscanf(sc.Text(), "%x %x", &x, &want); err != nil {
+			t.Fatalf("malformed line %q: %v", sc.Text(), err)
+		}
+		if got := NewFloat16FromBits(x).Erfcinv(); uint16(got) != want {
+			t.Errorf("Erfcinv(%#04x) = %#04x; want %#04x", x, uint16(got), want)
+		}
+		wants[x] = want
+		n++
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0x3c00 {
+		t.Errorf("the number of the test vectors is %d; want %d", n, 0x3c00)
+	}
+
+	// erfcinv(x) = -erfcinv(2-x) for 1 < x < 2, and 2 - x is exactly representable.
+	for i := 0x3c01; i < 0x4000; i++ {
+		x := NewFloat16FromBits(uint16(i))
+		c := NewFloat16(2 - x.Float64().BuiltIn())
+		if want := wants[uint16(c.Bits())] | 1<<15; uint16(x.Erfcinv()) != want {
+			t.Errorf("Erfcinv(%#04x) = %#04x; want %#04x", i, uint16(x.Erfcinv()), want)
+		}
+	}
+
+	// x < 0 and x > 2 are NaN.
+	for i := 0x4001; i < 0x8000; i++ {
+		if got := NewFloat16FromBits(uint16(i)).Erfcinv(); !got.IsNaN() {
+			t.Errorf("Erfcinv(%#04x) = %v; want NaN", i, got)
+		}
+	}
+	for i := 0x8001; i < 0x10000; i++ {
+		if got := NewFloat16FromBits(uint16(i)).Erfcinv(); !got.IsNaN() {
+			t.Errorf("Erfcinv(%#04x) = %v; want NaN", i, got)
+		}
+	}
+}
+
 func BenchmarkFloat16_Erfcinv(b *testing.B) {
-	x := exact16(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfcinv())
+	for _, tt := range []struct {
+		name string
+		x    Float16
+	}{
+		{"tiny", NewFloat16(0.0001)},   // x <= 1/2: the polynomials of Float32 Erfinv
+		{"small", exact16(0.25)},       // x <= 1/2
+		{"medium", exact16(0.75)},      // 1/2 < x < 7/8
+		{"near-one", NewFloat16(0.95)}, // 7/8 <= x <= 1
+		{"large", exact16(1.5)},        // 1 < x < 2, the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfcinv())
+			}
+		})
 	}
 }

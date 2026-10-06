@@ -174,5 +174,44 @@ func erfinv16Poly(c *[7]float64, x float64) float64 {
 //	x.Erfcinv() = NaN if x < 0 or x > 2
 //	NaN.Erfcinv() = NaN
 func (a Float16) Erfcinv() Float16 {
-	return NewFloat16(math.Erfcinv(a.Float64().BuiltIn()))
+	switch {
+	case a&^signMask16 == 0:
+		return uvinf16 // +Inf for ±0
+	case a&signMask16 != 0 || a > 0x4000:
+		return NewFloat16(math.NaN()) // x < 0, x > 2, and NaN
+	case a == 0x4000:
+		return uvinf16 | signMask16 // -Inf for 2
+	}
+
+	// erfcinv(x) = -erfcinv(2-x), where 2 - x is exact.
+	x := normal16ToFloat64(a)
+	if a < 0x0400 {
+		x = float64(a) * 0x1p-24 // subnormal
+	}
+	neg := a > 0x3c00
+	if neg {
+		x = 2 - x
+	}
+
+	// y = erfcinv(x) for 0 < x <= 1, which is erfinv(1-x).
+	var y float64
+	switch {
+	case x <= 0.5:
+		// the polynomials of t = x = 1 - erf(y), which are for Float32 Erfinv, are used.
+		y = erfinv32Poly(x)
+	case x < 0.875:
+		y = erfinv16Poly(&erfinv16MidCoeffs[math.Float64bits(1-x)>>49-8160], 1-x)
+	default:
+		// erfinv(u) = u P(u**2). It also handles x = 1.
+		u := 1 - x
+		c := &erfinv16SmallCoeffs
+		u2 := u * u
+		y = u * (c[0] + u2*(c[1]+u2*(c[2]+u2*(c[3]+u2*(c[4]+u2*c[5])))))
+	}
+	// The relative error of y is less than 2**-43, which is much smaller than the distance to
+	// the midpoint of two adjacent Float16 values (at least 2**-26 of y, checked with mpmath).
+	if neg {
+		return NewFloat16(y) | signMask16
+	}
+	return NewFloat16(y)
 }
