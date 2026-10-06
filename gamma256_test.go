@@ -337,6 +337,33 @@ func TestFloat256_GammaFixArithmetic(t *testing.T) {
 	}
 }
 
+// TestFloat256_GammaExpBoundary checks gammaExp256 for the arguments just below n log(2)/256,
+// where the rounding error of the estimate of n makes it larger than the exact value by one.
+func TestFloat256_GammaExpBoundary(t *testing.T) {
+	t.Parallel()
+	for n := uint64(1 << 26); n > 1<<26-5000; n-- {
+		if n%256 == 0 {
+			continue // the result is close to a power of two, where the exponent is not stable.
+		}
+		nl2 := gammaMulLn2(&gamma256Ln2By256, n)
+		m0, e0 := gammaExp256(nl2)
+		for d := uint64(1); d <= 64; d++ {
+			// e**(x-d) = e**x (1 - d 2**-320 + ...)
+			m, e := gammaExp256(nl2.sub(gammaFix256{5: d}))
+			if e != e0 {
+				t.Fatalf("exp(%d × log(2)/256 - %d ulp): the exponent is %d; want %d", n, d, e, e0)
+			}
+			diff := m0.sub(m)
+			if m.cmp(m0) >= 0 {
+				diff = m.sub(m0)
+			}
+			if diff.bitLen() > 8 {
+				t.Fatalf("exp(%d × log(2)/256 - %d ulp): the mantissa is %v; want about %v", n, d, m, m0)
+			}
+		}
+	}
+}
+
 func BenchmarkFloat256_Gamma(b *testing.B) {
 	benchFloat256(b, Float256.Gamma, []struct {
 		name string

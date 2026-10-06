@@ -362,37 +362,21 @@ func gammaLog256(z gammaFix256) gammaFix256 {
 		rho = t.sub(gammaFix256{2}).shr(1)
 	}
 
-	// 1+rho = 2**(i/65536) × (1+rho2), where |rho2| < 2**(2/65536) - 1. i is estimated by the floating-point arithmetic,
-	// and may be off by one.
+	// 1+rho = 2**(i/65536) × (1+rho2), where 0 <= rho2 < 2**(2/65536) - 1. i is estimated by the floating-point arithmetic,
+	// and is decreased by one so that it never exceeds the exact value. The estimate is accurate enough for rho2 to be less than
+	// the twice of the width of the interval.
 	x := float64(rho[1]) * 0x1p-64
-	i := min(int(x*(1-x/2+x*x/3)*(65536/math.Ln2)), 255)
-	var rho2 gammaFix256
-	neg := false
-	if t := gammaMul6(gammaOne256.add(rho), gamma256Exp2Inv[i]); t[0] >= 1 {
-		rho2 = t.sub(gammaOne256)
-	} else {
-		rho2 = gammaOne256.sub(t)
-		neg = true
-	}
+	i := max(min(int(x*(1-x/2+x*x/3)*(65536/math.Ln2)), 255)-1, 0)
+	rho2 := gammaMul6(gammaOne256.add(rho), gamma256Exp2Inv[i]).sub(gammaOne256)
 
 	// log(1+rho2) = rho2 × sum (-rho2)**i / (i+1). A step i of Horner's method needs the precision of 312 - 15 i bits.
 	c := &gamma256LogCoeffs
 	d := len(c)
 	p := gammaFix256(c[d-1])
 	for i := d - 2; i >= 0; i-- {
-		t := gammaMul256(&rho2, &p, gammaLimbs256(312-15*i))
-		if neg {
-			p = gammaFix256(c[i]).add(t)
-		} else {
-			p = gammaFix256(c[i]).sub(t)
-		}
+		p = gammaFix256(c[i]).sub(gammaMul256(&rho2, &p, gammaLimbs256(312-15*i)))
 	}
-	l := gammaMulLn2(&gamma256Ln2By65536, uint64((256*k+j)*256+i))
-	t := gammaMul6(rho2, p)
-	if neg {
-		return l.sub(t)
-	}
-	return l.add(t)
+	return gammaMulLn2(&gamma256Ln2By65536, uint64((256*k+j)*256+i)).add(gammaMul6(rho2, p))
 }
 
 // gammaLogGamma256 returns log(Gamma(z)) for 48 <= z < 2**15,
@@ -433,12 +417,9 @@ func gammaExp256(s gammaFix256) (mant gammaFix256, k int) {
 	// And e**(-x) = 2**(-i/65536) × e**(-y), where i = floor(x × 65536/ln(2)) and y = x - i × ln(2)/65536 is in [0, ln(2)/65536).
 	x := gammaFix256{0, gamma256Ln2By256[1], gamma256Ln2By256[2], gamma256Ln2By256[3], gamma256Ln2By256[4], gamma256Ln2By256[5]}.sub(s.sub(nl2))
 	i := gammaMul6(x, gammaFix256(gamma256InvLn2By65536))[0]
-	il2 := gammaMulLn2(&gamma256Ln2By65536, i)
-	if x.cmp(il2) < 0 {
-		i--
-		il2 = gammaMulLn2(&gamma256Ln2By65536, i)
-	}
-	y := x.sub(il2)
+	// il2 = floor(i × ln(2)/65536) is never larger than x, because the error of the estimate of i is much smaller than
+	// the precision of x.
+	y := x.sub(gammaMulLn2(&gamma256Ln2By65536, i))
 
 	// e**(-y) = sum (-y)**m / m!. A step m of Horner's method needs the precision of 312 - 16 m bits.
 	c := &gamma256ExpCoeffs
