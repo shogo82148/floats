@@ -311,75 +311,83 @@ func erfc128Large(x ints.Uint256, exp int, m ints.Uint128) (v ints.Uint256, e in
 //	NaN.Erfinv() = NaN
 func (a Float128) Erfinv() Float128 {
 	var (
-		// Zero is 0
-		Zero = Float128{}
-		// One is 1
-		One = Float128(uvone128)
-		// Two is 2
-		Two = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-		// Half is 0.5
-		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
+		one = Float128(uvone128)
 		// SqrtPiOverTwo is sqrt(π)/2
-		SqrtPiOverTwo = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+		sqrtPiOverTwo = Float256{
+			0x3fff_ec5b_f891_b4ef, 0x6aa7_9c3b_0520_d5db,
+			0x9383_fe39_2154_6f63, 0xb252_dca1_00bd_3ea1,
+		}
+		// SqrtPiOverTwo128 is sqrt(π)/2
+		sqrtPiOverTwo128 = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+		// PiOver12 is π/12
+		piOver12 = Float256{
+			0x3fff_d0c1_5238_2d73, 0x6584_65bb_32e0_f567,
+			0xad11_6e15_8680_b633, 0x5109_aad6_4fe3_2f97,
+		}
 	)
 
 	// special cases
 	switch {
-	case a.Eq(One):
-		return NewFloat128Inf(1)
-	case a.Eq(One.Neg()):
-		return NewFloat128Inf(-1)
-	case a.Lt(One.Neg()) || a.Gt(One):
-		return NewFloat128NaN()
 	case a.IsNaN():
 		return NewFloat128NaN()
+	case a.IsZero():
+		return a
+	case a.Eq(one):
+		return NewFloat128Inf(1)
+	case a.Eq(one.Neg()):
+		return NewFloat128Inf(-1)
+	case a.Lt(one.Neg()) || a.Gt(one):
+		return NewFloat128NaN()
 	}
 
-	sign := a.Signbit()
-	if sign {
-		a = a.Neg()
+	abs := a.Abs()
+	x := abs.Float256()
+	var y Float256
+	switch {
+	case abs.Lt(Float128{0x3fc3_0000_0000_0000, 0}):
+		// |a| < 2**-60: erfinv(x) = sqrt(π)/2 x (1 + π/12 x**2 + ...), and the next term is less than 2**-230 relative.
+		y = sqrtPiOverTwo.Mul(x).Mul(piOver12.Mul(x).Mul(x).Add(Float256(uvone256)))
+	case abs.Le(Float128{0x3ffe_0000_0000_0000, 0}):
+		// Newton's method for erf(y) = x. The initial approximation has about 50 correct bits, and each iteration
+		// doubles them. The first iteration is calculated in Float128 and a float64 factor, whose error is about 2**-104,
+		// and the second iteration is calculated in Float256. The error of the result is less than 2**-190.
+		y0 := math.Erfinv(abs.Float64().BuiltIn())
+		y1 := NewFloat128(y0)
+		y1 = y1.Sub(y1.Erf().Sub(abs).Mul(sqrtPiOverTwo128).Mul(NewFloat128(math.Exp(y0 * y0))))
+		y2 := y1.Float256()
+		factor := sqrtPiOverTwo128.Mul(y1.Mul(y1).Exp()).Float256()
+		y = y2.Sub(y2.Erf().Sub(x).Mul(factor))
+	default:
+		// Newton's method for erfc(y) = 1 - x, which is exact. It keeps the relative accuracy if x is close to 1.
+		c := one.Sub(abs)
+		y0 := erfcinv64(c.Float64().BuiltIn())
+		y1 := NewFloat128(y0)
+		y1 = y1.Add(y1.Erfc().Sub(c).Mul(sqrtPiOverTwo128).Mul(NewFloat128(math.Exp(y0 * y0))))
+		y2 := y1.Float256()
+		factor := sqrtPiOverTwo128.Mul(y1.Mul(y1).Exp()).Float256()
+		y = y2.Add(y2.Erfc().Sub(c.Float256()).Mul(factor))
 	}
+	if a.Signbit() {
+		return y.Float128().Neg()
+	}
+	return y.Float128()
+}
 
-	if a.Gt(Half) {
-		// bisection search
-		lo := Zero
-		hi := One
-		for hi.Erf().Lt(a) {
-			hi = hi.Mul(Two)
-		}
-		for range 128 {
-			mid := lo.Add(hi).Mul(Half)
-			if mid.Erf().Lt(a) {
-				lo = mid
-			} else {
-				hi = mid
-			}
-		}
-		mid := lo.Add(hi).Mul(Half)
-		if sign {
-			return mid.Neg()
-		}
-		return mid
+// erfcinv64 returns the inverse of math.Erfc(x) for 0 < x <= 1/2 with the relative error of about 2**-50,
+// which is more accurate than math.Erfcinv if x is close to 0, because math.Erfcinv calculates 1 - x.
+func erfcinv64(c float64) float64 {
+	y := math.Sqrt(-math.Log(c))
+	if c > 1e-5 {
+		y = math.Erfcinv(c)
 	}
-
-	// Initial approximation using built-in math.Erfinv
-	fa := a.Float64().BuiltIn()
-	x := NewFloat128(math.Erfinv(fa))
-
-	// Newton-Raphson iteration
-	for range 128 {
-		diff := x.Erf().Sub(a)
-		exp := SqrtPiOverTwo.Mul(x.Mul(x).Exp())
-		xn := x.Sub(diff.Mul(exp))
-		if xn.Eq(x) {
-			break
-		}
-		x = xn
+	// Newton's method for ln erfc(y) = ln c, which is convex and converges quickly from the initial approximation.
+	lc := math.Log(c)
+	for range 4 {
+		e := math.Erfc(y)
+		// d ln erfc(y)/dy = -2 exp(-y**2)/(sqrt(π) erfc(y))
+		y += (math.Log(e) - lc) / (2 / math.SqrtPi * math.Exp(-y*y) / e)
 	}
-	if sign {
-		x = x.Neg()
-	}
-	return x
+	return y
 }
 
 // Erfcinv returns the inverse of [Erfc](a).
