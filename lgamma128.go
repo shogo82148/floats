@@ -71,7 +71,7 @@ func (a Float128) Lgamma() (Float128, int) {
 
 // lnStirling128 returns ln(Gamma(x)) for x large enough that Gamma(x)
 // itself would overflow. It uses the same Stirling asymptotic series as
-// stirling128, but evaluated directly in log space so that it stays finite
+// Gamma, but evaluated directly in log space so that it stays finite
 // well beyond the point where Gamma(x) would overflow.
 func lnStirling128(x Float128) Float128 {
 	var (
