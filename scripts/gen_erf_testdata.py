@@ -77,7 +77,6 @@ def gen(name, P, EB, seed, fn="erf"):
         inputs += [base + d for d in range(-3, 4)]
     if fn == "erfc":
         # large arguments: [4, 8), [8, 16), [16, 32), [32, 64), and close to the underflow
-        top = mpmath.mpf(2) ** 16 if big else mpmath.mpf(107)
         inputs += [from_real(mpmath.mpf(4) + mpmath.mpf(rnd.random()) * 4) for _ in range(100)]
         inputs += [from_real(mpmath.mpf(8) + mpmath.mpf(rnd.random()) * 8) for _ in range(100)]
         inputs += [from_real(mpmath.mpf(16) + mpmath.mpf(rnd.random()) * 16) for _ in range(100)]
@@ -85,24 +84,31 @@ def gen(name, P, EB, seed, fn="erf"):
         if not big:
             inputs += [from_real(mpmath.mpf(64) + mpmath.mpf(rnd.random()) * 36) for _ in range(40)]
             inputs += [from_real(mpmath.mpf(104) + mpmath.mpf(rnd.random()) * 3) for _ in range(60)]
+        else:
+            inputs += [from_real(mpmath.mpf(64) + mpmath.mpf(rnd.random()) * 359) for _ in range(60)]
+            inputs += [from_real(mpmath.mpf(423) + mpmath.mpf(rnd.random()) * 3.4) for _ in range(60)]
+            inputs += [random_value(9, 20) for _ in range(10)]  # erfc(x) is rounded to 0
         with mpmath.workprec(prec):
-            for t in (mpmath.mpf(3), mpmath.mpf(4), mpmath.mpf(8), mpmath.mpf(16), mpmath.mpf(32)):
+            for t in (mpmath.mpf(3), mpmath.mpf(4), mpmath.mpf(8), mpmath.mpf(16), mpmath.mpf(32)) + ((mpmath.mpf(256),) if big else ()):
                 u = mpmath.mpf(2) ** (int(mpmath.floor(mpmath.log(t, 2))) - P)
                 for d in range(-3, 4):
                     inputs.append(round_bits(t + d * u, P, EB))
+            # near the threshold where erfc(x) is rounded to 0
             if not big:
-                # near the threshold where erfc(x) is rounded to 0
-                lo, hi = mpmath.mpf(100), mpmath.mpf(110)
-                for _ in range(prec + 100):
-                    m = (lo + hi) / 2
-                    if mpmath.erfc(m) > mpmath.mpf(2) ** (-(1 << 14) - P + 1 - 2):
-                        lo = m
-                    else:
-                        hi = m
-                base = round_bits(hi, P, EB)
-                inputs += [base + d for d in range(-3, 4)]
+                lo, hi, tiny = mpmath.mpf(100), mpmath.mpf(110), mpmath.mpf(2) ** (-(1 << 14) - P + 1 - 2)
+            else:
+                # the half of the smallest subnormal number
+                lo, hi, tiny = mpmath.mpf(420), mpmath.mpf(430), mpmath.mpf(2) ** (2 - (1 << (EB - 1)) - P - 1)
+            for _ in range(prec + 100):
+                m = (lo + hi) / 2
+                if mpmath.erfc(m) > tiny:
+                    lo = m
+                else:
+                    hi = m
+            base = round_bits(hi, P, EB)
+            inputs += [base + d for d in range(-3, 4)]
             # near the threshold where erfc(-x) is rounded to 2
-            lo, hi = mpmath.mpf(5), mpmath.mpf(12)
+            lo, hi = mpmath.mpf(5), mpmath.mpf(14 if big else 12)
             for _ in range(prec + 100):
                 m = (lo + hi) / 2
                 if mpmath.erfc(m) > mpmath.mpf(2) ** (-P - 1):

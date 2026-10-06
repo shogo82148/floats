@@ -67,11 +67,23 @@ func TestFloat256_Erf(t *testing.T) {
 // TestFloat256_ErfAccuracy requires the correctly rounded result for every vector of the test data.
 func TestFloat256_ErfAccuracy(t *testing.T) {
 	t.Parallel()
-	f, err := os.Open("testdata/erf256.txt")
+	checkFloat256Testdata(t, "testdata/erf256.txt", "Erf", Float256.Erf)
+}
+
+// TestFloat256_ErfcAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_ErfcAccuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat256Testdata(t, "testdata/erfc256.txt", "Erfc", Float256.Erfc)
+}
+
+// checkFloat256Testdata requires the correctly rounded result for every vector of the test data.
+func checkFloat256Testdata(t *testing.T, name, fn string, f func(Float256) Float256) {
+	t.Helper()
+	file, err := os.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer file.Close()
 
 	parse := func(s string) Float256 {
 		var x Float256
@@ -84,7 +96,7 @@ func TestFloat256_ErfAccuracy(t *testing.T) {
 		}
 		return x
 	}
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(file)
 	for sc.Scan() {
 		fields := strings.Fields(sc.Text())
 		if len(fields) == 0 {
@@ -94,8 +106,8 @@ func TestFloat256_ErfAccuracy(t *testing.T) {
 			t.Fatalf("malformed line: %q", sc.Text())
 		}
 		x, want := parse(fields[0]), parse(fields[1])
-		if got := x.Erf(); !eq256(got, want) {
-			t.Errorf("Erf(%v) = %v; want %v", x, got, want)
+		if got := f(x); !eq256(got, want) {
+			t.Errorf("%s(%v) = %v; want %v", fn, x, got, want)
 		}
 	}
 	if err := sc.Err(); err != nil {
@@ -160,6 +172,80 @@ func TestFloat256_ErfKernel(t *testing.T) {
 	}
 }
 
+// TestFloat256_ErfcKernel checks the accuracy of the kernels of Erfc with the reference values calculated by mpmath.
+// The kernels are more accurate than Float256, so that their errors are hidden by the rounding.
+func TestFloat256_ErfcKernel(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/erfc256_kernels.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string, n int) []uint64 {
+		if len(s) != 16*n {
+			t.Fatalf("malformed number: %q", s)
+		}
+		x := make([]uint64, n)
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 4 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		a := Float256(parse(fields[1], 4))
+		want := gammaFix256(parse(fields[2], 6))
+		wantExp, err := strconv.Atoi(fields[3])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, exp, m := a.normalize()
+		x := gammaFix256FromUint256(m, uint(exp+84))
+		var got gammaFix256
+		var gotExp int
+		var bound int
+		switch fields[0] {
+		case "S":
+			got, gotExp = erf256Scaled(x)
+			bound = 310
+		case "L":
+			got, gotExp = erfc256Large(x, exp, m)
+			bound = 275
+		default:
+			t.Fatalf("unknown kernel: %q", fields[0])
+		}
+
+		if gotExp != wantExp {
+			t.Errorf("%s(%v): exponent = %d; want %d", fields[0], a, gotExp, wantExp)
+			continue
+		}
+		d := got.sub(want)
+		if got.cmp(want) < 0 {
+			d = want.sub(got)
+		}
+		// the relative error is less than 2**-bound
+		if d.bitLen()+bound > want.bitLen() {
+			t.Errorf("%s(%v) = %v; want %v (the error is 2**%d)", fields[0], a, got, want, d.bitLen()-want.bitLen())
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFloat256_ErfRound(t *testing.T) {
 	t.Parallel()
 	// v × 2**(e-320) with v = (m: the fraction part × 2**320)
@@ -208,6 +294,84 @@ func BenchmarkFloat256_Erf(b *testing.B) {
 		b.Run(tt.name, func(b *testing.B) {
 			for b.Loop() {
 				runtime.KeepAlive(tt.x.Erf())
+			}
+		})
+	}
+}
+
+func TestFloat256_Erfc(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		x    Float256
+		want string
+	}{
+		{exact256(-1), "1.842700792949714869341220635082609259296066997966302908459937897834717254096010841"},
+		{exact256(-0.5), "1.520499877813046537682746653891964528736451575757963700058805725647193521716853571"},
+		{exact256(0), "1"},
+		{exact256(0.5), "0.4795001221869534623172533461080354712635484242420362999411942743528064782831464291"},
+		{exact256(1), "0.1572992070502851306587793649173907407039330020336970915400621021652827459039891587"},
+		{exact256(2), "0.004677734981047265837930743632747071389108202959939923261647673799562719280004822632"},
+		{exact256(4), "1.541725790028001885215967348688404857214525358919116834290499421304102681125407277E-8"},
+		{exact256(11), "1.440866137943694680339809702856082753964395230973580405075797246278446292140321302E-54"},
+		{exact256(100), "6.405961424921732039021339148586394148214414399460338057767107650248902554829505831E-4346"},
+		{exact256(400), "1.077107859467669326180798128257033507159126340810440750431127736133942555552880804E-69490"},
+	}
+
+	for _, tt := range tests {
+		got := tt.x.Erfc()
+		if !close256(got, tt.want) {
+			t.Errorf("Erfc(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+
+	strictTests := []struct {
+		x    Float256
+		want Float256
+	}{
+		// special cases
+		{exact256(math.Inf(1)), exact256(0)},
+		{exact256(math.Inf(-1)), exact256(2)},
+		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(0), exact256(1)},
+		{exact256(math.Copysign(0, -1)), exact256(1)},
+		{exact256(0x1p-250), exact256(1)},
+		{exact256(-0x1p-250), exact256(1)},
+		{exact256(1e-300), exact256(1)},
+
+		// erfc(x) is rounded to 2 for x <= -12.695, and to 0 for x >= 426.45
+		{Float256{0xc000_2963_c382_2856, 0xda94_b711_9017_42fd, 0x8025_b5e1_20c3_3205, 0xfccc_8b78_050a_bc4f}, exact256(2).Nextafter(exact256(0))},
+		{Float256{0xc000_2963_c382_2856, 0xda94_b711_9017_42fd, 0x8025_b5e1_20c3_3205, 0xfccc_8b78_050a_bc50}, exact256(2)},
+		{exact256(-0x1p100), exact256(2)},
+		{Float256{0x4000_7aa7_382a_14ed, 0x2d77_5059_d7cf_77a2, 0xca42_44d8_9adb_8ce1, 0x0325_ae1c_e38f_78c3}, Float256{0, 0, 0, 1}},
+		{Float256{0x4000_7aa7_382a_14ed, 0x2d77_5059_d7cf_77a2, 0xca42_44d8_9adb_8ce1, 0x0325_ae1c_e38f_78c4}, exact256(0)},
+		{exact256(0x1p100), exact256(0)},
+	}
+
+	for _, tt := range strictTests {
+		got := tt.x.Erfc()
+		if !eq256(got, tt.want) {
+			t.Errorf("Erfc(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkFloat256_Erfc(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(1e-300)},     // erfc(x) = 1
+		{"small", exact256(0.001)},     // |x| < 2**-8
+		{"medium", exact256(1.5)},      // 2**-8 <= |x| < 4
+		{"scaled", exact256(6.5)},      // 4 <= |x| < 16
+		{"asymptotic", exact256(30.5)}, // 16 <= |x|
+		{"negative", exact256(-1.5)},   // 2 - erfc(-x)
+		{"negative-scaled", exact256(-6.5)},
+		{"underflow", exact256(500)}, // the result is 0
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfc())
 			}
 		})
 	}

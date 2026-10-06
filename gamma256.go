@@ -408,18 +408,44 @@ func gammaLogGamma256(z gammaFix256) gammaFix256 {
 
 // gammaExp256 returns e**s = mant × 2**k for s >= 0, where mant is in [1, 2).
 func gammaExp256(s gammaFix256) (mant gammaFix256, k int) {
-	// n = floor(s × 256/ln(2)), and e**s = 2**(n/256) × e**r, where r = s - n × ln(2)/256 is in [0, ln(2)/256).
-	n := gammaMul6(s, gammaFix256(gamma256InvLn2By256))[0]
+	n, r := gammaExpReduce256(s)
+
+	// e**r = 2**(1/256) × e**(-x), where x = ln(2)/256 - r is in (0, ln(2)/256].
+	x := gammaFix256{0, gamma256Ln2By256[1], gamma256Ln2By256[2], gamma256Ln2By256[3], gamma256Ln2By256[4], gamma256Ln2By256[5]}.sub(r)
+	q := gammaExpNegSmall256(x)
+
+	// e**s = 2**(n>>8) × 2**((n&255+1)/256) × e**(-x)
+	q = gammaMul6(q, gamma256Exp2[n&255+1])
+	return gammaNormalize256(q, int(n>>8))
+}
+
+// gammaExpNeg256 returns e**-s = mant × 2**k for s >= 0, where mant is in [1, 2).
+func gammaExpNeg256(s gammaFix256) (mant gammaFix256, k int) {
+	n, r := gammaExpReduce256(s)
+	q := gammaExpNegSmall256(r)
+
+	// e**-s = 2**(-(n>>8)-1) × 2**((256-(n&255))/256) × e**(-r)
+	q = gammaMul6(q, gamma256Exp2[256-(n&255)])
+	return gammaNormalize256(q, -int(n>>8)-1)
+}
+
+// gammaExpReduce256 returns n and r such that s = n × ln(2)/256 + r, where n is a non-negative integer
+// and r is in [0, ln(2)/256).
+func gammaExpReduce256(s gammaFix256) (n uint64, r gammaFix256) {
+	// n = floor(s × 256/ln(2))
+	n = gammaMul6(s, gammaFix256(gamma256InvLn2By256))[0]
 	nl2 := gammaMulLn2(&gamma256Ln2By256, n)
 	if s.cmp(nl2) < 0 {
 		// n is too large by one because of the rounding error.
 		n--
 		nl2 = gammaMulLn2(&gamma256Ln2By256, n)
 	}
+	return n, s.sub(nl2)
+}
 
-	// e**r = 2**(1/256) × e**(-x), where x = ln(2)/256 - r is in (0, ln(2)/256].
-	// And e**(-x) = 2**(-i/65536) × e**(-y), where i = floor(x × 65536/ln(2)) and y = x - i × ln(2)/65536 is in [0, ln(2)/65536).
-	x := gammaFix256{0, gamma256Ln2By256[1], gamma256Ln2By256[2], gamma256Ln2By256[3], gamma256Ln2By256[4], gamma256Ln2By256[5]}.sub(s.sub(nl2))
+// gammaExpNegSmall256 returns e**(-x) for 0 <= x <= ln(2)/256.
+func gammaExpNegSmall256(x gammaFix256) gammaFix256 {
+	// e**(-x) = 2**(-i/65536) × e**(-y), where i = floor(x × 65536/ln(2)) and y = x - i × ln(2)/65536 is in [0, ln(2)/65536).
 	i := gammaMul6(x, gammaFix256(gamma256InvLn2By65536))[0]
 	// il2 = floor(i × ln(2)/65536) is never larger than x, because the error of the estimate of i is much smaller than
 	// the precision of x.
@@ -433,11 +459,7 @@ func gammaExp256(s gammaFix256) (mant gammaFix256, k int) {
 		t := gammaMul256(&y, &q, gammaLimbs256(312-16*m))
 		q = gammaFix256(c[m]).sub(t)
 	}
-
-	// e**s = 2**(n>>8) × 2**((n&255+1)/256) × 2**(-i/65536) × e**(-y)
-	q = gammaMul6(q, gamma256Exp2[n&255+1])
-	q = gammaMul6(q, gamma256Exp2Inv[i])
-	return gammaNormalize256(q, int(n>>8))
+	return gammaMul6(q, gamma256Exp2Inv[i])
 }
 
 func isNegInt256(x Float256) bool {
