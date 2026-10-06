@@ -12,11 +12,13 @@ mpmath.mp.prec = 700
 F = 192
 # erf(x) for x in [k/16, (k+1)/16) is calculated by the Taylor series around the center x0 = (k + 1/2)/16:
 # erf(x0+h) = erf(x0) + 2/sqrt(pi) exp(-x0**2) sum_n b_n h**(n+1)/(n+1), where exp(-2 x0 h - h**2) = sum b_n h**n.
-CELLS = 140  # erf(x) is rounded to 1 for x >= 8.7334
+CELLS = 256  # erfc(x) is calculated by the cells for x < 16
 TAIL_BITS = 170  # the tail of the series is less than 2**-TAIL_BITS
 SMALL_TERMS = 10  # the number of the terms of the series for |x| < 2**-8
 # For the cells k >= LARGE_CELL, erf(x) is rounded from 1 - erfc(x), and erfc(x) is calculated in a relative accuracy.
 LARGE_CELL = 112
+# For the cells k >= SCALED_CELL, erfc(x) is calculated in a relative accuracy.
+SCALED_CELL = 64
 
 
 def fix(x, frac_bits=F):
@@ -33,7 +35,7 @@ def terms(k):
     x0 = mpmath.mpf(2 * k + 1) / 32
     h = mpmath.mpf(1) / 32
     e0 = 2 / mpmath.sqrt(mpmath.pi) * mpmath.exp(-x0 * x0)
-    if k >= LARGE_CELL:
+    if k >= SCALED_CELL:
         # erfc(x) is calculated in a relative accuracy
         e0 = e0 / mpmath.erfc(x0)
     b = [mpmath.mpf(1), -2 * x0]
@@ -75,34 +77,48 @@ def main():
 
     print("// erf128Erf[k] is erf(x0), where x0 = (k + 1/2)/16.")
     print("var erf128Erf = [...][4]uint64{")
-    for r in rows:
+    for r in rows[:LARGE_CELL]:
         print(f"\t{{{limbs(r[0])}}},")
     print("}")
     print()
     print("// erf128E0[k] is the mantissa m of 2/sqrt(pi) exp(-x0**2) = m × 2**erf128E0Exp[k], where m is in [1, 2).")
     print("var erf128E0 = [...][4]uint64{")
-    for r in rows:
+    for r in rows[:LARGE_CELL]:
         print(f"\t{{{limbs(r[1])}}},")
     print("}")
     print()
     print("// erf128E0Exp[k] is the exponent of 2/sqrt(pi) exp(-x0**2).")
     print("var erf128E0Exp = [...]int16{")
-    print("\t" + ", ".join(str(r[2]) for r in rows) + ",")
+    print("\t" + ", ".join(str(r[2]) for r in rows[:LARGE_CELL]) + ",")
     print("}")
     print()
-    print("// erf128ErfcScaled[k-112] is erfc(x0) × 2**113 for the cells k >= 112, where x0 = (k + 1/2)/16.")
-    print("var erf128ErfcScaled = [...][4]uint64{")
-    for k in range(LARGE_CELL, CELLS):
+    mants = []
+    for k in range(SCALED_CELL, CELLS):
         x0 = mpmath.mpf(2 * k + 1) / 32
-        print(f"\t{{{limbs(fix(mpmath.erfc(x0) * mpmath.mpf(2) ** 113))}}},")
+        y = mpmath.erfc(x0)
+        e = int(mpmath.floor(mpmath.log(y, 2)))
+        mants.append((fix(y / mpmath.mpf(2) ** e), e))
+    print("// erf128ErfcMant[k-64] is the mantissa m of erfc(x0) = m × 2**erf128ErfcExp[k-64] for the cells k >= 64,")
+    print("// where x0 = (k + 1/2)/16 and m is in [1, 2).")
+    print("var erf128ErfcMant = [...][4]uint64{")
+    for m, _ in mants:
+        print(f"\t{{{limbs(m)}}},")
     print("}")
     print()
-    print("// erf128R[k-112] is 2/sqrt(pi) exp(-x0**2) / erfc(x0) for the cells k >= 112.")
+    print("// erf128ErfcExp[k-64] is the exponent of erfc(x0) for the cells k >= 64.")
+    print("var erf128ErfcExp = [...]int16{")
+    print("\t" + ", ".join(str(e) for _, e in mants) + ",")
+    print("}")
+    print()
+    print("// erf128R[k-64] is 2/sqrt(pi) exp(-x0**2) / erfc(x0) for the cells k >= 64.")
     print("var erf128R = [...][4]uint64{")
-    for k in range(LARGE_CELL, CELLS):
+    for k in range(SCALED_CELL, CELLS):
         x0 = mpmath.mpf(2 * k + 1) / 32
         print(f"\t{{{limbs(fix(2 / mpmath.sqrt(mpmath.pi) * mpmath.exp(-x0 * x0) / mpmath.erfc(x0)))}}},")
     print("}")
+    print()
+    print("// erf128InvSqrtPi is 1/sqrt(pi).")
+    print(f"var erf128InvSqrtPi = [4]uint64{{{limbs(fix(1 / mpmath.sqrt(mpmath.pi)))}}}")
     print()
     print("// erf128Terms[k] is the number of the terms of the Taylor series of the cell k.")
     print("var erf128Terms = [...]uint8{")

@@ -276,9 +276,45 @@ func gammaLogGamma192(z ints.Uint256) ints.Uint256 {
 // gammaExp192 returns e**s = mant × 2**(k-192) for s >= 0 in fixed point with 192 fractional bits,
 // where mant is in [2**192, 2**193).
 func gammaExp192(s ints.Uint256) (mant ints.Uint256, k int) {
+	q, n := gammaExpReduce(s, false)
+	mant = gammaMul(q, ints.Uint256(gamma128Exp2[n&255]))
+	return gammaNormalize(mant, int(n>>8))
+}
+
+// gammaExpNeg192 returns e**-s = mant × 2**(k-192) for s >= 0 in fixed point with 192 fractional bits,
+// where mant is in [2**192, 2**193).
+func gammaExpNeg192(s ints.Uint256) (mant ints.Uint256, k int) {
+	q, n := gammaExpReduce(s, true)
+	// 2**(-n/256) = 2**(-a-1) × 2**((256-b)/256) for n = 256 a + b, 0 < b < 256.
+	a, b := int(n>>8), n&255
+	if b != 0 {
+		a++
+	}
+	mant = gammaMul(q, ints.Uint256(gamma128Exp2[(256-b)&255]))
+	return gammaNormalize(mant, -a)
+}
+
+// gammaRecip192 returns 1/m for m in [1, 2) in fixed point with 192 fractional bits.
+func gammaRecip192(m ints.Uint256) ints.Uint256 {
+	// Newton's method y = y (2 - m y) doubles the number of the correct bits: 52 -> 104 -> 208.
+	f := float64(m[0]) + float64(m[1])*0x1p-64
+	y := gammaOne
+	if r := 1 / f; r < 1 {
+		y = ints.Uint256{0, uint64(r * 0x1p64)}
+	}
+	two := ints.Uint256{2}
+	for range 2 {
+		y = gammaMul(y, two.Sub(gammaMul(m, y)))
+	}
+	return y
+}
+
+// gammaExpReduce returns q and n such that e**s = 2**(n/256) × q, or e**-s = 2**(-n/256) × q if neg is true,
+// where q is about in [0.9986, 1.0014] in fixed point with 192 fractional bits.
+func gammaExpReduce(s ints.Uint256, neg bool) (q ints.Uint256, n uint64) {
 	// n = round(s × 256/ln(2)), and e**s = 2**(n/256) × e**r, where r = s - n × ln(2)/256.
 	p := s.Mul512(ints.Uint256(gamma128InvLn2By256)).Add(ints.Uint512{2: 1 << 63})
-	n := shr512to256(p, 384)[3]
+	n = shr512to256(p, 384)[3]
 	nl2 := shr512to256(ints.Uint256{3: n}.Mul512(ints.Uint256(gamma128Ln2By256)), 64)
 	var r ints.Uint256
 	rneg := s.Cmp(nl2) < 0
@@ -286,6 +322,10 @@ func gammaExp192(s ints.Uint256) (mant ints.Uint256, k int) {
 		r = nl2.Sub(s)
 	} else {
 		r = s.Sub(nl2)
+	}
+	if neg {
+		// e**-s = 2**(-n/256) × e**-r
+		rneg = !rneg
 	}
 
 	// e**r = sum r**m / m! for |r| <= ln(2)/512 < 2**-9. A step m of Horner's method needs 192 bits for m < 2,
@@ -320,7 +360,7 @@ func gammaExp192(s ints.Uint256) (mant ints.Uint256, k int) {
 			q0, _ = bits.Add64(c[i][0], r0, cy)
 		}
 	}
-	q := ints.Uint256{q0, q1, q2, 0}
+	q = ints.Uint256{q0, q1, q2, 0}
 	for i := 1; i >= 0; i-- {
 		t := gammaMul(q, r)
 		if rneg {
@@ -329,9 +369,7 @@ func gammaExp192(s ints.Uint256) (mant ints.Uint256, k int) {
 			q = ints.Uint256(c[i]).Add(t)
 		}
 	}
-
-	mant = gammaMul(q, ints.Uint256(gamma128Exp2[n&255]))
-	return gammaNormalize(mant, int(n>>8))
+	return q, n
 }
 
 func isNegInt128(x Float128) bool {
