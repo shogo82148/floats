@@ -79,6 +79,12 @@ func TestFloat128_ErfinvAccuracy(t *testing.T) {
 	checkFloat128Testdata(t, "testdata/erfinv128.txt", "Erfinv", Float128.Erfinv)
 }
 
+// TestFloat128_ErfcinvAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat128_ErfcinvAccuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat128Testdata(t, "testdata/erfcinv128.txt", "Erfcinv", Float128.Erfcinv)
+}
+
 // TestFloat128_ErfcAccuracy requires the correctly rounded result for every vector of the test data.
 func TestFloat128_ErfcAccuracy(t *testing.T) {
 	t.Parallel()
@@ -510,6 +516,8 @@ func TestFloat128_Erfcinv(t *testing.T) {
 		{exact128(1.5), "-0.47693627620446987338141835364313055"},
 		{exact128(1.75), "-0.8134198475976185416902893598934208"},
 		{exact128(2).Nextafter(exact128(0)), "-8.654218872644272166366043905074009"},
+		{exact128(1e-300), "26.20946996051612388552073179045609"},
+		{Float128{0, 1}, "106.8996038222388760536653005249475"}, // the smallest subnormal number
 	}
 
 	for _, tt := range tests {
@@ -529,6 +537,11 @@ func TestFloat128_Erfcinv(t *testing.T) {
 		{exact128(-1), exact128(math.NaN())},
 		{exact128(3), exact128(math.NaN())},
 		{exact128(math.NaN()), exact128(math.NaN())},
+		{exact128(math.Inf(1)), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(math.NaN())},
+		{exact128(2).Nextafter(exact128(3)), exact128(math.NaN())},
+		{exact128(math.Copysign(0, -1)), exact128(math.Inf(1))},
+		{exact128(1), exact128(0)},
 	}
 
 	for _, tt := range strictTests {
@@ -539,9 +552,40 @@ func TestFloat128_Erfcinv(t *testing.T) {
 	}
 }
 
+// TestErfcinv64Log checks the initial approximation of Erfcinv.
+func TestErfcinv64Log(t *testing.T) {
+	t.Parallel()
+	rnd := rand.New(rand.NewPCG(1, 2))
+	for range 10000 {
+		// ln(erfc(y)) in [-12000, -0.5] distributed uniformly in the exponent
+		lc := -math.Ldexp(0.5+rnd.Float64(), rnd.IntN(15))
+		if lc < -12000 {
+			continue
+		}
+		y := erfcinv64Log(lc)
+		if got := lnErfc64(y); math.Abs(got-lc) > 0x1p-44*math.Abs(lc) {
+			t.Fatalf("lnErfc64(erfcinv64Log(%v)) = %v", lc, got)
+		}
+	}
+}
+
 func BenchmarkFloat128_Erfcinv(b *testing.B) {
-	x := exact128(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfcinv())
+	for _, tt := range []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(1e-300)},                           // x < 2**-113
+		{"small", exact128(1e-20)},                           // 2**-113 <= x <= 1/2
+		{"medium", exact128(0.25)},                           // 2**-113 <= x <= 1/2
+		{"large", exact128(0.75)},                            // 1/2 < x <= 1, erfinv(1-x)
+		{"greater-than-one", exact128(1.5)},                  // 1 < x < 2
+		{"close-to-two", exact128(2).Nextafter(exact128(0))}, // 2 - 2**-112
+		{"subnormal", Float128{0, 1}},                        // the smallest subnormal number
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfcinv())
+			}
+		})
 	}
 }

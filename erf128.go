@@ -359,18 +359,83 @@ func (a Float128) Erfinv() Float128 {
 		y = y2.Sub(y2.Erf().Sub(x).Mul(factor))
 	default:
 		// Newton's method for erfc(y) = 1 - x, which is exact. It keeps the relative accuracy if x is close to 1.
-		c := one.Sub(abs)
-		y0 := erfcinv64(c.Float64().BuiltIn())
-		y1 := NewFloat128(y0)
-		y1 = y1.Add(y1.Erfc().Sub(c).Mul(sqrtPiOverTwo128).Mul(NewFloat128(math.Exp(y0 * y0))))
-		y2 := y1.Float256()
-		factor := sqrtPiOverTwo128.Mul(y1.Mul(y1).Exp()).Float256()
-		y = y2.Add(y2.Erfc().Sub(c.Float256()).Mul(factor))
+		y = erfcinv128Pos(one.Sub(abs))
 	}
 	if a.Signbit() {
 		return y.Float128().Neg()
 	}
 	return y.Float128()
+}
+
+// erfcinv128Pos returns erfcinv(c) for 0 < c <= 1/2 with the relative error less than 2**-170.
+func erfcinv128Pos(c Float128) Float256 {
+	var (
+		// SqrtPiOverTwo is sqrt(π)/2
+		sqrtPiOverTwo = Float256{
+			0x3fff_ec5b_f891_b4ef, 0x6aa7_9c3b_0520_d5db,
+			0x9383_fe39_2154_6f63, 0xb252_dca1_00bd_3ea1,
+		}
+		// SqrtPiOverTwo128 is sqrt(π)/2
+		sqrtPiOverTwo128 = Float128{0x3ffe_c5bf_891b_4ef6, 0xaa79_c3b0_520d_5db9}
+	)
+
+	if c.Ge(Float128{0x3f8e_0000_0000_0000, 0}) {
+		// c >= 2**-113. Newton's method for erfc(y) = c. The initial approximation has about 50 correct bits, and each
+		// iteration doubles them. The first iteration is calculated in Float128 and a float64 factor, whose error is
+		// about 2**-104, and the second iteration is calculated in Float256. The error of the result is less than 2**-190.
+		y0 := erfcinv64(c.Float64().BuiltIn())
+		y1 := NewFloat128(y0)
+		y1 = y1.Add(y1.Erfc().Sub(c).Mul(sqrtPiOverTwo128).Mul(NewFloat128(math.Exp(y0 * y0))))
+		y2 := y1.Float256()
+		factor := sqrtPiOverTwo128.Mul(y1.Mul(y1).Exp()).Float256()
+		return y2.Add(y2.Erfc().Sub(c.Float256()).Mul(factor))
+	}
+
+	// c < 2**-113, down to the subnormal numbers. y is up to 107, and erfc(y) and exp(y**2) are out of the range of
+	// Float128 and float64, so that Newton's method is calculated in Float256 with the logarithm:
+	// y' = y + (erfc(y)/c - 1) sqrt(π)/2 exp(y**2 + ln c). Each iteration of Newton's method doubles the correct bits
+	// from about 50 bits, and the error of the second iteration is less than 2**-170.
+	c256 := c.Float256()
+	lc := c256.Log()
+	y := NewFloat256(erfcinv64Log(lc.Float64().BuiltIn()))
+	for range 2 {
+		r := y.Erfc().Sub(c256).Quo(c256)
+		y = y.Add(r.Mul(sqrtPiOverTwo).Mul(y.Mul(y).Add(lc).Exp()))
+	}
+	return y
+}
+
+// lnErfc64 returns ln(erfc(y)) with the relative error of about 2**-50 for y >= 0.
+func lnErfc64(y float64) float64 {
+	if y < 26 {
+		return math.Log(math.Erfc(y))
+	}
+	// erfc(y) is out of the range of float64 soon. Use the asymptotic expansion
+	// erfc(y) = exp(-y**2)/(y sqrt(π)) sum (-1)**n (2n-1)!!/(2 y**2)**n.
+	w := 1 / (2 * y * y)
+	s, t := 1.0, 1.0
+	for n := 1; n < 30; n++ {
+		t *= -float64(2*n-1) * w
+		s += t
+		if math.Abs(t) < 1e-17 {
+			break
+		}
+	}
+	return -y*y - math.Log(y*math.SqrtPi) + math.Log(s)
+}
+
+// erfcinv64Log returns the inverse of math.Erfc(y) for ln(erfc(y)) = lc < 0, which is valid even if
+// erfc(y) is out of the range of float64. The relative error is about 2**-50.
+func erfcinv64Log(lc float64) float64 {
+	// Newton's method for ln erfc(y) = lc, which is convex and converges quickly from the initial approximation
+	// y = sqrt(-lc), because erfc(y) = exp(-y**2)/(y sqrt(π)) (1 + ...).
+	y := math.Sqrt(-lc)
+	for range 8 {
+		l := lnErfc64(y)
+		// d ln erfc(y)/dy = -2 exp(-y**2 - ln erfc(y))/sqrt(π)
+		y += (l - lc) / (2 / math.SqrtPi * math.Exp(-y*y-l))
+	}
+	return y
 }
 
 // erfcinv64 returns the inverse of math.Erfc(x) for 0 < x <= 1/2 with the relative error of about 2**-50,
@@ -399,5 +464,38 @@ func erfcinv64(c float64) float64 {
 //	x.Erfcinv() = NaN if x < 0 or x > 2
 //	NaN.Erfcinv() = NaN
 func (a Float128) Erfcinv() Float128 {
-	return (Float128(uvone128).Sub(a)).Erfinv()
+	var (
+		one = Float128(uvone128)
+		two = Float128{0x4000_0000_0000_0000, 0}
+	)
+
+	switch {
+	case a.IsNaN():
+		return NewFloat128NaN()
+	case a.IsZero():
+		return NewFloat128Inf(1)
+	case a.Lt(Float128{}) || a.Gt(two):
+		return NewFloat128NaN()
+	case a.Eq(two):
+		return NewFloat128Inf(-1)
+	}
+
+	// erfcinv(x) = -erfcinv(2-x), where 2 - x is exact.
+	c := a
+	neg := a.Gt(one)
+	if neg {
+		c = two.Sub(a)
+	}
+
+	var y Float128
+	if c.Gt(Float128{0x3ffe_0000_0000_0000, 0}) {
+		// erfcinv(c) = erfinv(1-c), where 1 - c is exact.
+		y = one.Sub(c).Erfinv()
+	} else {
+		y = erfcinv128Pos(c).Float128()
+	}
+	if neg {
+		return y.Neg()
+	}
+	return y
 }
