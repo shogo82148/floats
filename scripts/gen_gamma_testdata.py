@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/gamma128.txt.
+# Generates testdata/gamma128.txt and testdata/gamma256.txt.
 # Each line contains the bits of x and the correctly rounded Gamma(x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_gamma_testdata.py
+# Usage: python3 scripts/gen_gamma_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -45,18 +46,23 @@ def compute(v, P, EB):
         x = to_mpf(v, P, EB)
         if x == 0 or (x < 0 and x == mpmath.floor(x)):
             return None
-        if x > 2000:
+        limit = 2000 if P == 112 else 30000
+        if x > limit:
             return ((1 << EB) - 1) << P  # +Inf
-        if x < -2000:
+        if x < -limit:
             return None  # the result underflows to zero; its sign is not tested
-        return round_bits(mpmath.gamma(x), P, EB)
+        y = round_bits(mpmath.gamma(x), P, EB)
+        if P != 112 and y & ((1 << (P + EB)) - 1) == 0:
+            return None  # the result underflows to zero; its sign is not tested
+        return y
 
 
-def gen(name, P, EB, seed):
+def gen(name, P, EB, seed, thr_guess, ints, neg_ints, underflow=()):
     B = (1 << (EB - 1)) - 1
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
     prec = 4 * P + 256
+    EMAX = 10 if P == 112 else 14
 
     def enc(m, e, s=0):
         return (s << (P + EB)) | ((e + B) << P) | (m - (1 << P))
@@ -80,31 +86,39 @@ def gen(name, P, EB, seed):
     inputs += [random_value(-19, -1) for _ in range(120)]  # (0, 1)
     inputs += [random_value(0, 1) for _ in range(150)]  # [1, 4)
     inputs += [random_value(2, 5) for _ in range(150)]  # [4, 64)
-    inputs += [random_value(5, 10) for _ in range(150)]  # [32, 2048)
+    inputs += [random_value(5, EMAX) for _ in range(150)]  # [32, overflow)
     # negative arguments
     inputs += [random_value(-30, -1, 1) for _ in range(80)]
     inputs += [random_value(0, 4, 1) for _ in range(150)]
     inputs += [random_value(4, 6, 1) for _ in range(100)]
-    inputs += [random_value(6, 10, 1) for _ in range(180)]
+    inputs += [random_value(6, EMAX, 1) for _ in range(180)]
     # the integers and the half-integers
-    for k in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 30, 50, 54, 55, 56, 100, 171, 172, 1000, 1754, 1755]:
+    for k in ints:
         inputs.append(from_real(mpmath.mpf(k)))
         inputs.append(from_real(mpmath.mpf(k) + mpmath.mpf(1) / 2))
         inputs.append(from_real(-mpmath.mpf(k) - mpmath.mpf(1) / 2))
+    # around the underflow threshold of Gamma, where the results are subnormal
+    for k in underflow:
+        for d in (-1, -0.75, -0.5, -0.25, -0.001, 0.001, 0.25):
+            inputs.append(from_real(-mpmath.mpf(k) + mpmath.mpf(d)))
     with mpmath.workprec(prec):
         # near the overflow threshold of Gamma
-        thr = mpmath.findroot(lambda t: mpmath.loggamma(t) - (B + 1) * mpmath.log(2), mpmath.mpf(1755))
+        thr = mpmath.findroot(lambda t: mpmath.loggamma(t) - (B + 1) * mpmath.log(2), mpmath.mpf(thr_guess))
         base = round_bits(thr, P, EB)
         inputs += [base + d for d in range(-3, 4)]
         # near the negative integers
-        for n in [1, 2, 3, 10, 50, 171, 500, 1000, 1700, 1780, 1790]:
-            for e in (-1, -5, -20, -60, -100):
+        for n in neg_ints:
+            for e in (-1, -5, -20, -60, -100, -150, -230):
+                if e < -P + 12:
+                    continue
                 for sgn in (1, -1):
                     x = -mpmath.mpf(n) + sgn * mpmath.mpf(2) ** e * (1 + mpmath.mpf(rnd.random()))
                     inputs.append(round_bits(x, P, EB))
         # close to 1, 2 and the minimum of Gamma
         for c in (mpmath.mpf(1), mpmath.mpf(2), mpmath.mpf("1.4616321449683623412626595423257213284681962")):
-            for e in (-2, -10, -50, -100, -112):
+            for e in (-2, -10, -50, -100, -112, -150, -230):
+                if e < -P - 1:
+                    continue
                 for sgn in (1, -1):
                     inputs.append(round_bits(c + sgn * mpmath.mpf(2) ** e, P, EB))
     # the largest finite value and the smallest subnormal numbers
@@ -119,4 +133,13 @@ def gen(name, P, EB, seed):
 
 
 if __name__ == "__main__":
-    gen("gamma128", 112, 15, 128)
+    which = sys.argv[1] if len(sys.argv) > 1 else "128"
+    if which == "128":
+        gen("gamma128", 112, 15, 128, 1755,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 30, 50, 54, 55, 56, 100, 171, 172, 1000, 1754, 1755],
+            [1, 2, 3, 10, 50, 171, 500, 1000, 1700, 1780, 1790])
+    else:
+        gen("gamma256", 236, 19, 256, 20367,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 30, 50, 63, 64, 65, 100, 171, 172, 1000, 1755, 5000, 20000, 20366, 20367],
+            [1, 2, 3, 10, 50, 171, 500, 1000, 1755, 5000, 20000, 20300, 20360],
+            underflow=range(20362, 20385))
