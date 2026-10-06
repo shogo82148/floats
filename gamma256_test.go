@@ -54,6 +54,10 @@ func TestFloat256_Gamma(t *testing.T) {
 		{exact256(1e6), exact256(math.Inf(1))},
 
 		// underflow: the sign is that of sin(pi x)
+		{exact256(-32767.5), exact256(0)},
+		{exact256(-32767.25), exact256(0)},
+		{exact256(-32767.75), exact256(0)},
+		{exact256(-32766.5), exact256(math.Copysign(0, -1))},
 		{exact256(-32768.5), exact256(math.Copysign(0, -1))},
 		{exact256(-32769.5), exact256(0)},
 		{exact256(-1048576.5), exact256(math.Copysign(0, -1))},

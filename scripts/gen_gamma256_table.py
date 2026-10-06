@@ -106,7 +106,7 @@ def main():
     print("// gamma256StirlingTerms[k] is the number of the terms of the Stirling series for 2**(k+5) <= z < 2**(k+6),")
     print("// where z >= 48 for k = 0.")
     print("var gamma256StirlingTerms = [...]int{")
-    for lg in range(5, 15):
+    for lg in range(5, 16):
         print(f"\t{stirling_terms_for(STIRLING_Z0 if lg == 5 else 2 ** lg)}, // z < 2**{lg + 1}")
     print("}")
     print()

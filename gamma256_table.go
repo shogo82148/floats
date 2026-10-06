@@ -66,6 +66,7 @@ var gamma256StirlingTerms = [...]int{
 	13, // z < 2**13
 	11, // z < 2**14
 	10, // z < 2**15
+	10, // z < 2**16
 }
 
 // gamma256HalfLn2Pi is log(2 pi)/2.

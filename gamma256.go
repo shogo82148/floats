@@ -253,7 +253,7 @@ func gammaTiny256(neg bool, exp int, m ints.Uint256) (mant gammaFix256, e int) {
 	return gammaNormalize256(q, -exp)
 }
 
-// gammaPos256 returns Gamma(y) = mant × 2**e for y >= 2**-40, where mant is in [1, 2).
+// gammaPos256 returns Gamma(y) = mant × 2**e for 2**-40 <= y < 2**15 + 1, where mant is in [1, 2).
 func gammaPos256(y gammaFix256) (mant gammaFix256, e int) {
 	// Gamma(y) = Gamma(z) / (y (y+1) ... (z-1)), where z = y + n >= 48.
 	// The product is calculated as pm × 2**pe.
@@ -379,7 +379,7 @@ func gammaLog256(z gammaFix256) gammaFix256 {
 	return gammaMulLn2(&gamma256Ln2By65536, uint64((256*k+j)*256+i)).add(gammaMul6(rho2, p))
 }
 
-// gammaLogGamma256 returns log(Gamma(z)) for 48 <= z < 2**15,
+// gammaLogGamma256 returns log(Gamma(z)) for 48 <= z < 2**16,
 // by Stirling's series log(Gamma(z)) = (z-1/2) log(z) - z + log(2 pi)/2 + sum B(2k) / (2k (2k-1) z**(2k-1)).
 func gammaLogGamma256(z gammaFix256) gammaFix256 {
 	s := gammaMul6(z.sub(gammaFix256{0, 1 << 63}), gammaLog256(z)).sub(z).add(gammaFix256(gamma256HalfLn2Pi))
