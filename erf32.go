@@ -115,7 +115,54 @@ func erfc32Poly(x float64) float64 {
 //	x.Erfinv() = NaN if x < -1 or x > 1
 //	NaN.Erfinv() = NaN
 func (a Float32) Erfinv() Float32 {
-	return NewFloat32(math.Erfinv(a.Float64().BuiltIn()))
+	b := a.Bits()
+	ix := b &^ signMask32
+	switch {
+	case ix > 0x3f80_0000:
+		return NewFloat32(math.NaN()) // |x| > 1, ±Inf, and NaN
+	case ix == 0x3f80_0000:
+		return NewFloat32FromBits(0x7f80_0000 | b&signMask32)
+	}
+
+	// erfinv is an odd function, so the polynomials for |x| are used and the sign of a is restored.
+	x := math.Float64frombits(math.Float64bits(float64(a)) &^ (1 << 63))
+	var y float64
+	switch {
+	case x < 0.125:
+		// erfinv(x) = x P(x**2). It also handles ±0 and the subnormal numbers.
+		c := &erfinv16SmallCoeffs
+		u := x * x
+		y = x * (c[0] + u*(c[1]+u*(c[2]+u*(c[3]+u*(c[4]+u*c[5])))))
+	case x < 0.5:
+		y = erfinv16Poly(&erfinv16MidCoeffs[math.Float64bits(x)>>49-8160], x)
+	default:
+		// erfinv(x) is singular at x = 1, so that the polynomials of t = 1 - x, which is exact, are used.
+		y = erfinv32Poly(1 - x)
+	}
+	// The relative error of y is less than 2**-42, that is, 2**10 ulps of float64.
+	if z, ok := float32Round(y, 1<<16); ok {
+		return NewFloat32FromBits(z.Bits() | b&signMask32)
+	}
+	// The result may not be correctly rounded because it is close to the midpoint of two adjacent Float32 values.
+	// math.Erfinv rounded to Float32 is correctly rounded for all Float32 values except one, which was checked by
+	// calculating the arguments whose results are close to the midpoints with mpmath.
+	if b&^signMask32 == 0x3bba_61fd {
+		// erfinv(x) = 0x1.a52dc7.8000000a... × 2**-8, but math.Erfinv rounds it down.
+		return NewFloat32FromBits(0x3ba5_2dc8 | b&signMask32)
+	}
+	return NewFloat32(math.Erfinv(float64(a)))
+}
+
+// erfinv32Poly returns erfinv(1-t) for t in [2**-24, 1/2] with the relative error less than 2**-43,
+// by the polynomial of the segment that includes t.
+func erfinv32Poly(t float64) float64 {
+	b := math.Float64bits(t)
+	c := &erfinv32HiCoeffs[b>>49-7992]
+	s := t - math.Float64frombits(b&^(1<<49-1)|1<<48) // the center of the segment
+	s2 := s * s
+	s4 := s2 * s2
+	// Estrin's scheme: the dependency chain is shorter than Horner's method.
+	return ((c[0] + s*c[1]) + s2*(c[2]+s*c[3])) + s4*((c[4]+s*c[5])+s2*(c[6]+s*c[7]))
 }
 
 // Erfcinv returns the inverse of [Erfc](a).

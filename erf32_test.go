@@ -397,6 +397,13 @@ func TestFloat32_Erfinv(t *testing.T) {
 		{exact32(2), exact32(math.NaN())},
 		{exact32(-2), exact32(math.NaN())},
 		{exact32(math.NaN()), exact32(math.NaN())},
+		{exact32(math.Inf(1)), exact32(math.NaN())},
+		{exact32(math.Inf(-1)), exact32(math.NaN())},
+		{NewFloat32FromBits(0x3f800001), exact32(math.NaN())},
+		{NewFloat32FromBits(0xbf800001), exact32(math.NaN())},
+		{exact32(0), exact32(0)},
+		{exact32(math.Copysign(0, -1)), exact32(math.Copysign(0, -1))},
+		{NewFloat32FromBits(0x3f7fffff), NewFloat32FromBits(math.Float32bits(float32(math.Erfinv(float64(math.Float32frombits(0x3f7fffff))))))},
 	}
 
 	for _, tt := range strictTests {
@@ -407,10 +414,137 @@ func TestFloat32_Erfinv(t *testing.T) {
 	}
 }
 
+// TestFloat32_ErfinvHardCases checks Erfinv on the inputs whose results are very close to the midpoint of two adjacent
+// Float32 values. They are found by checking all Float32 values with math.Erfinv in float64,
+// and the correctly rounded results were calculated with mpmath.
+func TestFloat32_ErfinvHardCases(t *testing.T) {
+	t.Parallel()
+	// x, and the correctly rounded Erfinv(x)
+	tests := [][2]uint32{
+		{0x00000cf6, 0x00000b7d},
+		{0x005dbd7c, 0x00531337},
+		{0x01e9dc5e, 0x01cf40f6},
+		{0x04d8e690, 0x04c03922},
+		{0x07c8151e, 0x07b15189},
+		{0x0ab71ea9, 0x0aa24922},
+		{0x0da64dde, 0x0d93621c},
+		{0x10955769, 0x108459b5},
+		{0x13846b59, 0x136ab507},
+		{0x167398b8, 0x1657e1bf},
+		{0x1962a2ea, 0x1948d9ec},
+		{0x1c51ac75, 0x1c39d185},
+		{0x1f40b600, 0x1f2ac91e},
+		{0x222fe535, 0x221be218},
+		{0x251eeec0, 0x250cd9b1},
+		{0x280e1437, 0x27fbd413},
+		{0x2afd546b, 0x2ae081f6},
+		{0x2dec83a0, 0x2dd19af0},
+		{0x30db8d2b, 0x30c29289},
+		{0x33ca96b6, 0x33b38a22},
+		{0x36b84dee, 0x36a355e5},
+		{0x39a50efc, 0x39924782},
+		{0x3bba61fd, 0x3ba52dc8},
+		{0x3c95bac3, 0x3c84b4b9},
+		{0x3f7f8ec2, 0x400dcd2e},
+	}
+	for _, tt := range tests {
+		for _, neg := range []bool{false, true} {
+			x, want := NewFloat32FromBits(tt[0]), NewFloat32FromBits(tt[1])
+			if neg {
+				x, want = -x, -want
+			}
+			if got := x.Erfinv(); !eq32(got, want) {
+				t.Errorf("Erfinv(%v) = %v; want %v", x, got, want)
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfinvBoundaries checks Erfinv on the both sides of the boundaries of the segments of the calculation.
+func TestFloat32_ErfinvBoundaries(t *testing.T) {
+	t.Parallel()
+	for _, x := range []float32{0x1p-149, 0x1p-126, 0x1p-24, 0.125, 0.25, 0.5, 0.75, 0.875, 1 - 0x1p-10, 1 - 0x1p-20, 1 - 0x1p-24} {
+		for d := -3; d <= 3; d++ {
+			for _, neg := range []bool{false, true} {
+				a := NewFloat32FromBits(math.Float32bits(x) + uint32(d))
+				if a.Abs().Gt(1) {
+					continue
+				}
+				if neg {
+					a = -a
+				}
+				if got, want := a.Erfinv(), NewFloat32(math.Erfinv(float64(a))); !eq32(got, want) {
+					t.Errorf("Erfinv(%v) = %v; want %v", a, got, want)
+				}
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfinvRandom compares Erfinv with math.Erfinv on random inputs.
+// math.Erfinv rounded to Float32 is correctly rounded for all Float32 values but one (0x3bba61fd, which is
+// checked by TestFloat32_ErfinvHardCases), so the results must match.
+func TestFloat32_ErfinvRandom(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(1, 2))
+	gens := []struct {
+		name string
+		gen  func() Float32
+	}{
+		{"bits", func() Float32 { return NewFloat32FromBits(r.Uint32()&^signMask32%0x3f800000 | r.Uint32()&signMask32) }},
+		{"uniform", func() Float32 { return NewFloat32(r.Float64()*2 - 1) }},
+		{"close-to-one", func() Float32 { return NewFloat32(1 - r.Float64()*0x1p-10) }},
+		{"exponent", func() Float32 {
+			// uniformly distributed exponent in [-40, -1]
+			return NewFloat32FromBits(r.Uint32()&(signMask32|fracMask32) | uint32(r.IntN(40)+bias32-40)<<shift32)
+		}},
+	}
+	for _, g := range gens {
+		for range 300000 {
+			x := g.gen()
+			got, want := x.Erfinv(), NewFloat32(math.Erfinv(float64(x)))
+			if !eq32(got, want) && !(got.IsNaN() && want.IsNaN()) {
+				t.Fatalf("%s: Erfinv(%v) = %v; want %v", g.name, x, got, want)
+			}
+		}
+	}
+}
+
+// TestFloat32_ErfinvPoly checks the polynomials of Erfinv, whose errors are hidden by the rounding to Float32, with math.Erfinv.
+func TestFloat32_ErfinvPoly(t *testing.T) {
+	t.Parallel()
+	const bound = 0x1p-42 // the relative errors of the polynomials are less than 2**-43
+	r := rand.New(rand.NewPCG(3, 4))
+	for range 200000 {
+		x := 0.125 + 0.375*r.Float64() // [1/8, 1/2)
+		if got, want := erfinv16Poly(&erfinv16MidCoeffs[math.Float64bits(x)>>49-8160], x), math.Erfinv(x); math.Abs(got-want) > bound*want {
+			t.Errorf("erfinv16Poly(%v) = %v; want %v", x, got, want)
+		}
+
+		// t = 1 - x is a multiple of 2**-24 (so that x is exactly representable), and it is distributed uniformly in the exponent: [2**-24, 1/2]
+		tt := float64(1+r.Uint32N(1<<(1+r.IntN(23)))) * 0x1p-24
+		if got, want := erfinv32Poly(tt), math.Erfinv(1-tt); math.Abs(got-want) > bound*want {
+			t.Errorf("erfinv32Poly(%v) = %v; want %v", tt, got, want)
+		}
+	}
+}
+
 func BenchmarkFloat32_Erfinv(b *testing.B) {
-	x := exact32(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+	for _, tt := range []struct {
+		name string
+		x    Float32
+	}{
+		{"small", NewFloat32(0.1)},            // |x| < 1/8
+		{"medium", exact32(0.25)},             // 1/8 <= |x| < 1/2
+		{"large", exact32(0.75)},              // 1/2 <= |x| < 1
+		{"close-to-one", NewFloat32(0.99999)}, // the polynomial of the shortest segment
+		{"negative", exact32(-0.75)},          // the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfinv())
+			}
+		})
 	}
 }
 
