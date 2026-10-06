@@ -135,7 +135,7 @@ func BenchmarkFloat16_Lgamma(b *testing.B) {
 		{"overflow", exact16(8192)},        // +Inf
 		{"negative", NewFloat16(-2.5)},     // -2048 < x < 0
 		{"verynegative", exact16(-100.25)}, // Lgamma(x) < 0
-		{"nearzero", exact16(-2.5)},        // the result is close to zero
+		{"nearzero", exact16(-2.4609375)},  // the result is close to zero (falls back to the math package)
 	} {
 		b.Run(tt.name, func(b *testing.B) {
 			for b.Loop() {
