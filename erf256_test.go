@@ -3,6 +3,7 @@ package floats
 import (
 	"bufio"
 	"math"
+	"math/rand/v2"
 	"os"
 	"runtime"
 	"strconv"
@@ -68,6 +69,12 @@ func TestFloat256_Erf(t *testing.T) {
 func TestFloat256_ErfAccuracy(t *testing.T) {
 	t.Parallel()
 	checkFloat256Testdata(t, "testdata/erf256.txt", "Erf", Float256.Erf)
+}
+
+// TestFloat256_ErfinvAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_ErfinvAccuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat256Testdata(t, "testdata/erfinv256.txt", "Erfinv", Float256.Erfinv)
 }
 
 // TestFloat256_ErfcAccuracy requires the correctly rounded result for every vector of the test data.
@@ -383,7 +390,7 @@ func TestFloat256_Erfinv(t *testing.T) {
 		x    Float256
 		want string
 	}{
-		{exact256(-1).Nextafter(exact256(0)), "-12.6789204758043082417334375024209655173495726943819012599854669839592728"},
+		{exact256(-1).Nextafter(exact256(0)), "-12.69485098593161357335362500394592023522571345295539758597965430708524"},
 		{exact256(-0.75), "-0.813419847597618541690289359893421085324724835957501548147510003331798062"},
 		{exact256(-0.5), "-0.476936276204469873381418353643130559808969749059470644703882695919383452"},
 		{exact256(-0.25), "-0.225312055012178104725014013952277554782118447807246757600782894957738222"},
@@ -391,7 +398,8 @@ func TestFloat256_Erfinv(t *testing.T) {
 		{exact256(0.25), "0.225312055012178104725014013952277554782118447807246757600782894957738222"},
 		{exact256(0.5), "0.476936276204469873381418353643130559808969749059470644703882695919383452"},
 		{exact256(0.75), "0.813419847597618541690289359893421085324724835957501548147510003331798062"},
-		{exact256(1).Nextafter(exact256(0)), "12.6789204758043082417334375024209655173495726943819012599854669839592728"},
+		{exact256(1).Nextafter(exact256(0)), "12.69485098593161357335362500394592023522571345295539758597965430708524"},
+		{exact256(0x1p-200), "5.515003696744420228223845868649816296584181034421833816578678785356795E-61"},
 	}
 
 	for _, tt := range tests {
@@ -411,6 +419,11 @@ func TestFloat256_Erfinv(t *testing.T) {
 		{exact256(2), exact256(math.NaN())},
 		{exact256(-2), exact256(math.NaN())},
 		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(math.Inf(1)), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(math.NaN())},
+		{exact256(1).Nextafter(exact256(2)), exact256(math.NaN())},
+		{exact256(0), exact256(0)},
+		{exact256(math.Copysign(0, -1)), exact256(math.Copysign(0, -1))},
 	}
 
 	for _, tt := range strictTests {
@@ -421,10 +434,69 @@ func TestFloat256_Erfinv(t *testing.T) {
 	}
 }
 
+// TestFloat256_ErfDefect checks erf256Defect, which calculates erf(y) - t and erfc(y) - t more accurately than Float256.
+func TestFloat256_ErfDefect(t *testing.T) {
+	t.Parallel()
+	rnd := rand.New(rand.NewPCG(1, 2))
+	for range 200 {
+		for _, complement := range []bool{false, true} {
+			// y in [2**-125, 0.48) for erf, and [0.47, 12.7) for erfc
+			var y Float256
+			if complement {
+				y = NewFloat256(0.47 + 12.2*rnd.Float64()).Add(NewFloat256(rnd.Float64()).Mul(exact256(0x1p-60)))
+			} else {
+				y = NewFloat256(math.Ldexp(1+rnd.Float64(), -2-rnd.IntN(120))).Add(NewFloat256(rnd.Float64()).Mul(exact256(0x1p-180)))
+			}
+			f := y.Erf()
+			if complement {
+				f = y.Erfc()
+			}
+			// the rounding error of f is at most half an ulp of f.
+			if d := erf256Defect(y, f, complement); d.Abs().Gt(f.Mul(exact256(0x1p-237))) {
+				t.Errorf("erf256Defect(%v, %v, %v) = %v", y, f, complement, d)
+			}
+			// f - target is accurate if target is close to f.
+			delta := f.Mul(exact256(0x1p-100))
+			target := f.Add(delta)
+			if d := erf256Defect(y, target, complement); d.Add(delta).Abs().Gt(delta.Mul(exact256(0x1p-130))) {
+				t.Errorf("erf256Defect(%v, %v, %v) = %v; want %v", y, target, complement, d, delta.Neg())
+			}
+		}
+	}
+}
+
+func TestFloat256_ErfFixDiff(t *testing.T) {
+	t.Parallel()
+	a, b := gammaFix256{1, 5}, gammaFix256{1, 3}
+	if got := erf256FixDiff(a, a, 0); !eq256(got, Float256{}) {
+		t.Errorf("erf256FixDiff(a, a) = %v; want 0", got)
+	}
+	// 2 × 2**-64 × 2**4
+	if got, want := erf256FixDiff(a, b, 4), exact256(0x1p-59); !eq256(got, want) {
+		t.Errorf("erf256FixDiff(a, b) = %v; want %v", got, want)
+	}
+	if got, want := erf256FixDiff(b, a, 4), exact256(-0x1p-59); !eq256(got, want) {
+		t.Errorf("erf256FixDiff(b, a) = %v; want %v", got, want)
+	}
+}
+
 func BenchmarkFloat256_Erfinv(b *testing.B) {
-	x := exact256(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(0x1p-200)},                         // |x| < 2**-125
+		{"small", exact256(0.001)},                           // |x| <= 1/2
+		{"medium", exact256(0.5)},                            // |x| <= 1/2
+		{"large", exact256(0.75)},                            // 1/2 < |x| < 1
+		{"close-to-one", exact256(1).Nextafter(exact256(0))}, // 1 - 2**-237
+		{"negative", exact256(-0.75)},                        // the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfinv())
+			}
+		})
 	}
 }
 
@@ -441,7 +513,7 @@ func TestFloat256_Erfcinv(t *testing.T) {
 		{exact256(1.25), "-0.225312055012178104725014013952277554782118447807246757600782894957738225"},
 		{exact256(1.5), "-0.476936276204469873381418353643130559808969749059470644703882695919383447"},
 		{exact256(1.75), "-0.813419847597618541690289359893421085324724835957501548147510003331798053"},
-		{exact256(2).Nextafter(exact256(0)), "-12.65882204301587198669990229531130561057683528766947257145199350963364816"},
+		{exact256(2).Nextafter(exact256(0)), "-12.66760552376903039787483533474977284586485812791479406737157556230541"},
 	}
 
 	for _, tt := range tests {

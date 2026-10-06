@@ -754,6 +754,10 @@ var erf256InvD = [...][6]uint64{
 // erf256InvSqrtPi is 1/sqrt(pi).
 var erf256InvSqrtPi = [6]uint64{0x0000000000000000, 0x906eba8214db688d, 0x71d48a7f6bfec344, 0x1409a0ebac3e7517, 0x39a15830cce620b0, 0xc0759cf859270f11}
 
+// erf256SqrtPiOverTwo is sqrt(pi)/2, and erf256PiOver12 is pi/12.
+var erf256SqrtPiOverTwo = [6]uint64{0x0000000000000000, 0xe2dfc48da77b553c, 0xe1d82906aedc9c1f, 0xf1c90aa37b1d9296, 0xe50805e9f50a3a37, 0x6bb7feb7ca0f8edd}
+var erf256PiOver12 = [6]uint64{0x0000000000000000, 0x430548e0b5cd9611, 0x96eccb83d59eb445, 0xb8561a02d8cd4426, 0xab593f8cbe5bde60, 0xc5c3582884bc019f}
+
 // erf256Terms[k] is the number of the terms of the Taylor series of the cell k < 112 for erf(x).
 var erf256Terms = [...]uint8{
 	49, 48, 48, 48, 49, 49, 48, 48, 48, 49, 49, 48, 48, 48, 48, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 48, 48, 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 45, 46, 46, 46, 46, 45, 45, 45, 45, 45, 45, 44, 45, 45, 45, 45, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
