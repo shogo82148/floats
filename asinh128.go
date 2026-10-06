@@ -63,6 +63,17 @@ func logHyp128(sign uint64, exp int, m1, m0 uint64, acosh bool) Float128 {
 // u must be greater than 1 and its logarithm must not be less than 2**-58.
 // sign is the sign bit of the result.
 func logFix128(sign uint64, k int, v ints.Uint256, e int) Float128 {
+	t := logKernel128(k, v)
+	if t[0] != 0 {
+		return fixToFloat128(sign, t[0], t[1], t[2], t[3] != 0, e-128)
+	}
+	return fixToFloat128(sign, t[1], t[2], t[3], false, e-192)
+}
+
+// logKernel128 returns log(u) × 2**192 for u = 2**k × v, where v is in [1, 2) and in fixed point with 192 fractional bits.
+// u must be greater than 1 and its logarithm must not be less than 2**-58.
+// The absolute error is about 2**-150 + k × 2**-192.
+func logKernel128(k int, v ints.Uint256) ints.Uint256 {
 	// v = 1 + f × 2**-192. the table-driven reduction picks a breakpoint c ≈ v in [1, 2)
 	// for which 1/c and log(c) are precomputed, and log(v) = log(c) + log(1+r) with r = v/c - 1.
 	// Bucket 0 borders c = 1, where log(v) itself is tiny, and uses c = 1 exactly.
@@ -87,10 +98,24 @@ func logFix128(sign uint64, k int, v ints.Uint256, e int) Float128 {
 	}
 
 	// log(1+r) = r × G(w), where w = -r and G(w) = 1 + w/2 + w²/3 + ... + w¹⁵/16.
+	//
+	// |r| < 2**-8, so an error in the partial sum made i steps before the end of Horner's method is reduced
+	// by 2**(-8i). The earlier steps use fewer bits (192 bits for the last 2 steps, 128 bits for the 8 steps before them,
+	// and 64 bits for the first 5 steps), and the error is less than 2**-150 in the result.
 	g := logGCoeffs128[0]
-	for _, c := range logGCoeffs128[1:] {
-		q := mul192x192(g, rmag)
-		top := [3]uint64{q[0], q[1], q[2]}
+	for i, c := range logGCoeffs128[1:] {
+		var top [3]uint64
+		switch {
+		case i < 5:
+			hi, lo := bits.Mul64(g[0], rmag[0])
+			top = [3]uint64{hi, lo, 0}
+		case i < 13:
+			p3, p2, p1, _ := mul128x128(g[0], g[1], rmag[0], rmag[1])
+			top = [3]uint64{p3, p2, p1}
+		default:
+			q := mul192x192(g, rmag)
+			top = [3]uint64{q[0], q[1], q[2]}
+		}
 		if rneg {
 			g = add192(top, c)
 		} else {
@@ -120,11 +145,7 @@ func logFix128(sign uint64, k int, v ints.Uint256, e int) Float128 {
 	} else {
 		t = t.Add(log1r)
 	}
-
-	if t[0] != 0 {
-		return fixToFloat128(sign, t[0], t[1], t[2], t[3] != 0, e-128)
-	}
-	return fixToFloat128(sign, t[1], t[2], t[3], false, e-192)
+	return t
 }
 
 // Acosh returns the inverse hyperbolic cosine of a.
