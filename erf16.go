@@ -122,7 +122,47 @@ func erfc16Poly(x float64) float64 {
 //	x.Erfinv() = NaN if x < -1 or x > 1
 //	NaN.Erfinv() = NaN
 func (a Float16) Erfinv() Float16 {
-	return NewFloat16(math.Erfinv(a.Float64().BuiltIn()))
+	ix := a &^ signMask16
+	switch {
+	case ix > 0x3c00:
+		return NewFloat16(math.NaN()) // |x| > 1, ±Inf, and NaN
+	case ix == 0x3c00:
+		return uvinf16 | a&signMask16
+	}
+
+	// erfinv is an odd function, so the polynomials for |x| are used and the sign of a is restored.
+	var x float64
+	if ix < 0x0400 {
+		x = float64(ix) * 0x1p-24 // subnormal
+	} else {
+		x = normal16ToFloat64(ix)
+	}
+	var y float64
+	switch {
+	case x < 0.125:
+		// erfinv(x) = x P(x**2). It also handles ±0 and the subnormal numbers.
+		c := &erfinv16SmallCoeffs
+		u := x * x
+		y = x * (c[0] + u*(c[1]+u*(c[2]+u*(c[3]+u*(c[4]+u*c[5])))))
+	case x < 0.5:
+		y = erfinv16Poly(&erfinv16MidCoeffs[math.Float64bits(x)>>49-8160], x)
+	default:
+		// erfinv(x) is singular at x = 1, so that the polynomials of t = 1 - x, which is exact, are used.
+		t := 1 - x
+		y = erfinv16Poly(&erfinv16HiCoeffs[math.Float64bits(t)>>49-8096], t)
+	}
+	// The relative error of y is less than 2**-37, which is much smaller than the distance to
+	// the midpoint of two adjacent Float16 values (at least 2**-26 of y, checked with mpmath).
+	return NewFloat16(y) | a&signMask16
+}
+
+// erfinv16Poly returns the value of the polynomial c at x, whose segment is determined by the float64 representation of x.
+func erfinv16Poly(c *[7]float64, x float64) float64 {
+	b := math.Float64bits(x)
+	t := x - math.Float64frombits(b&^(1<<49-1)|1<<48) // the center of the segment
+	t2 := t * t
+	// Estrin's scheme: the dependency chain is shorter than Horner's method.
+	return ((c[0] + t*c[1]) + t2*(c[2]+t*c[3])) + t2*t2*((c[4]+t*c[5])+t2*c[6])
 }
 
 // Erfcinv returns the inverse of [Erfc](a).
