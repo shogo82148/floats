@@ -3,6 +3,7 @@ package floats
 import (
 	"bufio"
 	"math"
+	"math/rand/v2"
 	"os"
 	"runtime"
 	"strconv"
@@ -70,6 +71,12 @@ func TestFloat128_Erf(t *testing.T) {
 func TestFloat128_ErfAccuracy(t *testing.T) {
 	t.Parallel()
 	checkFloat128Testdata(t, "testdata/erf128.txt", "Erf", Float128.Erf)
+}
+
+// TestFloat128_ErfinvAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat128_ErfinvAccuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat128Testdata(t, "testdata/erfinv128.txt", "Erfinv", Float128.Erfinv)
 }
 
 // TestFloat128_ErfcAccuracy requires the correctly rounded result for every vector of the test data.
@@ -410,7 +417,7 @@ func TestFloat128_Erfinv(t *testing.T) {
 		x    Float128
 		want string
 	}{
-		{exact128(-1).Nextafter(exact128(0)), "-8.670715458653776402009372459690797"},
+		{exact128(-1).Nextafter(exact128(0)), "-8.693913624339801357999421505949273"},
 		{exact128(-0.75), "-0.813419847597618541690289359893421"},
 		{exact128(-0.5), "-0.47693627620446987338141835364313055"},
 		{exact128(-0.25), "-0.22531205501217810472501401395227754"},
@@ -418,7 +425,8 @@ func TestFloat128_Erfinv(t *testing.T) {
 		{exact128(0.25), "0.22531205501217810472501401395227754"},
 		{exact128(0.5), "0.47693627620446987338141835364313055"},
 		{exact128(0.75), "0.813419847597618541690289359893421"},
-		{exact128(1).Nextafter(exact128(0)), "8.670715458653776402009372459690797"},
+		{exact128(1).Nextafter(exact128(0)), "8.693913624339801357999421505949273"},
+		{exact128(0x1p-100), "6.991097746438968341920179842314715E-31"},
 	}
 
 	for _, tt := range tests {
@@ -438,6 +446,12 @@ func TestFloat128_Erfinv(t *testing.T) {
 		{exact128(2), exact128(math.NaN())},
 		{exact128(-2), exact128(math.NaN())},
 		{exact128(math.NaN()), exact128(math.NaN())},
+		{exact128(math.Inf(1)), exact128(math.NaN())},
+		{exact128(math.Inf(-1)), exact128(math.NaN())},
+		{exact128(1).Nextafter(exact128(2)), exact128(math.NaN())},
+		{exact128(0), exact128(0)},
+		{exact128(math.Copysign(0, -1)), exact128(math.Copysign(0, -1))},
+		{Float128{0, 1}, Float128{0, 1}}, // the smallest subnormal number: erfinv(x) = 0.886 x is rounded to x
 	}
 
 	for _, tt := range strictTests {
@@ -448,10 +462,37 @@ func TestFloat128_Erfinv(t *testing.T) {
 	}
 }
 
+// TestErfcinv64 checks the initial approximation of Erfinv.
+func TestErfcinv64(t *testing.T) {
+	t.Parallel()
+	rnd := rand.New(rand.NewPCG(1, 2))
+	for range 10000 {
+		// c in [2**-113, 1/2] distributed uniformly in the exponent
+		c := math.Ldexp(1+rnd.Float64(), -1-rnd.IntN(112))
+		y := erfcinv64(c)
+		if got := math.Erfc(y); math.Abs(got-c) > 0x1p-44*c {
+			t.Fatalf("Erfc(erfcinv64(%v)) = %v", c, got)
+		}
+	}
+}
+
 func BenchmarkFloat128_Erfinv(b *testing.B) {
-	x := exact128(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfinv())
+	for _, tt := range []struct {
+		name string
+		x    Float128
+	}{
+		{"tiny", exact128(0x1p-100)},                         // |x| < 2**-60
+		{"small", exact128(0.001)},                           // |x| <= 1/2
+		{"medium", exact128(0.5)},                            // |x| <= 1/2
+		{"large", exact128(0.75)},                            // 1/2 < |x| < 1
+		{"close-to-one", exact128(1).Nextafter(exact128(0))}, // 1 - 2**-113
+		{"negative", exact128(-0.75)},                        // the sign is restored
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfinv())
+			}
+		})
 	}
 }
 
@@ -468,7 +509,7 @@ func TestFloat128_Erfcinv(t *testing.T) {
 		{exact128(1.25), "-0.22531205501217810472501401395227754"},
 		{exact128(1.5), "-0.47693627620446987338141835364313055"},
 		{exact128(1.75), "-0.8134198475976185416902893598934208"},
-		{exact128(2).Nextafter(exact128(0)), "-8.641401719895105348174697196772974"},
+		{exact128(2).Nextafter(exact128(0)), "-8.654218872644272166366043905074009"},
 	}
 
 	for _, tt := range tests {
