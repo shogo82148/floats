@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/lgamma128.txt.
+# Generates testdata/lgamma128.txt and testdata/lgamma256.txt.
 # Each line contains the bits of x, the correctly rounded Lgamma(x), and the sign of Gamma(x), 1 or -1 in decimal.
 #
-# Usage: python3 scripts/gen_lgamma_testdata.py
+# Usage: python3 scripts/gen_lgamma_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -37,6 +38,8 @@ def gen(name, P, EB, seed):
     width = (P + EB + 1) // 4
     rnd = random.Random(seed)
     prec = 4 * P + 256
+    big = P == 236
+    emax_pos = 200000 if big else 14000
 
     def enc(m, e, s=0):
         return (s << (P + EB)) | ((e + B) << P) | (m - (1 << P))
@@ -61,7 +64,7 @@ def gen(name, P, EB, seed):
     inputs += [random_value(5, 10) for _ in range(150)]  # [32, 2048)
     inputs += [random_value(11, 14) for _ in range(100)]  # [2048, 2**15)
     inputs += [random_value(15, 60) for _ in range(100)]
-    inputs += [random_value(61, 14000) for _ in range(60)]
+    inputs += [random_value(61, emax_pos) for _ in range(60)]
     # negative arguments
     inputs += [random_value(-30, -1, 1) for _ in range(80)]
     inputs += [random_value(0, 4, 1) for _ in range(150)]
@@ -69,7 +72,7 @@ def gen(name, P, EB, seed):
     inputs += [random_value(6, 10, 1) for _ in range(100)]
     inputs += [random_value(11, 14, 1) for _ in range(100)]
     inputs += [random_value(15, 60, 1) for _ in range(60)]
-    inputs += [random_value(61, 110, 1) for _ in range(40)]
+    inputs += [random_value(61, 220 if big else 110, 1) for _ in range(40)]
     # the integers and the half-integers
     for k in [1, 2, 3, 4, 5, 10, 22, 23, 24, 25, 30, 47, 48, 49, 100, 1000, 2047, 2048, 2049, 32767, 32768, 32769, 100000]:
         inputs.append(from_real(mpmath.mpf(k)))
@@ -78,20 +81,27 @@ def gen(name, P, EB, seed):
     with mpmath.workprec(prec + 400):
         # near the zeros of Lgamma at 1 and 2, where the relative accuracy matters
         for c in (mpmath.mpf(1), mpmath.mpf(2)):
-            for e in (-1, -3, -5, -6, -7, -10, -20, -50, -100, -110, -112):
+            for e in (-1, -3, -5, -6, -7, -10, -20, -50, -100, -110, -112) + ((-17, -18, -19, -150, -200, -230, -236) if big else ()):
                 for sgn in (1, -1):
                     inputs.append(round_bits(c + sgn * mpmath.mpf(2) ** e * (1 + mpmath.mpf(rnd.random())), P, EB))
             for d in (1, 2, 3):
                 inputs.append(round_bits(c + d * mpmath.mpf(2) ** (-P), P, EB))
                 inputs.append(round_bits(c - d * mpmath.mpf(2) ** (-P - 1), P, EB))
         # near the negative zeros of Lgamma
-        for n in range(2, 40):
+        for n in range(2, 56 if big else 40):
             for guess in (mpmath.mpf(-n) - 1 / mpmath.factorial(n), mpmath.mpf(-n) + 1 / mpmath.factorial(n)):
                 try:
                     r = mpmath.findroot(lambda t: mpmath.log(abs(mpmath.gamma(t))), guess, tol=mpmath.mpf(2) ** -(prec + 300), maxsteps=200)
                 except Exception:
                     continue
                 if abs(r - guess) > mpmath.mpf(1) / 4:
+                    continue
+                if big:
+                    # Float256 has 237 bits, but the calculation has 285 bits. The arguments whose results are close to zero
+                    # are not tested.
+                    for e in (-8, -12, -16, -20, -22):
+                        for sgn in (1, -1):
+                            inputs.append(round_bits(r + sgn * mpmath.mpf(2) ** e * (1 + mpmath.mpf(rnd.random())), P, EB))
                     continue
                 base = round_bits(r, P, EB)
                 inputs += [base + d for d in (-2, -1, 0, 1, 2)]
@@ -134,4 +144,7 @@ def gen(name, P, EB, seed):
 
 
 if __name__ == "__main__":
-    gen("lgamma128", 112, 15, 128)
+    if (sys.argv[1] if len(sys.argv) > 1 else "128") == "128":
+        gen("lgamma128", 112, 15, 128)
+    else:
+        gen("lgamma256", 236, 19, 256)

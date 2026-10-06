@@ -250,8 +250,12 @@ func lgamma320Pos(y gammaFix256) lgammaFix256 {
 // lgamma320Neg returns the sign of Gamma(x) and Lgamma(x) for x = -m × 2**(exp-112), where m is a 113-bit integer,
 // and -40 <= exp < 15. x must not be an integer.
 func lgamma320Neg(exp int, m ints.Uint128) (int, lgammaFix256) {
-	x := lgamma128Fix256(exp, m)
+	return lgamma320NegFix(lgamma128Fix256(exp, m))
+}
 
+// lgamma320NegFix returns the sign of Gamma(x) and Lgamma(x) for -2**15 < x < 0, where |x| is in fixed point with 320 fractional bits.
+// x must not be an integer.
+func lgamma320NegFix(x gammaFix256) (int, lgammaFix256) {
 	// |x| = n + r, where n is the nearest integer and -1/2 <= r < 1/2.
 	n := x.add(gammaFix256{0, 1 << 63})
 	n = gammaFix256{n[0]} // the integer part
