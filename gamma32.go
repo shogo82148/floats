@@ -102,8 +102,16 @@ func gamma32Fast(x float64) (y Float32, ok bool) {
 // ok is false if the result may not be correctly rounded, because g is close to the midpoint
 // of two adjacent Float32 values.
 func gamma32Round(g float64) (y Float32, ok bool) {
+	// The error of g is less than 2**18 ulps of float64.
+	return float32Round(g, 1<<21)
+}
+
+// float32Round rounds g to Float32. ok is false if the result may not be correctly rounded, because g is
+// closer than the window ulps of float64 to the midpoint of two adjacent Float32 values.
+// The window must be larger than the error of g in ulps of float64.
+func float32Round(g float64, window int64) (y Float32, ok bool) {
 	// round to Float32 if g is not close to the midpoint of two adjacent Float32 values.
-	// The error of g is less than 2**18 ulps of float64, and the midpoint is 2**28 in the lower 29 bits.
+	// The midpoint is 2**28 in the lower 29 bits.
 	bits := math.Float64bits(g)
 	sign := uint32(bits>>32) & signMask32
 	abs := bits &^ (1 << 63)
@@ -123,7 +131,7 @@ func gamma32Round(g float64) (y Float32, ok bool) {
 		return NewFloat32FromBits(sign | 0x7f80_0000), true
 	}
 	low := abs & (1<<29 - 1)
-	if d := int64(low) - 1<<28; -1<<21 < d && d < 1<<21 {
+	if d := int64(low) - 1<<28; -window < d && d < window {
 		return 0, false
 	}
 	// the rounding may carry into the exponent, and it becomes ±Inf if the result overflows.
