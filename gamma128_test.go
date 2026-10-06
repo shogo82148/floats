@@ -100,6 +100,12 @@ func TestFloat128_GammaAccuracy(t *testing.T) {
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 2 || len(fields[0]) != 32 || len(fields[1]) != 32 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
 		x, want := parse(fields[0]), parse(fields[1])
 		if got := x.Gamma(); !eq128(got, want) {
 			t.Errorf("Gamma(%v) = %v; want %v", x, got, want)
