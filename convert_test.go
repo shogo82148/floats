@@ -1374,6 +1374,46 @@ func TestFloat256_Float16(t *testing.T) {
 			want: 0x3c00,
 		},
 		{
+			// 1.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ffe_7800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x0002,
+		},
+		{
+			// 2.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ffe_8400_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x0002,
+		},
+		{
+			// 3.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ffe_8c00_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x0004,
+		},
+		{
+			// 2^-25: the half of the smallest subnormal number, rounds to even (0)
+			in: Float256{
+				0x3ffe_6000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0,
+		},
+		{
 			// -0.0
 			in: Float256{
 				0x8000_0000_0000_0000,
@@ -1553,6 +1593,36 @@ func TestFloat256_Float32(t *testing.T) {
 			want: 1.0,
 		},
 		{
+			// 1.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ff6_a800_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1p-148,
+		},
+		{
+			// 2.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ff6_b400_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1p-148,
+		},
+		{
+			// 3.5 units of the smallest subnormal number: a tie, rounds to even
+			in: Float256{
+				0x3ff6_bc00_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x1p-147,
+		},
+		{
 			// -0.0
 			in: Float256{
 				0x8000_0000_0000_0000,
@@ -1706,14 +1776,16 @@ func TestFloat256_Float32(t *testing.T) {
 }
 
 func BenchmarkFloat256_Float32(b *testing.B) {
-	f := Float256{
-		0x3fff_f000_0000_0000,
-		0x0000_0000_0000_0000,
-		0x0000_0000_0000_0000,
-		0x0000_0000_0000_0000,
-	} // 1.0
-	for b.Loop() {
-		runtime.KeepAlive(f.Float32())
+	// cycle through the exponents around the range of Float32
+	// to cover zero, subnormal, normal and overflow,
+	// with noise in the fractions so that rounding is exercised.
+	for i := 0; b.Loop(); i++ {
+		exp := uint64(bias256-bias32-50) + uint64(i%330)
+		w0 := uint64(i)*0x9e3779b97f4a7c15&fracMask256[0] | exp<<(shift256-192)
+		w1 := uint64(i) * 0xc2b2ae3d27d4eb4f
+		w2 := uint64(i) * 0x165667b19e3779f9
+		w3 := uint64(i) * 0x27d4eb2f165667c5
+		runtime.KeepAlive(Float256{w0, w1, w2, w3}.Float32())
 	}
 }
 
