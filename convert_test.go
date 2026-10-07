@@ -1095,6 +1095,40 @@ func TestFloat128_Float64(t *testing.T) {
 			want: 0x1p-428,
 		},
 
+		// test overflow and underflow
+		{
+			in:   Float128{0x43ff_0000_0000_0000, 0x0000_0000_0000_0000}, // 0x1p+1024
+			want: Float64(math.Inf(1)),
+		},
+		{
+			in:   Float128{0xc3ff_0000_0000_0000, 0x0000_0000_0000_0000}, // -0x1p+1024
+			want: Float64(math.Inf(-1)),
+		},
+		{
+			in:   Float128{0x43fe_ffff_ffff_ffff, 0xffff_ffff_ffff_ffff}, // just below 0x1p+1024
+			want: Float64(math.Inf(1)),
+		},
+		{
+			in:   Float128{0x43fe_ffff_ffff_ffff, 0xf000_0000_0000_0000}, // 0x1.fffffffffffffp+1023, the largest finite number
+			want: 0x1.fffffffffffffp+1023,
+		},
+		{
+			in:   Float128{0x3bcc_0000_0000_0000, 0x0000_0000_0000_0001}, // just above the half of the smallest subnormal number
+			want: 0x1p-1074,
+		},
+		{
+			in:   Float128{0x3bcc_0000_0000_0000, 0x0000_0000_0000_0000}, // the half of the smallest subnormal number
+			want: 0,
+		},
+		{
+			in:   Float128{0x3000_0000_0000_0000, 0x0000_0000_0000_0000}, // very small number
+			want: 0,
+		},
+		{
+			in:   Float128{0xb000_0000_0000_0000, 0x0000_0000_0000_0000}, // very small negative number
+			want: Float64(math.Copysign(0, -1)),
+		},
+
 		// test rounding to even
 		{
 			in:   Float128{0x3fff_0000_0000_0000, 0x0800_0000_0000_0000}, // 0x1.00000000000008p+00
