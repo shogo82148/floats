@@ -95,41 +95,32 @@ func (a Float16) Float256() Float256 {
 func (a Float32) Float16() Float16 {
 	b := math.Float32bits(float32(a))
 	sign := uint16((b & signMask32) >> (32 - 16))
-	exp := int((b >> shift32) & mask32)
+	abs := b &^ signMask32
 
-	if exp == mask32 {
-		// a is ±infinity or NaN
-		frac := b & fracMask32
-		if frac == 0 {
-			// a is ±infinity
-			return Float16(sign | mask16<<shift16)
-		} else {
-			// a is NaN
-			return Float16(sign | uvnan16)
-		}
+	if abs > uvinf32 {
+		// a is NaN
+		return Float16(sign | uvnan16)
 	}
 
-	exp -= bias32
-	if exp <= -bias16 {
-		// the result is subnormal number
-		roundBit := -exp + shift32 - (bias16 + shift16 - 1)
-		frac := (b & fracMask32) | (1 << shift32)
-		halfMinusULP := uint32(1<<(roundBit-1) - 1)
-		frac += halfMinusULP + ((frac >> uint(roundBit)) & 1) // round to nearest even
-		return Float16(sign | uint16(frac>>uint(roundBit)))
+	if abs < (bias32-bias16+1)<<shift32 {
+		// the result is subnormal number.
+		// Adding 2^-1 aligns the ULP of Float16 subnormal numbers (2^-24)
+		// to the least significant bit of the Float32 fraction,
+		// so the FPU rounds to nearest even for us.
+		// The carry into the exponent field is the correct encoding of the smallest normal number.
+		v := math.Float32bits(math.Float32frombits(abs) + 0x1p-1)
+		return Float16(sign | uint16(v-math.Float32bits(0x1p-1)))
 	}
 
 	// the result is normal number
 	const halfMinusULP = 1<<(shift32-shift16-1) - 1
-	b += halfMinusULP + ((b >> uint(shift32-shift16)) & 1) // round to nearest even
-
-	exp16 := uint16((b>>shift32)&mask32) - bias32 + bias16
-	if exp16 >= mask16 {
-		// overflow
+	abs += halfMinusULP + ((abs >> (shift32 - shift16)) & 1) // round to nearest even
+	exp16 := abs>>(shift32-shift16) - (bias32-bias16)<<shift16
+	if exp16 >= mask16<<shift16 {
+		// overflow or ±infinity
 		return Float16(sign | mask16<<shift16)
 	}
-	frac16 := uint16(b>>(shift32-shift16)) & fracMask16
-	return Float16(sign | (exp16 << shift16) | frac16)
+	return Float16(sign | uint16(exp16))
 }
 
 // Float32 returns a itself.

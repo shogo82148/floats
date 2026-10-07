@@ -273,9 +273,11 @@ func TestFloat32_Float16(t *testing.T) {
 }
 
 func BenchmarkFloat32_Float16(b *testing.B) {
-	f := Float32(1.0)
-	for b.Loop() {
-		runtime.KeepAlive(f.Float16())
+	// cycle through values that cover zero, subnormal, normal, infinity and NaN of Float16,
+	// with noise in the lower bits so that rounding is exercised.
+	for i := 0; b.Loop(); i++ {
+		bits := math.Float32bits(float32(Float16(i).Float32())) | uint32((uint64(i)*0x9e3779b97f4a7c15)>>51)
+		runtime.KeepAlive(Float32(math.Float32frombits(bits)).Float16())
 	}
 }
 
