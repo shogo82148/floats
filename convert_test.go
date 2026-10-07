@@ -1414,6 +1414,56 @@ func TestFloat256_Float16(t *testing.T) {
 			want: 0,
 		},
 		{
+			// 2^16: overflow
+			in: Float256{
+				0x4000_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x7c00,
+		},
+		{
+			// -2^16: overflow
+			in: Float256{
+				0xc000_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0xfc00,
+		},
+		{
+			// 2^65536: overflow (the exponent of Float16 must not wrap)
+			in: Float256{
+				0x4fff_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x7c00,
+		},
+		{
+			// 2^100000: overflow
+			in: Float256{
+				0x5869_f000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0x7c00,
+		},
+		{
+			// -2^65521: overflow
+			in: Float256{
+				0xcfff_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+				0x0000_0000_0000_0000,
+			},
+			want: 0xfc00,
+		},
+		{
 			// -0.0
 			in: Float256{
 				0x8000_0000_0000_0000,
@@ -1557,14 +1607,16 @@ func TestFloat256_Float16(t *testing.T) {
 }
 
 func BenchmarkFloat256_Float16(b *testing.B) {
-	f := Float256{
-		0x3fff_f000_0000_0000,
-		0x0000_0000_0000_0000,
-		0x0000_0000_0000_0000,
-		0x0000_0000_0000_0000,
-	} // 1.0
-	for b.Loop() {
-		runtime.KeepAlive(f.Float16())
+	// cycle through the exponents around the range of Float16
+	// to cover zero, subnormal, normal and overflow,
+	// with noise in the fractions so that rounding is exercised.
+	for i := 0; b.Loop(); i++ {
+		exp := uint64(bias256-bias16-20) + uint64(i%60)
+		w0 := uint64(i)*0x9e3779b97f4a7c15&fracMask256[0] | exp<<(shift256-192)
+		w1 := uint64(i) * 0xc2b2ae3d27d4eb4f
+		w2 := uint64(i) * 0x165667b19e3779f9
+		w3 := uint64(i) * 0x27d4eb2f165667c5
+		runtime.KeepAlive(Float256{w0, w1, w2, w3}.Float16())
 	}
 }
 

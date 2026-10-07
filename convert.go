@@ -534,13 +534,13 @@ func (a Float256) Float16() Float16 {
 	a[0] |= nonzero64(a[1]) | nonzero64(a[2]) | nonzero64(a[3])
 	a[0] += halfMinusULP + ((a[0] >> uint(shift256-shift16-192)) & 1)
 
-	exp16 := uint16((a[0]>>(shift256-192))&mask256 - bias256 + bias16)
+	exp16 := (a[0]>>(shift256-192))&mask256 - bias256 + bias16
 	if exp16 >= mask16 {
 		// overflow
 		return Float16(sign | mask16<<shift16)
 	}
 	frac16 := uint16(a[0]>>(shift256-shift16-192)) & fracMask16
-	return Float16(sign | (exp16 << shift16) | frac16)
+	return Float16(sign | (uint16(exp16) << shift16) | frac16)
 }
 
 // Float32 converts a to a Float32.
