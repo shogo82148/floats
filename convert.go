@@ -215,41 +215,32 @@ func (a Float32) Float256() Float256 {
 func (a Float64) Float16() Float16 {
 	b := math.Float64bits(float64(a))
 	sign := uint16((b & signMask64) >> (64 - 16))
-	exp := int((b >> shift64) & mask64)
+	abs := b &^ signMask64
 
-	if exp == mask64 {
-		// a is ±infinity or NaN
-		frac := b & fracMask64
-		if frac == 0 {
-			// a is ±infinity
-			return Float16(sign | mask16<<shift16)
-		} else {
-			// a is NaN
-			return Float16(sign | uvnan16)
-		}
+	if abs > uvinf64 {
+		// a is NaN
+		return Float16(sign | uvnan16)
 	}
 
-	exp -= bias64
-	if exp <= -bias16 {
-		// the result is subnormal number
-		roundBit := -exp + shift64 - (bias16 + shift16 - 1)
-		frac := (b & fracMask64) | (1 << shift64)
-		halfMinusULP := uint64(1<<(roundBit-1) - 1)
-		frac += halfMinusULP + ((frac >> uint(roundBit)) & 1) // round to nearest even
-		return Float16(sign | uint16(frac>>roundBit))
+	if abs < (bias64-bias16+1)<<shift64 {
+		// the result is subnormal number.
+		// Adding 2^28 aligns the ULP of Float16 subnormal numbers (2^-24)
+		// to the least significant bit of the Float64 fraction,
+		// so the FPU rounds to nearest even for us.
+		// The carry into the exponent field is the correct encoding of the smallest normal number.
+		v := math.Float64bits(math.Float64frombits(abs) + 0x1p28)
+		return Float16(sign | uint16(v-math.Float64bits(0x1p28)))
 	}
 
 	// the result is normal number
 	const halfMinusULP = 1<<(shift64-shift16-1) - 1
-	b += halfMinusULP + ((b >> uint(shift64-shift16)) & 1) // round to nearest even
-
-	exp16 := uint16((b>>shift64)&mask64) - bias64 + bias16
-	if exp16 >= mask16 {
-		// overflow
+	abs += halfMinusULP + ((abs >> (shift64 - shift16)) & 1) // round to nearest even
+	exp16 := abs>>(shift64-shift16) - (bias64-bias16)<<shift16
+	if exp16 >= mask16<<shift16 {
+		// overflow or ±infinity
 		return Float16(sign | mask16<<shift16)
 	}
-	frac16 := uint16(b>>(shift64-shift16)) & fracMask16
-	return Float16(sign | (exp16 << shift16) | frac16)
+	return Float16(sign | uint16(exp16))
 }
 
 // Float32 converts a to a Float32.
