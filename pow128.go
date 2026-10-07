@@ -120,10 +120,12 @@ func (a Float128) Pow(b Float128) Float128 {
 }
 
 // powTwo256 returns (2**e)**n for e != 0 and the non-negative integer n, or its reciprocal if flip is true.
+// |e| >= 1, so that the result overflows or underflows if n > 2**15 (|e n| > 20000).
 func powTwo256(e int, n Float128, flip bool) Float256 {
-	// the exponent of the result is e n, which overflows or underflows if |e n| > 20000. n is limited not to overflow int.
-	if n.Gt(Float128{0x4010_0000_0000_0000, 0}) { // n > 2**17
-		n = Float128{0x4010_0000_0000_0000, 0}
+	// the exponent of the result is e n, which overflows or underflows if |e n| > 20000.
+	// n is limited to 2**15 so that |e n| <= 16494 * 2**15 fits in a 32-bit int.
+	if n.Gt(Float128{0x400e_0000_0000_0000, 0}) { // n > 2**15
+		n = Float128{0x400e_0000_0000_0000, 0}
 	}
 	ae := e * int(n.Int64())
 	if flip {
