@@ -590,47 +590,51 @@ func (a Float256) Float32() Float32 {
 
 // Float64 converts a to a Float64.
 func (a Float256) Float64() Float64 {
-	b := ints.Uint256(a)
-	sign := b[0] & signMask256[0]
-	exp := int((b[0] >> (shift256 - 192)) & mask256)
+	sign := a[0] & signMask256[0]
+	exp := int(a[0]>>(shift256-192)) & mask256
 
 	if exp == mask256 {
 		// a is ±infinity or NaN
-		frac := b.And(fracMask256)
-		if frac.IsZero() {
-			// a is ±infinity
-			return Float64(math.Float64frombits(sign | mask64<<shift64))
-		} else {
-			// a is NaN
+		if a[0]&fracMask256[0] != 0 || a[1] != 0 || a[2] != 0 || a[3] != 0 {
 			return Float64(math.Float64frombits(sign | uvnan64))
 		}
+		return Float64(math.Float64frombits(sign | mask64<<shift64))
 	}
 
-	exp -= bias256
-	if exp <= -bias64 {
-		// the result is subnormal number
-		frac := b.And(fracMask256)
-		frac[0] |= (1 << (shift256 - 192))
-		// round to nearest even
-		roundBit := uint(-exp + shift256 - (bias64 + shift64 - 1))
-		halfMinusULP := ints.Uint256{0, 0, 0, 1}.Lsh(roundBit - 1).Sub(ints.Uint256{0, 0, 0, 1})
-		frac = frac.Add(halfMinusULP).Add(frac.Rsh(roundBit).And(ints.Uint256{0, 0, 0, 1}))
-		frac = frac.Rsh(roundBit)
-		return Float64(math.Float64frombits(sign | frac[1]))
-	}
-
-	// the result is normal number
-	// round to nearest even
-	halfMinusULP := ints.Uint256{0, 0, 0, 1}.Lsh(shift256 - shift64 - 1).Sub(ints.Uint256{0, 0, 0, 1})
-	b = b.Add(halfMinusULP).Add(b.Rsh(shift256 - shift64).And(ints.Uint256{0, 0, 0, 1}))
-
-	exp64 := uint64((b[0]>>(shift256-192))&mask256 - bias256 + bias64)
-	if exp64 >= mask64 {
+	e := exp - (bias256 - bias64) // the biased exponent of the result
+	if e >= mask64 {
 		// overflow
 		return Float64(math.Float64frombits(sign | mask64<<shift64))
 	}
-	frac64 := uint64(b.Rsh(shift256-shift64).Uint64() & fracMask64)
-	return Float64(math.Float64frombits(sign | (exp64 << shift64) | frac64))
+
+	// sig is the 64 bits significand with the implicit bit:
+	// the implicit bit, the top 52 bits of the fraction, and the next 11 bits.
+	// The remaining bits are folded into the least significant bit as the sticky bit.
+	frac := (a[0]&fracMask256[0])<<(shift64-(shift256-192)) | a[1]>>(64-(shift64-(shift256-192)))
+	sig := 1<<63 | frac<<11 | (a[1]>>45)&(1<<11-1)
+	if a[1]&(1<<45-1)|a[2]|a[3] != 0 {
+		sig |= 1
+	}
+
+	// shift is the number of bits to be discarded.
+	shift := uint(11)
+	if e <= 0 {
+		// the result is subnormal number
+		if e < -52 {
+			// the result is less than the half of the smallest subnormal number
+			return Float64(math.Float64frombits(sign))
+		}
+		shift += uint(1 - e)
+		e = 1
+	}
+
+	// round to nearest even
+	q := sig >> shift
+	rem := sig << (64 - shift)
+	if rem > 1<<63 || (rem == 1<<63 && q&1 != 0) {
+		q++
+	}
+	return Float64(math.Float64frombits(sign | (uint64(e-1)<<shift64 + q)))
 }
 
 // Float128 converts a to a Float128.
