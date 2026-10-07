@@ -77,6 +77,12 @@ func TestFloat256_ErfinvAccuracy(t *testing.T) {
 	checkFloat256Testdata(t, "testdata/erfinv256.txt", "Erfinv", Float256.Erfinv)
 }
 
+// TestFloat256_ErfcinvAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_ErfcinvAccuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat256Testdata(t, "testdata/erfcinv256.txt", "Erfcinv", Float256.Erfcinv)
+}
+
 // TestFloat256_ErfcAccuracy requires the correctly rounded result for every vector of the test data.
 func TestFloat256_ErfcAccuracy(t *testing.T) {
 	t.Parallel()
@@ -514,6 +520,9 @@ func TestFloat256_Erfcinv(t *testing.T) {
 		{exact256(1.5), "-0.476936276204469873381418353643130559808969749059470644703882695919383447"},
 		{exact256(1.75), "-0.813419847597618541690289359893421085324724835957501548147510003331798053"},
 		{exact256(2).Nextafter(exact256(0)), "-12.66760552376903039787483533474977284586485812791479406737157556230541"},
+		{exact256(1e-300), "26.20946996051612388552073179045608917320124038287459055671374005636769"},
+		{exact256(1e-20), "6.601580622355142565624345890770360211174777232005676641310482551233419"},
+		{Float256{0, 0, 0, 1}, "426.4503993164995476498937507289818753430127517185428612511297259712896"}, // the smallest subnormal number
 	}
 
 	for _, tt := range tests {
@@ -533,6 +542,11 @@ func TestFloat256_Erfcinv(t *testing.T) {
 		{exact256(-1), exact256(math.NaN())},
 		{exact256(3), exact256(math.NaN())},
 		{exact256(math.NaN()), exact256(math.NaN())},
+		{exact256(math.Inf(1)), exact256(math.NaN())},
+		{exact256(math.Inf(-1)), exact256(math.NaN())},
+		{exact256(2).Nextafter(exact256(3)), exact256(math.NaN())},
+		{exact256(math.Copysign(0, -1)), exact256(math.Inf(1))},
+		{exact256(1), exact256(0)},
 	}
 
 	for _, tt := range strictTests {
@@ -543,9 +557,39 @@ func TestFloat256_Erfcinv(t *testing.T) {
 	}
 }
 
+func TestFloat256_ErfFixRatio(t *testing.T) {
+	t.Parallel()
+	a, b := gammaFix256{1, 5}, gammaFix256{1, 3}
+	if got := erf256FixRatio(a, a); !eq256(got, Float256{}) {
+		t.Errorf("erf256FixRatio(a, a) = %v; want 0", got)
+	}
+	// (a - b)/b = 2**-63/(1 + 3 × 2**-64)
+	want := exact256(0x1p-63).Quo(NewFloat256(1).Add(exact256(3 * 0x1p-64)))
+	if got := erf256FixRatio(a, b); !eq256(got, want) {
+		t.Errorf("erf256FixRatio(a, b) = %v; want %v", got, want)
+	}
+	if got := erf256FixRatio(b, a); got.Signbit() == false || got.Abs().Gt(want) {
+		t.Errorf("erf256FixRatio(b, a) = %v; want negative and not larger than %v", got, want)
+	}
+}
+
 func BenchmarkFloat256_Erfcinv(b *testing.B) {
-	x := exact256(0.5)
-	for b.Loop() {
-		runtime.KeepAlive(x.Erfcinv())
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(1e-300)},                           // x < 2**-113
+		{"small", exact256(1e-20)},                           // 2**-113 <= x <= 1/2
+		{"medium", exact256(0.25)},                           // 2**-113 <= x <= 1/2
+		{"large", exact256(0.75)},                            // 1/2 < x <= 1, erfinv(1-x)
+		{"greater-than-one", exact256(1.5)},                  // 1 < x < 2
+		{"close-to-two", exact256(2).Nextafter(exact256(0))}, // 2 - 2**-236
+		{"subnormal", Float256{0, 0, 0, 1}},                  // the smallest subnormal number
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Erfcinv())
+			}
+		})
 	}
 }

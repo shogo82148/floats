@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/erfcinv128.txt, the correctly rounded erfcinv(x) for various 0 < x < 2.
+# Generates testdata/erfcinv128.txt and testdata/erfcinv256.txt, the correctly rounded erfcinv(x) for various 0 < x < 2.
 # Each line contains the bits of x and the result in hexadecimal.
 #
-# Usage: python3 scripts/gen_erfcinv_testdata.py
+# Usage: python3 scripts/gen_erfcinv_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -96,4 +97,7 @@ def to_mpf_exact(v, P, EB):
 
 
 if __name__ == "__main__":
-    gen("erfcinv128", 112, 15, 1281)
+    if (sys.argv[1] if len(sys.argv) > 1 else "128") == "128":
+        gen("erfcinv128", 112, 15, 1281)
+    else:
+        gen("erfcinv256", 236, 19, 2561)
