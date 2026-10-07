@@ -155,9 +155,9 @@ func TestFloat16_Float128(t *testing.T) {
 }
 
 func BenchmarkFloat16_Float128(b *testing.B) {
-	f := Float16(0x3c00) // 1.0
-	for b.Loop() {
-		runtime.KeepAlive(f.Float128())
+	// cycle through all values to cover zero, subnormal, normal, infinity and NaN.
+	for i := 0; b.Loop(); i++ {
+		runtime.KeepAlive(Float16(i).Float128())
 	}
 }
 
