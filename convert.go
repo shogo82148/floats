@@ -15,29 +15,17 @@ func (a Float16) Float16() Float16 {
 // Float32 converts a to a Float32.
 func (a Float16) Float32() Float32 {
 	sign := uint32(a&signMask16) << (32 - 16)
-	exp := uint32(a>>shift16) & mask16
-	frac := uint32(a & fracMask16)
-
-	if exp == 0 {
-		// a is subnormal number
-		if frac == 0 {
-			// a is zero
-			return Float32(math.Float32frombits(sign))
-		} else {
-			l := bits.Len32(frac)
-			frac = (frac << (shift16 - l + 1)) & fracMask16
-			exp = bias32 - (bias16 + shift16) + uint32(l)
-		}
-	} else if exp == mask16 {
+	abs := uint32(a &^ signMask16)
+	if abs >= mask16<<shift16 {
 		// a is infinity or NaN
-		exp = mask32
-	} else {
-		// a is normal number
-		exp += bias32 - bias16
+		return Float32(math.Float32frombits(sign | mask32<<shift32 | (abs&fracMask16)<<(shift32-shift16)))
 	}
-	exp <<= shift32
-	frac <<= shift32 - shift16
-	return Float32(math.Float32frombits(sign | exp | frac))
+
+	// Place the exponent and the fraction into the Float32 fields and
+	// rebias the exponent by a multiplication.
+	// It also normalizes subnormal numbers, and the result is exact.
+	v := math.Float32frombits(abs<<(shift32-shift16)) * 0x1p112 // 2^(bias32 - bias16)
+	return Float32(math.Float32frombits(math.Float32bits(v) | sign))
 }
 
 // Float64 converts a to a Float64.
