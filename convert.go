@@ -75,30 +75,20 @@ func (a Float16) Float128() Float128 {
 // Float256 converts a to a Float256.
 func (a Float16) Float256() Float256 {
 	sign := uint64(a&signMask16) << (64 - 16)
-	exp := uint64(a>>shift16) & mask16
-	frac := uint64(a & fracMask16)
-
-	if exp == 0 {
-		// a is subnormal number
-		if frac == 0 {
-			// a is zero
-			return Float256{sign, 0, 0, 0}
-		} else {
-			l := bits.Len64(frac)
-			frac = (frac << (shift16 - l + 1)) & fracMask16
-			exp = bias256 - (bias16 + shift16) + uint64(l)
-		}
-	} else if exp == mask16 {
+	abs := uint64(a &^ signMask16)
+	if abs >= mask16<<shift16 {
 		// a is infinity or NaN
-		exp = mask256
-	} else {
-		// a is normal number
-		exp += bias256 - bias16
+		return Float256{sign | mask256<<(shift256-192) | (abs&fracMask16)<<(shift256-192-shift16), 0, 0, 0}
 	}
 
-	exp <<= shift256 - 192
-	frac <<= shift256 - 192 - shift16
-	return Float256{sign | exp | frac, 0, 0, 0}
+	// Normalize the value in Float64, which is exact, and then
+	// move its fields into the Float256 layout.
+	v := math.Float64bits(math.Float64frombits(abs<<(shift64-shift16)) * 0x1p1008) // 2^(bias64 - bias16)
+	hi := v >> (shift64 - (shift256 - 192))
+	if abs != 0 {
+		hi += (bias256 - bias64) << (shift256 - 192)
+	}
+	return Float256{sign | hi, 0, 0, 0}
 }
 
 // Float16 converts a to a Float16.
