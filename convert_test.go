@@ -1122,9 +1122,14 @@ func TestFloat128_Float64(t *testing.T) {
 }
 
 func BenchmarkFloat128_Float64(b *testing.B) {
-	f := Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000} // 1.0
-	for b.Loop() {
-		runtime.KeepAlive(f.Float64())
+	// cycle through the exponents around the range of Float64
+	// to cover zero, subnormal, normal and overflow,
+	// with noise in the fractions so that rounding is exercised.
+	for i := 0; b.Loop(); i++ {
+		exp := uint64(bias128-bias64-100) + uint64(i%2300)
+		hi := uint64(i)*0x9e3779b97f4a7c15&fracMask128[0] | exp<<(shift128-64)
+		lo := uint64(i) * 0xc2b2ae3d27d4eb4f
+		runtime.KeepAlive(Float128{hi, lo}.Float64())
 	}
 }
 
