@@ -524,7 +524,7 @@ func (a Float256) Float16() Float16 {
 		roundBit := -exp + shift256 - (bias16 + shift16 - 1) - 192
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
 		frac[0] |= nonzero64(frac[1]) | nonzero64(frac[2]) | nonzero64(frac[3])
-		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
+		frac[0] += halfMinusULP + ((frac[0] >> uint(roundBit)) & 1)
 		return Float16(sign | uint16(frac[0]>>roundBit))
 	}
 
@@ -569,7 +569,7 @@ func (a Float256) Float32() Float32 {
 		roundBit := -exp + shift256 - (bias32 + shift32 - 1) - 192
 		halfMinusULP := uint64(1<<(roundBit-1) - 1)
 		frac[0] |= nonzero64(frac[1]) | nonzero64(frac[2]) | nonzero64(frac[3])
-		frac[0] += halfMinusULP + ((a[0] >> uint(roundBit)) & 1)
+		frac[0] += halfMinusULP + ((frac[0] >> uint(roundBit)) & 1)
 		return Float32(math.Float32frombits(sign | uint32(frac[0]>>uint(roundBit))))
 	}
 
