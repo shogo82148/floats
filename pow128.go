@@ -34,9 +34,6 @@ func (a Float128) Pow(b Float128) Float128 {
 
 		// Half = 0.5
 		Half = Float128{0x3ffe_0000_0000_0000, 0x0000_0000_0000_0000}
-
-		// MaxInt64 = 2^63
-		MaxInt64 = Float128{0x403e_0000_0000_0000, 0x0000_0000_0000_0000}
 	)
 
 	switch {
@@ -80,59 +77,83 @@ func (a Float128) Pow(b Float128) Float128 {
 		}
 	case b.Eq(Half):
 		return a.Sqrt()
-	case b.Eq(Half.Neg()):
-		return One.Quo(a.Sqrt())
 	}
 
-	absy := b
-	flip := false
-	if absy.Lt(Zero) {
-		absy = absy.Neg()
-		flip = true
-	}
-	yi, yf := absy.Modf()
-	if !yf.IsZero() && a.Lt(Zero) {
+	// a**b is calculated in Float256, whose precision is enough to round correctly except for the cases which are
+	// extremely close to the midpoint of two adjacent Float128 values.
+	bi, bf := b.Abs().Modf()
+	if !bf.IsZero() && a.Lt(Zero) {
 		return NewFloat128NaN()
 	}
-	if yi.Ge(MaxInt64) {
-		// yi is a large even int that will lead to overflow (or underflow to 0)
-		// for all x except -1 (x == 1 was handled earlier)
+	neg := a.Signbit() && isOddInt128(b)
+	x := a.Abs().Float256()
+
+	var r Float256
+	if x1, xe := x.Frexp(); bf.IsZero() && x1.Eq(Float256{0x3fff_e000_0000_0000}) {
+		// a is a power of two, so that the result is exactly a power of two, and it may be the midpoint of
+		// the subnormal numbers.
+		r = powTwo256(xe-1, bi, b.Lt(Zero))
+	} else if bf.IsZero() && bi.Le(Float128{0x4006_0000_0000_0000, 0}) { // |b| <= 2**7
+		// The product of the integers is exact if it has at most 237 bits, so that it is correctly rounded even if
+		// it is the midpoint of two adjacent Float128 values. The result of a**b has more than 114 bits, so that it
+		// can not be the midpoint, if |b| > 71 (a is not a power of two). Otherwise it is calculated by exp and log.
+		r = powInt256(x, int(bi.Int64()), b.Lt(Zero))
+	} else {
+		// a**b = exp(b ln(a)). The absolute error of b ln(a) is about |b ln(a)| 2**-236, that is less than 2**-220
+		// if the result does not overflow or underflow.
+		z := b.Float256().Mul(x.Log())
 		switch {
-		case a.Eq(One.Neg()):
-			return One
-		case a.Abs().Lt(One) == (b.Gt(Zero)):
-			return Zero
+		case z.Gt(Float256{0x4000_d388_0000_0000}): // 20000
+			r = NewFloat256Inf(1) // overflow
+		case z.Lt(Float256{0xc000_d388_0000_0000}):
+			r = Float256{} // underflow
 		default:
-			return NewFloat128Inf(1)
+			r = z.Exp()
 		}
 	}
+
+	y := r.Float128()
+	if neg {
+		return y.Neg()
+	}
+	return y
+}
+
+// powTwo256 returns (2**e)**n for e != 0 and the non-negative integer n, or its reciprocal if flip is true.
+func powTwo256(e int, n Float128, flip bool) Float256 {
+	// the exponent of the result is e n, which overflows or underflows if |e n| > 20000. n is limited not to overflow int.
+	if n.Gt(Float128{0x4010_0000_0000_0000, 0}) { // n > 2**17
+		n = Float128{0x4010_0000_0000_0000, 0}
+	}
+	ae := e * int(n.Int64())
+	if flip {
+		ae = -ae
+	}
+	return Float256(uvone256).Ldexp(ae)
+}
+
+// powInt256 returns x**n for x > 0 and n >= 0 by multiplying in successive squarings of x according to bits of n.
+// The exponent of the result is accumulated separately so that it does not overflow in the intermediate steps.
+// If flip is true, it returns x**-n.
+func powInt256(x Float256, n int, flip bool) Float256 {
+	var (
+		one  = Float256(uvone256)
+		half = Float256{0x3fff_e000_0000_0000}
+	)
 
 	// ans = a1 * 2**ae (= 1 for now).
-	a1 := One
+	a1 := one
 	ae := 0
 
-	// ans *= x**yf
-	if !yf.IsZero() {
-		if yf.Gt(Half) {
-			yf = yf.Sub(One)
-			yi = yi.Add(One)
-		}
-		a1 = (yf.Mul(a.Log())).Exp()
-	}
-
-	// ans *= x**yi
-	// by multiplying in successive squarings
-	// of x according to bits of yi.
-	// accumulate powers of two into exp.
-	x1, xe := a.Frexp()
-	for i := yi.Int64(); i != 0; i >>= 1 {
+	x1, xe := x.Frexp()
+	for i := n; i != 0; i >>= 1 {
 		if i&1 != 0 {
 			a1 = a1.Mul(x1)
 			ae += xe
 		}
 		x1 = x1.Mul(x1)
 		xe <<= 1
-		if x1.Lt(Half) {
+		if x1.Lt(half) {
 			x1 = x1.Add(x1)
 			xe--
 		}
@@ -142,7 +163,7 @@ func (a Float128) Pow(b Float128) Float128 {
 	// if flip { ans = 1 / ans }
 	// but in the opposite order
 	if flip {
-		a1 = One.Quo(a1)
+		a1 = one.Quo(a1)
 		ae = -ae
 	}
 	return a1.Ldexp(ae)
