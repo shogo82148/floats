@@ -1,109 +1,141 @@
 #!/usr/bin/env python3
-# Generates testdata/pow32.txt.
-# Each line contains the bits of x, y, and the correctly rounded x**y in hexadecimal.
+# Generates testdata/pow128.txt, the correctly rounded a**b for various a and b.
+# Each line contains the bits of a, b, and the result in hexadecimal.
 #
 # Usage: python3 scripts/gen_pow_testdata.py
 
+import functools
+import math
 import random
-import struct
+from multiprocessing import Pool
+
 import mpmath
 
-mpmath.mp.prec = 400
+from gen_gamma_testdata import round_bits, to_mpf
+
+P, EB = 112, 15
+B = (1 << (EB - 1)) - 1
+PREC = 4 * P + 4096  # enough to calculate the correct rounding of the results with up to 1024 multiplications
 
 
-def f32(v):
-    return struct.unpack("<f", struct.pack("<I", v))[0]
+def compute(ab):
+    a, b = ab
+    with mpmath.workprec(PREC):
+        x, y = to_mpf(a, P, EB), to_mpf(b, P, EB)
+        r = mpmath.power(x, y)
+        if isinstance(r, mpmath.mpc):
+            raise ValueError("complex")
+        if r == 0:
+            return 0
+        return round_bits(r, P, EB)
 
 
-def bits32(f):
-    return struct.unpack("<I", struct.pack("<f", f))[0]
+def main():
+    rnd = random.Random(1286)
+    width = (P + EB + 1) // 4
+
+    def enc(m, e, s=0):
+        return (s << (P + EB)) | ((e + B) << P) | (m - (1 << P))
+
+    def rand_a(emin, emax, s=0):
+        return enc(rnd.getrandbits(P) | (1 << P), rnd.randint(emin, emax), s)
+
+    def from_real(x):
+        with mpmath.workprec(PREC):
+            return round_bits(mpmath.mpf(x), P, EB)
+
+    def from_int(n):
+        with mpmath.workprec(PREC):
+            return round_bits(mpmath.mpf(n), P, EB)
+
+    cases = []
+    # small integer powers
+    for _ in range(150):
+        cases.append((rand_a(-40, 40, rnd.getrandbits(1)), from_int(rnd.randint(-20, 20))))
+    for _ in range(100):
+        cases.append((rand_a(-12, 12), from_int(rnd.randint(-1024, 1024))))
+    for _ in range(40):
+        cases.append((rand_a(-16000, 16000, rnd.getrandbits(1)), from_int(rnd.randint(2, 6))))
+    # a**n is exactly the midpoint of two adjacent Float128 values
+    for n in (2, 3, 4, 5, 6, 7):
+        lo = int(2 ** (113.0 / n))
+        hi = int(2 ** (114.0 / n))
+        for _ in range(8):
+            m = rnd.randint(lo, hi) | 1
+            cases.append((from_int(m), from_int(n)))
+            cases.append((from_int(m) | (1 << (P + EB)), from_int(n)))  # negative
+    # a**5 is exactly the midpoint of two subnormal numbers: m**5 2**-16495
+    for m in (3, 5, 7, 9, 11, 13, 15, 17, 63):
+        cases.append((from_real(mpmath.mpf(m) * mpmath.mpf(2) ** -3299), from_int(5)))
+    # powers of two, whose exponents are exact
+    for e in (-3, -1, 1, 2, 5, 100, -16000, 16000):
+        for n in (2, 3, 63, 1000, 5000, 100000, 1 << 40):
+            cases.append((from_real(mpmath.mpf(2) ** e), from_int(n)))
+            cases.append((from_real(mpmath.mpf(2) ** e), from_int(-n)))
+    # a close to 1, and large powers
+    for k in range(10, 112, 7):
+        for _ in range(3):
+            with mpmath.workprec(PREC):
+                a = round_bits(1 + mpmath.mpf(rnd.random() + 0.5) * mpmath.mpf(2) ** -k, P, EB)
+                a2 = round_bits(1 - mpmath.mpf(rnd.random() * 0.5 + 0.1) * mpmath.mpf(2) ** -k, P, EB)
+            cases.append((a, from_int(rnd.randint(1, 1 << min(k + 8, 60)))))
+            cases.append((a2, from_int(rnd.randint(1, 1 << min(k + 8, 60)))))
+            cases.append((a, from_int(-rnd.randint(1, 1 << min(k + 8, 60)))))
+    # huge exponents, which are integers, and the results are not trivial
+    for k in range(64, 112, 6):
+        with mpmath.workprec(PREC):
+            a = round_bits(1 + mpmath.mpf(rnd.random() + 0.5) * mpmath.mpf(2) ** -(k - 5), P, EB)
+        cases.append((a, from_int(rnd.getrandbits(k - 3) | (1 << (k - 4)))))
+    # non-integer exponents
+    for _ in range(250):
+        cases.append((rand_a(-30, 30), rand_a(-6, 5, rnd.getrandbits(1))))
+    for _ in range(60):
+        cases.append((rand_a(-1000, 1000), rand_a(-14, -4, rnd.getrandbits(1))))
+    for _ in range(40):
+        cases.append((rand_a(-1, 1), rand_a(-4, 12, rnd.getrandbits(1))))
+    for _ in range(40):
+        cases.append((rand_a(-16300, 16300), rand_a(-110, -80, rnd.getrandbits(1))))
+    # perfect powers and the small fractions
+    for a, y in ((4, 1.5), (8, 1 / 3), (9, 0.5), (27, 2 / 3), (16, 0.25), (16, -0.25), (4, -0.5), (2, -0.5), (10, 0.1)):
+        cases.append((from_real(a), from_real(y)))
+    # overflow and underflow
+    for base in (2, 3, 10, 0.5, 0.1):
+        with mpmath.workprec(PREC):
+            for target in (16384, -16494, -16495, -16382, 16383.99):
+                y = mpmath.mpf(target) / mpmath.log(base, 2)
+                bb = round_bits(y, P, EB)
+                for d in range(-2, 3):
+                    cases.append((from_real(base), bb + d))
+    # subnormal numbers and the extreme values
+    for _ in range(20):
+        cases.append((rnd.getrandbits(rnd.randint(1, P)) | 1, rand_a(-3, 3)))
+    cases.append((1, from_int(2)))
+    cases.append((from_real(2) , from_int(16383)))
+    cases.append((from_real(2), from_int(16384)))
+    cases.append((from_real(2), from_int(-16494)))
+    cases.append((from_real(2), from_int(-16495)))
+    cases.append((from_real(2) | (1 << (P + EB)), from_int(3)))
+    cases.append((from_real(-3), from_int(1023)))
+    cases.append((from_real(-3), from_int(-1024)))
+
+    # exclude the special cases, which are tested elsewhere, and the NaNs
+    def ok(case):
+        a, b = case
+        x, y = to_mpf(a, P, EB), to_mpf(b, P, EB)
+        if x == 0 or y == 0 or abs(x) == 1:
+            return False
+        if x < 0 and y != int(y):
+            return False
+        return True
+
+    with mpmath.workprec(PREC):
+        cases = [c for c in cases if ok(c)]
+    with Pool() as p:
+        results = p.map(compute, cases, chunksize=4)
+    with open("testdata/pow128.txt", "w") as f:
+        for (a, b), r in zip(cases, results):
+            f.write(f"{a:0{width}x} {b:0{width}x} {r:0{width}x}\n")
 
 
-def round32(y):
-    # round y to the nearest Float32 value, ties to even.
-    if y == 0:
-        return 0
-    s = 0x80000000 if y < 0 else 0
-    y = abs(y)
-    e = max(int(mpmath.floor(mpmath.log(y, 2))), -126)
-    q = int(mpmath.nint(y * mpmath.mpf(2) ** (23 - e)))
-    v = q * mpmath.mpf(2) ** (e - 23)
-    if v >= mpmath.mpf(2) ** 128:
-        return s | 0x7F800000
-    return s | bits32(float(v))
-
-
-def pow32(x, y):
-    x, y = mpmath.mpf(f32(x)), mpmath.mpf(f32(y))
-    if x < 0:
-        n = int(y)
-        r = mpmath.power(-x, y)
-        return round32(-r if n % 2 else r)
-    return round32(mpmath.power(x, y))
-
-
-rnd = random.Random(32)
-inputs = []
-
-
-def finite(v):
-    return v & 0x7F800000 != 0x7F800000 and v & 0x7FFFFFFF != 0
-
-
-# random bits
-while len(inputs) < 200:
-    x, y = rnd.getrandbits(31), rnd.getrandbits(32)
-    if finite(x) and finite(y):
-        inputs.append((x, y))
-# moderate values
-for _ in range(300):
-    inputs.append((bits32(rnd.uniform(0, 10)), bits32(rnd.uniform(-30, 30))))
-# x near 1 and large y
-for _ in range(200):
-    inputs.append((bits32(1 + rnd.uniform(-1e-3, 1e-3)), bits32(rnd.uniform(-1e5, 1e5))))
-for _ in range(100):
-    inputs.append((bits32(1 + rnd.uniform(-1e-6, 1e-6)), bits32(rnd.uniform(-1e8, 1e8))))
-# negative x and integer y
-for _ in range(100):
-    inputs.append((bits32(-rnd.uniform(0, 10)), bits32(float(rnd.randint(-40, 40) or 1))))
-# small integer y
-for _ in range(100):
-    inputs.append((bits32(rnd.uniform(0, 100)), bits32(float(rnd.randint(-10, 10) or 2))))
-# exact results
-for x in range(2, 12):
-    for y in range(2, 8):
-        inputs.append((bits32(float(x)), bits32(float(y))))
-        inputs.append((bits32(float(x)), bits32(float(-y))))
-# exact results on the midpoint of two adjacent Float32 values, e.g. (1+2**-12)**2 = 1 + 2**-11 + 2**-24
-for e in range(12, 20):
-    inputs.append((bits32(1 + 2.0**-e), bits32(2.0)))
-    inputs.append((bits32(1 - 2.0**-e), bits32(2.0)))
-# exact results o**n on the midpoint, where o is odd and o**n has 25 significant bits
-mids = [(o, n) for n in range(3, 25) for o in range(3, 1 << 12, 2) if (o**n).bit_length() == 25]
-for o, n in rnd.sample(mids, 40):
-    e = rnd.randint(-3, 3)
-    inputs.append((bits32(float(o) * 2.0**e), bits32(float(n))))
-# exact results on the midpoint in the subnormal range, e.g. (3*2**-50)**3 = 13.5 * 2**-149
-inputs.append((bits32(3 * 2.0**-50), bits32(3.0)))
-inputs.append((bits32(2.0**-50), bits32(3.0)))
-inputs.append((bits32(2.0**-100), bits32(1.5)))
-# subnormal results, overflow, and underflow
-for _ in range(50):
-    inputs.append((bits32(rnd.uniform(1e-10, 1e-5)), bits32(rnd.uniform(4, 16))))
-for y in (127.99, 128.0, -149.0, -149.5, -150.0, -150.01):
-    inputs.append((bits32(2.0), bits32(y)))
-
-# exact results on the midpoint with non-integer y = n/2**q, where x = s**(2**q) and s**n has 25 significant bits
-for q in range(1, 4):
-    for s in range(3, 1 << 12, 2):
-        x = s ** (2**q)
-        if x.bit_length() > 24:
-            break
-        for n in range(1, 65, 2):
-            if (s**n).bit_length() == 25:
-                inputs.append((bits32(float(x)), bits32(n / 2**q)))
-                inputs.append((bits32(float(x) * 2.0**-8), bits32(n / 2**q)))
-
-with open("testdata/pow32.txt", "w") as f:
-    for x, y in inputs:
-        f.write(f"{x:08x} {y:08x} {pow32(x, y):08x}\n")
+if __name__ == "__main__":
+    main()
