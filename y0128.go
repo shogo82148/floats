@@ -21,19 +21,82 @@ func (a Float128) Y0() Float128 {
 	}
 
 	var (
-		Two          = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-		Threshold500 = Float128{0x4007_f400_0000_0000, 0x0000_0000_0000_0000}
+		Two         = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
+		Threshold64 = Float128{0x4005_0000_0000_0000, 0x0000_0000_0000_0000}
 	)
 
 	switch {
 	case a.Lt(Two):
-		y0, _ := temmeY0Y1_128(a)
-		return y0
-	case a.Lt(Threshold500):
-		return y0CF2_128(a)
+		return y0Series128(a)
+	case a.Lt(Threshold64):
+		return y0Taylor128(a)
 	default:
 		return y0Asymptotic128(a)
 	}
+}
+
+// y0Series128 returns Y0(x) for 0 < x < 2 using the power series
+//
+//	Y0(x) = 2/pi * ((ln(x/2) + EulerGamma) * J0(x) + sum (-1)**(k+1) H(k) z**k / (k!)**2),  z = x**2/4,
+//
+// where H(k) is the k-th harmonic number. Both sums converge quickly and
+// without significant cancellation for z < 1.
+func y0Series128(x Float128) Float128 {
+	var (
+		Two     = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
+		Quarter = Float128{0x3ffd_0000_0000_0000, 0x0000_0000_0000_0000}
+		Euler   = Float128{0x3ffe_2788_cfc6_fb61, 0x8f49_a37c_7f02_02a6}
+	)
+
+	z := x.Mul(x).Mul(Quarter)
+	j := y0128SeriesJ[len(y0128SeriesJ)-1]
+	s := y0128SeriesS[len(y0128SeriesS)-1]
+	for k := len(y0128SeriesJ) - 2; k >= 0; k-- {
+		j = FMA128(j, z, y0128SeriesJ[k])
+		s = FMA128(s, z, y0128SeriesS[k])
+	}
+	l := x.Quo(Two).Log().Add(Euler)
+	return FMA128(l, j, s).Mul(y0128TwoOverPi)
+}
+
+// y0Taylor128 returns Y0(x) for 2 <= x < 64 using the Taylor series at the
+// nearest center x0 of the table y0128Taylor. The coefficients c_n of
+// Y0(x0+h) = sum c_n h**n are given by Y0(x0) and Y0'(x0) = -Y1(x0) and the
+// recurrence derived from the differential equation x*y” + y' + x*y = 0:
+//
+//	x0 (n+2)(n+1) c_(n+2) + (n+1)**2 c_(n+1) + x0 c_n + c_(n-1) = 0
+func y0Taylor128(x Float128) Float128 {
+	// The centers are 2.25, 2.75, ..., 7.75 (step 1/2) and 8.5, 9.5, ..., 63.5 (step 1).
+	xf := x.Float64().BuiltIn()
+	var i int
+	var x0 Float128
+	if xf < 8 {
+		i = int((xf - 2) * 2)
+		x0 = NewFloat128(2.25 + 0.5*float64(i))
+	} else {
+		k := min(int(xf)-8, 55) // x < 64, but xf may round up to 64
+		i = 12 + k
+		x0 = NewFloat128(8.5 + float64(k))
+	}
+	terms := int(y0128TaylorTerms[i])
+	h := x.Sub(x0)
+	invX0 := Float128(uvone128).Quo(x0)
+
+	var c [40]Float128
+	c[0], c[1] = y0128Taylor[i][0], y0128Taylor[i][1]
+	// n = 0: c_(-1) = 0.
+	c[2] = c[1].Mul(invX0).Add(c[0]).Quo(Float128{0x4000_0000_0000_0000, 0}).Neg()
+	for n := 1; n+2 <= terms; n++ {
+		t := FMA128(NewFloat128(float64((n+1)*(n+1))), c[n+1], c[n-1])
+		t = FMA128(t, invX0, c[n])
+		c[n+2] = t.Quo(NewFloat128(float64((n + 2) * (n + 1)))).Neg()
+	}
+
+	r := c[terms]
+	for n := terms - 1; n >= 0; n-- {
+		r = FMA128(r, h, c[n])
+	}
+	return r
 }
 
 // temmeY0Y1_128 returns Y0(x) and Y1(x) for 0 < x < 2 using Temme's series,
@@ -90,137 +153,39 @@ func temmeY0Y1_128(x Float128) (y0, y1 Float128) {
 	return y0, y1
 }
 
-// y0CF2_128 returns Y0(x) for 2 <= x < 500. It uses J0(x) and J1(x)
-// (already computed accurately via Miller's algorithm, see j0Miller128) plus
-// Temme's CF2 continued fraction
-//
-//	p+iq = J0'(x)+iY0'(x))/(J0(x)+iY0(x)) = -1/(2x) + i + (i/x)*K(x)
-//
-// where K is the complex continued fraction with terms a_j=(2j-1)**2/4,
-// b_j=2(x+j*i) (Numerical Recipes §6.7), evaluated here by backward
-// truncation rather than the forward (modified Lentz) form, mirroring how
-// j0Miller128 evaluates its own backward recurrence. Given p, q and
-// f = J0'(x)/J0(x) = -J1(x)/J0(x), Y0(x) = J0(x) * (p-f)/q.
-func y0CF2_128(x Float128) Float128 {
-	var (
-		Zero = Float128{}
-		One  = Float128(uvone128)
-		Two  = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-		Four = Float128{0x4001_0000_0000_0000, 0x0000_0000_0000_0000}
-	)
-
-	// 400 backward terms keeps CF2's error many orders of magnitude below
-	// Float128's precision even at x=2, the slowest-converging point in
-	// this branch's range (larger x converges faster).
-	const maxit = 400
-
-	twoX := Two.Mul(x)
-	kRe, kIm := Zero, Zero
-	for j := maxit; j >= 1; j-- {
-		aj := NewFloat128(float64((2*j - 1) * (2*j - 1))).Quo(Four)
-		bIm := NewFloat128(float64(2 * j))
-
-		denomRe := twoX.Add(kRe)
-		denomIm := bIm.Add(kIm)
-		denomSq := denomRe.Mul(denomRe).Add(denomIm.Mul(denomIm))
-
-		kRe = aj.Mul(denomRe).Quo(denomSq)
-		kIm = aj.Mul(denomIm).Quo(denomSq).Neg()
-	}
-
-	p := One.Neg().Quo(Two.Mul(x)).Sub(kIm.Quo(x))
-	q := One.Add(kRe.Quo(x))
-
-	j0 := x.J0()
-	j1 := x.J1()
-	f := j1.Quo(j0).Neg()
-	gam := p.Sub(f).Quo(q)
-	return j0.Mul(gam)
-}
-
-// y0Asymptotic128 returns Y0(x) for x >= 500 using Hankel's asymptotic
+// y0Asymptotic128 returns Y0(x) for x >= 64 using Hankel's asymptotic
 // expansion
 //
 //	Y0(x) ~ sqrt(2/(pi*x)) * (P(x)*sin(x-pi/4) + Q(x)*cos(x-pi/4))
 //	      = sqrt(1/(pi*x)) * ((P(x)+Q(x))*sin(x) + (Q(x)-P(x))*cos(x))
 //
-// using the same P/Q Hankel coefficients as j0Asymptotic128 (they depend
-// only on the order, which is 0 for both).
+// using the Hankel coefficients tabulated in y0128_table.go.
 func y0Asymptotic128(x Float128) Float128 {
 	var (
 		One = Float128(uvone128)
 		Pi  = Float128{0x4000_921f_b544_42d1, 0x8469_898c_c517_01b8}
-
-		P0  = Float128{0x3fff_0000_0000_0000, 0x0000_0000_0000_0000}
-		P1  = Float128{0xbffb_2000_0000_0000, 0x0000_0000_0000_0000}
-		P2  = Float128{0x3ffb_cb60_0000_0000, 0x0000_0000_0000_0000}
-		P3  = Float128{0xbffe_251e_e800_0000, 0x0000_0000_0000_0000}
-		P4  = Float128{0x4001_84bd_1aa9_8000, 0x0000_0000_0000_0000}
-		P5  = Float128{0xc005_b811_8d37_ff70, 0x0000_0000_0000_0000}
-		P6  = Float128{0x400a_7bc2_e577_2972, 0x4780_0000_0000_0000}
-		P7  = Float128{0xc00f_d036_6d1f_2a1f, 0xc534_2800_0000_0000}
-		P8  = Float128{0x4015_7da6_5df9_46f8, 0xaf56_0224_1800_0000}
-		P9  = Float128{0xc01b_9635_1108_1386, 0x765e_379d_0214_c000}
-		P10 = Float128{0x4022_0fb5_f454_e219, 0x0e36_4701_8807_7ddb}
-		P11 = Float128{0xc028_be48_3c61_88f8, 0xe44c_c93f_185f_231c}
-		P12 = Float128{0x402f_b978_561d_4bea, 0x0f5b_1e28_a03f_e7fa}
-		P13 = Float128{0xc037_02e1_94de_62d0, 0xb524_4031_b682_6879}
-		P14 = Float128{0x403e_6331_b684_f705, 0x3b61_f1e3_98c7_8c3e}
-		P15 = Float128{0xc046_19d3_58b4_a032, 0x5df6_5392_44b3_f7bf}
-
-		Q0  = Float128{0xbffc_0000_0000_0000, 0x0000_0000_0000_0000}
-		Q1  = Float128{0x3ffb_2c00_0000_0000, 0x0000_0000_0000_0000}
-		Q2  = Float128{0xbffc_d11e_0000_0000, 0x0000_0000_0000_0000}
-		Q3  = Float128{0x3fff_ba4c_5980_0000, 0x0000_0000_0000_0000}
-		Q4  = Float128{0xc003_8616_a64f_6c00, 0x0000_0000_0000_0000}
-		Q5  = Float128{0x4008_13aa_fea4_e577, 0x4000_0000_0000_0000}
-		Q6  = Float128{0xc00d_1d47_059b_0d98, 0x9db6_0000_0000_0000}
-		Q7  = Float128{0x4012_96ab_69ba_805e, 0x7fb1_2860_0000_0000}
-		Q8  = Float128{0xc018_7e00_2ac4_1836, 0x8f7f_438e_0260_0000}
-		Q9  = Float128{0x401e_c951_3798_75fb, 0x6178_cf08_21b6_1900}
-		Q10 = Float128{0xc025_53d7_328c_73ee, 0xf503_8192_7c9d_2dfb}
-		Q11 = Float128{0x402c_32f8_7824_21c7, 0xb82a_08af_a906_4f05}
-		Q12 = Float128{0xc033_4b3d_91e4_8aa3, 0xb2b8_c44e_f651_3ac6}
-		Q13 = Float128{0x403a_a4d4_ec38_521d, 0x0c62_c7c2_970d_c434}
-		Q14 = Float128{0xc042_36e3_feb8_1ab1, 0x3337_9718_eec1_f7ec}
-		Q15 = Float128{0x404a_0848_51d4_388c, 0x2290_9b24_b63b_9a95}
 	)
 
 	w := One.Quo(x.Mul(x))
 
-	p := P15
-	p = FMA128(p, w, P14)
-	p = FMA128(p, w, P13)
-	p = FMA128(p, w, P12)
-	p = FMA128(p, w, P11)
-	p = FMA128(p, w, P10)
-	p = FMA128(p, w, P9)
-	p = FMA128(p, w, P8)
-	p = FMA128(p, w, P7)
-	p = FMA128(p, w, P6)
-	p = FMA128(p, w, P5)
-	p = FMA128(p, w, P4)
-	p = FMA128(p, w, P3)
-	p = FMA128(p, w, P2)
-	p = FMA128(p, w, P1)
-	p = FMA128(p, w, P0)
+	// the number of the terms that makes the truncation error less than 2^-125,
+	// where x is at least the lower bound of each band.
+	terms := len(y0128HankelP) // 64 <= x
+	switch xf := x.Float64().BuiltIn(); {
+	case xf >= 4096:
+		terms = 6
+	case xf >= 512:
+		terms = 9
+	case xf >= 128:
+		terms = 13
+	}
 
-	q := Q15
-	q = FMA128(q, w, Q14)
-	q = FMA128(q, w, Q13)
-	q = FMA128(q, w, Q12)
-	q = FMA128(q, w, Q11)
-	q = FMA128(q, w, Q10)
-	q = FMA128(q, w, Q9)
-	q = FMA128(q, w, Q8)
-	q = FMA128(q, w, Q7)
-	q = FMA128(q, w, Q6)
-	q = FMA128(q, w, Q5)
-	q = FMA128(q, w, Q4)
-	q = FMA128(q, w, Q3)
-	q = FMA128(q, w, Q2)
-	q = FMA128(q, w, Q1)
-	q = FMA128(q, w, Q0)
+	p := y0128HankelP[terms-1]
+	q := y0128HankelQ[terms-1]
+	for k := terms - 2; k >= 0; k-- {
+		p = FMA128(p, w, y0128HankelP[k])
+		q = FMA128(q, w, y0128HankelQ[k])
+	}
 	q = q.Quo(x)
 
 	sin, cos := x.Sincos()

@@ -36,8 +36,9 @@ func (a Float128) Y1() Float128 {
 	}
 }
 
-// y1CF2_128 returns Y1(x) for 2 <= x < 500. It reuses the same CF2
-// continued fraction and J0(x)/J1(x) as y0CF2_128 to get Y0(x) = J0(x)*gam,
+// y1CF2_128 returns Y1(x) for 2 <= x < 500. It evaluates Temme's CF2
+// continued fraction (p+iq = -1/(2x) + i + (i/x)*K(x), Numerical Recipes §6.7)
+// with J0(x)/J1(x) to get Y0(x) = J0(x)*gam,
 // then gets Y1 directly from Steed's derivative relation
 //
 //	Y0'(x) = Y0(x)*(p + q/gam) = -Y1(x)
