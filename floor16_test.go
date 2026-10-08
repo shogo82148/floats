@@ -156,11 +156,11 @@ func TestFloat16_Floor_All(t *testing.T) {
 }
 
 func BenchmarkFloat16_Floor(b *testing.B) {
-	var r Float16
-	for i := 0; i < b.N; i++ {
-		r = Float16(i).Floor()
+	var i uint16
+	for b.Loop() {
+		Float16(i).Floor()
+		i++
 	}
-	float16Sink = r
 }
 
 func TestFloat16_Ceil_All(t *testing.T) {
@@ -175,11 +175,11 @@ func TestFloat16_Ceil_All(t *testing.T) {
 }
 
 func BenchmarkFloat16_Ceil(b *testing.B) {
-	var r Float16
-	for i := 0; i < b.N; i++ {
-		r = Float16(i).Ceil()
+	var i uint16
+	for b.Loop() {
+		Float16(i).Ceil()
+		i++
 	}
-	float16Sink = r
 }
 
 func TestFloat16_Trunc_All(t *testing.T) {
@@ -194,11 +194,11 @@ func TestFloat16_Trunc_All(t *testing.T) {
 }
 
 func BenchmarkFloat16_Trunc(b *testing.B) {
-	var r Float16
-	for i := 0; i < b.N; i++ {
-		r = Float16(i).Trunc()
+	var i uint16
+	for b.Loop() {
+		Float16(i).Trunc()
+		i++
 	}
-	float16Sink = r
 }
 
 func TestFloat16_Round_All(t *testing.T) {
@@ -213,11 +213,11 @@ func TestFloat16_Round_All(t *testing.T) {
 }
 
 func BenchmarkFloat16_Round(b *testing.B) {
-	var r Float16
-	for i := 0; i < b.N; i++ {
-		r = Float16(i).Round()
+	var i uint16
+	for b.Loop() {
+		Float16(i).Round()
+		i++
 	}
-	float16Sink = r
 }
 
 func TestFloat16_RoundToEven_All(t *testing.T) {
@@ -232,11 +232,9 @@ func TestFloat16_RoundToEven_All(t *testing.T) {
 }
 
 func BenchmarkFloat16_RoundToEven(b *testing.B) {
-	var r Float16
-	for i := 0; i < b.N; i++ {
-		r = Float16(i).RoundToEven()
+	var i uint16
+	for b.Loop() {
+		Float16(i).RoundToEven()
+		i++
 	}
-	float16Sink = r
 }
-
-var float16Sink Float16
