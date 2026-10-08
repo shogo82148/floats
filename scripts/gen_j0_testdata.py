@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# Generates testdata/j0256.txt, the correctly rounded J0(x) for various x.
+# Generates testdata/j0128.txt and testdata/j0256.txt, the correctly rounded J0(x) for various x.
 # Each line contains the bits of x and the result in hexadecimal.
 #
-# Usage: python3 scripts/gen_j0_testdata.py
+# Usage: python3 scripts/gen_j0_testdata.py [128|256]
 
 import functools
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -40,6 +41,12 @@ def j0(x):
     return mpmath.sqrt(2 / (mpmath.pi * x)) * (p * mpmath.cos(chi) + q * mpmath.sin(chi))
 
 
+def init(p, eb):
+    global P, EB, B
+    P, EB = p, eb
+    B = (1 << (EB - 1)) - 1
+
+
 def compute(v):
     # x must be converted with enough precision.
     with mpmath.workprec(4 * P + 400 + max(0, (v >> P) - B)):
@@ -52,8 +59,8 @@ def compute(v):
         return round_bits(y, P, EB)
 
 
-def main():
-    rnd = random.Random(2562)
+def main(name):
+    rnd = random.Random(2562 if P == 236 else 1282)
     width = (P + EB + 1) // 4
     prec = 4 * P + 400
 
@@ -69,11 +76,12 @@ def main():
 
     inputs = []
     # J0(x) is rounded to 1 for tiny x, and 1 - x**2/4
-    inputs += [random_value(-B + 1, -119) for _ in range(20)]
+    tiny = -(P // 2)  # J0(x) = 1 - x**2/4 is rounded to 1 for x < 2**tiny
+    inputs += [random_value(-B + 1, tiny - 1) for _ in range(20)]
     inputs += [rnd.getrandbits(rnd.randint(1, P)) | 1 for _ in range(5)]  # subnormal numbers
-    inputs += [random_value(-122, -112) for _ in range(40)]
+    inputs += [random_value(tiny - 4, tiny + 6) for _ in range(40)]
     # the Taylor series: x < 16
-    inputs += [random_value(-112, 3) for _ in range(250)]
+    inputs += [random_value(tiny + 6, 3) for _ in range(250)]
     # the Miller algorithm: 16 <= x < 110
     inputs += [from_real(mpmath.mpf(16) + mpmath.mpf(rnd.random()) * 94) for _ in range(200)]
     # the Hankel expansion: x >= 110
@@ -83,7 +91,7 @@ def main():
     inputs += [random_value(201, B - 1) for _ in range(30)]
     # the boundaries
     with mpmath.workprec(prec):
-        for t in (mpmath.mpf(16), mpmath.mpf(110), mpmath.mpf(2) ** -118):
+        for t in (mpmath.mpf(16), mpmath.mpf(110), mpmath.mpf(2) ** tiny):
             u = mpmath.mpf(2) ** (int(mpmath.floor(mpmath.log(t, 2))) - P)
             for d in range(-3, 4):
                 inputs.append(round_bits(t + d * u, P, EB))
@@ -105,12 +113,16 @@ def main():
     inputs += [enc((1 << (P + 1)) - 1, B), 1, enc(1 << P, B - 1)]
     inputs = list(dict.fromkeys(inputs))
 
-    with Pool() as p:
+    with Pool(initializer=init, initargs=(P, EB)) as p:
         results = p.map(compute, inputs, chunksize=2)
-    with open("testdata/j0256.txt", "w") as f:
+    with open(f"testdata/{name}.txt", "w") as f:
         for v, y in zip(inputs, results):
             f.write(f"{v:0{width}x} {y:0{width}x}\n")
 
 
 if __name__ == "__main__":
-    main()
+    if (sys.argv[1] if len(sys.argv) > 1 else "256") == "128":
+        init(112, 15)
+        main("j0128")
+    else:
+        main("j0256")

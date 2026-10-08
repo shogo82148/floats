@@ -102,7 +102,7 @@ func y0Taylor128(x Float128) Float128 {
 // temmeY0Y1_128 returns Y0(x) and Y1(x) for 0 < x < 2 using Temme's series,
 // which is built to remain accurate through x's log singularity at 0
 // (unlike the textbook power series for Y0/Y1, which shares J0's power
-// series' cancellation problem: see j0Miller128).
+// series' cancellation problem).
 //
 // This is the nu=0 specialization of Temme's general-order series (Numerical
 // Recipes §6.7): several of the general recurrences collapse at nu=0 (e.g.

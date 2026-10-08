@@ -33,8 +33,8 @@ func (a Float128) J1() Float128 {
 }
 
 // j1Miller128 returns J1(x) for 0 < x < 500 using the same backward
-// recurrence as j0Miller128, but reading off the unnormalized value at
-// n=1 instead of n=0.
+// recurrence as Miller's algorithm for J0, but reading off the unnormalized
+// value at n=1 instead of n=0.
 func j1Miller128(x Float128) Float128 {
 	var (
 		Zero = Float128{}
