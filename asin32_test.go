@@ -376,3 +376,31 @@ func TestFloat32_Atan2(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFloat32_Atan2(b *testing.B) {
+	y, x := Float32(1.5), Float32(-2.25)
+	for b.Loop() {
+		runtime.KeepAlive(y.Atan2(x))
+	}
+}
+
+func TestFloat32_Atan2_Fallback(t *testing.T) {
+	t.Parallel()
+	// the results are close to a rounding boundary or subnormal,
+	// so the fast path falls back to the accurate path.
+	tests := []struct{ y, x uint32 }{
+		{0xa237d527, 0x527fa874},
+		{0xbeb7ede5, 0x3cf8087a},
+		{0xc1c46aa8, 0xc1e13f4c},
+		{0x00000001, 0x7f7fffff}, // the result is subnormal
+		{0x80000001, 0x7f7fffff},
+		{0x00000001, 0x00000001}, // both are subnormal
+	}
+	for _, tt := range tests {
+		y, x := NewFloat32FromBits(tt.y), NewFloat32FromBits(tt.x)
+		want := y.Float128().Atan2(x.Float128()).Float32()
+		if got := y.Atan2(x); got != want {
+			t.Errorf("Atan2(%v, %v) = %v; want %v", y, x, got, want)
+		}
+	}
+}
