@@ -69,11 +69,11 @@ func (a Float256) Atan() Float256 {
 		return a
 	case a.IsNaN():
 		return NewFloat256NaN()
+	case a.IsInf(0):
+		return atan2Pi2Hi256.Copysign(a)
 	}
-	if a.Signbit() {
-		return satan256(a.Neg()).Neg()
-	}
-	return satan256(a)
+	// atan(a) = atan2(a, 1)
+	return atan2Finite256(a, Float256(uvone256))
 }
 
 // satan256 reduces its argument (known to be positive)
