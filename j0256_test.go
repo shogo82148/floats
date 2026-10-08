@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -56,6 +57,79 @@ func TestFloat256_J0(t *testing.T) {
 		got := tt.x.J0()
 		if !eq256(got, tt.want) {
 			t.Errorf("J0(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+// TestFloat256_J0Accuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_J0Accuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat256Testdata(t, "testdata/j0256.txt", "J0", Float256.J0)
+}
+
+func BenchmarkFloat256_J0(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"one", exact256(1)},                       // 1 - x**2/4 + ... is rounded to 1 for tiny x
+		{"tiny", exact256(0x1p-110)},               // exact rounding of 1 - x**2/4
+		{"taylor", exact256(1.5)},                  // x < 16
+		{"miller", exact256(50.5)},                 // 16 <= x < 110
+		{"hankel-small", exact256(200.5)},          // 110 <= x
+		{"hankel-large", exact256(1e5)},            // the argument reduction
+		{"hankel-huge", exact256(0x1p1000)},        // Payne-Hanek
+		{"near-zero", exact256(2.404825557695773)}, // the Taylor series around a zero
+		{"negative", exact256(-50.5)},              // J0 is even
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.J0())
+			}
+		})
+	}
+}
+
+func TestFloat256_J0Internals(t *testing.T) {
+	t.Parallel()
+
+	// j0Result returns 0 for 0
+	if got := j0Result(lgammaFix256{}, 0); !eq256(got, Float256{}) {
+		t.Errorf("j0Result(0) = %v", got)
+	}
+
+	// j0Near256 handles only the values close to the zeros of the table.
+	for _, x := range []Float256{exact256(3), exact256(2.4), exact256(1000), exact256(0.5)} {
+		_, exp, m := x.normalize()
+		if got, ok := j0Near256(exp, m); ok {
+			t.Errorf("j0Near256(%v) = %v, true; want false", x, got)
+		}
+	}
+
+	// float256ToFix
+	if got := float256ToFix(Float256{}); got != (lgammaFix256{}) {
+		t.Errorf("float256ToFix(0) = %v", got)
+	}
+	if got, want := float256ToFix(exact256(-2.5)), (lgammaFix256{true, gammaFix256{2, 1 << 63}}); got != want {
+		t.Errorf("float256ToFix(-2.5) = %v; want %v", got, want)
+	}
+
+	// rotateOctant returns cos(k pi/4) and sin(k pi/4) for z = 0.
+	one, zero := lgammaFix256{false, gammaOne256}, lgammaFix256{}
+	h := gammaFix256(j0256HalfSqrt2)
+	for k, want := range [8][2]lgammaFix256{
+		{{false, gammaOne256}, {}},
+		{{false, h}, {false, h}},
+		{{}, {false, gammaOne256}},
+		{{true, h}, {false, h}},
+		{{true, gammaOne256}, {}},
+		{{true, h}, {true, h}},
+		{{}, {true, gammaOne256}},
+		{{false, h}, {true, h}},
+	} {
+		c, s := rotateOctant(k, one, zero)
+		if c.v != want[0].v || s.v != want[1].v || (c.v != gammaFix256{} && c.neg != want[0].neg) || (s.v != gammaFix256{} && s.neg != want[1].neg) {
+			t.Errorf("rotateOctant(%d) = %v, %v; want %v, %v", k, c, s, want[0], want[1])
 		}
 	}
 }
