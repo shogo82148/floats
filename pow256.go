@@ -1,9 +1,10 @@
 package floats
 
 import (
-	"encoding/binary"
 	"math"
-	"math/big"
+	"math/bits"
+
+	"github.com/shogo82148/ints"
 )
 
 // Pow returns a**b, the base-a exponential of b.
@@ -143,18 +144,10 @@ func pow256Abs(x, b, bi Float256, isInt bool) Float256 {
 
 	// z = |b ln(x)| = mb × v × 2**(eb-236+e)
 	_, eb, mb := b.normalize()
-	prod := new(big.Int).Mul(bigFromWords(mb[:]), bigFromWords(v[:]))
 	// The shift is negative: it is eb - 236 if ln(x) is not tiny (e = -320), where eb <= 26 because |ln(x)| >= 2**-8
 	// and |b ln(x)| < 2**18, and it is eb - 236 + e + 320 with e <= -746 otherwise.
-	prod.Rsh(prod, uint(236-eb-e-320))
-	// prod < 2**338 because |b ln(x)| < 2**18, so that it fits z. big.Word may be 32 bits, so that the 64-bit limbs are
-	// extracted through the big-endian bytes.
-	var buf [48]byte
-	prod.FillBytes(buf[:])
-	var z gammaFix256
-	for i := range z {
-		z[i] = binary.BigEndian.Uint64(buf[8*i:])
-	}
+	// The product is < 2**338 after the shift because |b ln(x)| < 2**18, so that it fits z.
+	z := mulShr256(mb, v, uint(236-eb-e-320))
 
 	var mant gammaFix256
 	var k int
@@ -166,14 +159,39 @@ func pow256Abs(x, b, bi Float256, isInt bool) Float256 {
 	return lgamma256FromPair(false, mant, k)
 }
 
-// bigFromWords returns the integer whose big-endian 64-bit words are w.
-func bigFromWords(w []uint64) *big.Int {
-	r := new(big.Int)
-	for _, v := range w {
-		r.Lsh(r, 64)
-		r.Or(r, new(big.Int).SetUint64(v))
+// mulShr256 returns (m × v) >> s truncated to the low 384 bits, where m and v are big-endian words.
+func mulShr256(m ints.Uint256, v ints.Uint512, s uint) gammaFix256 {
+	// little-endian 768-bit product
+	var prod [12]uint64
+	for i := 0; i < 4; i++ {
+		var carry uint64
+		for j := 0; j < 8; j++ {
+			hi, lo := bits.Mul64(m[3-i], v[7-j])
+			var c uint64
+			lo, c = bits.Add64(lo, prod[i+j], 0)
+			hi += c
+			lo, c = bits.Add64(lo, carry, 0)
+			hi += c
+			prod[i+j] = lo
+			carry = hi
+		}
+		prod[i+8] = carry
 	}
-	return r
+
+	var z gammaFix256
+	ws, bs := int(s/64), s%64
+	for i := range z {
+		k := ws + 5 - i // little-endian index of the word
+		var w uint64
+		if k < 12 {
+			w = prod[k] >> bs
+			if bs != 0 && k+1 < 12 {
+				w |= prod[k+1] << (64 - bs)
+			}
+		}
+		z[i] = w
+	}
+	return z
 }
 
 // pow256Two returns (2**e)**n for e != 0 and the non-negative integer n, or its reciprocal if flip is true.
