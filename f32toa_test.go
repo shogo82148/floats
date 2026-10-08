@@ -56,6 +56,29 @@ func TestFloat32_Format(t *testing.T) {
 	}
 }
 
+func TestFloat32_String(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		x    Float32
+		want string
+	}{
+		{exact32(0), "0"},
+		{exact32(math.Copysign(0, -1)), "-0"},
+		{exact32(1), "1"},
+		{exact32(-1), "-1"},
+		{exact32(0.5), "0.5"},
+		{exact32(math.Inf(1)), "+Inf"},
+		{exact32(math.Inf(-1)), "-Inf"},
+		{exact32(math.NaN()), "NaN"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.x.String(); got != tt.want {
+			t.Errorf("expected %s, got %s", tt.want, got)
+		}
+	}
+}
+
 func TestFloat32_Text(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
