@@ -19,13 +19,7 @@ func (a Float128) Asin() Float128 {
 	}
 
 	// asin(x) = atan2(x, c), where c = sqrt(1-x**2) = sqrt((1-x)(1+x)).
-	// c is computed in double-Float128 (ch + cl) to keep the relative accuracy.
-	xh, xl := twoSum128(one, ax.Neg()) // 1-x
-	yh, yl := twoSum128(one, ax)       // 1+x
-	mh, ml := twoProduct128(xh, yh)
-	ml = ml.Add(xh.Mul(yl).Add(xl.Mul(yh))) // 1-x**2 = mh + ml
-	ch := mh.Sqrt()
-	cl := FMA128(ch.Neg(), ch, mh).Add(ml).Quo(ch.Add(ch))
+	ch, cl := sqrt1mx2128(ax)
 
 	// atan2(x, c) = atan(p/q) or pi/2 - atan(p/q), where p = min(x, c), q = max(x, c).
 	var r Float128
@@ -42,15 +36,73 @@ func (a Float128) Asin() Float128 {
 	return r.Copysign(a)
 }
 
+// sqrt1mx2128 returns sqrt(1-x**2) as a double-Float128 (hi + lo) for 0 <= x < 1.
+// It keeps the relative accuracy near 0 and near 1.
+func sqrt1mx2128(x Float128) (hi, lo Float128) {
+	one := Float128(uvone128)
+	xh, xl := twoSum128(one, x.Neg()) // 1-x
+	yh, yl := twoSum128(one, x)       // 1+x
+	mh, ml := twoProduct128(xh, yh)
+	ml = ml.Add(xh.Mul(yl).Add(xl.Mul(yh))) // 1-x**2 = mh + ml
+	hi = mh.Sqrt()
+	lo = FMA128(hi.Neg(), hi, mh).Add(ml).Quo(hi.Add(hi))
+	return
+}
+
 // Acos returns the arccosine, in radians, of a.
 //
-// Special case is:
+// Special cases are:
 //
+//	1.Acos() = +0
 //	x.Acos() = NaN if x < -1 or x > 1
 func (a Float128) Acos() Float128 {
-	// acos(x) = pi/2 - asin(x)
-	var Pi2 = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
-	return Pi2.Sub(a.Asin())
+	one := Float128(uvone128)
+	ax := a.Abs()
+	switch {
+	case a.IsNaN() || ax.Gt(one):
+		return NewFloat128NaN()
+	case ax == one:
+		if a.Signbit() {
+			return atan2Pi2Hi128.Add(atan2Pi2Hi128) // pi
+		}
+		return Float128{}
+	case a.IsZero():
+		return atan2Pi2Hi128
+	}
+
+	// acos(x) = atan2(c, x), where c = sqrt(1-x**2) is computed in double-Float128 (ch + cl).
+	ch, cl := sqrt1mx2128(ax)
+
+	// acos(|x|) = atan(c/|x|) if c <= |x|, otherwise pi/2 - atan(|x|/c).
+	// acos(x) = pi - acos(-x) for x < 0.
+	var th, tl Float128
+	small := !ch.Gt(ax)
+	if small {
+		th, tl = atan128RatioDD(ch, cl, ax, Float128{})
+	} else {
+		th, tl = atan128RatioDD(ax, Float128{}, ch, cl)
+	}
+
+	// acos(x) = c + s*t, where c is 0, pi/2 or pi.
+	var chi, clo Float128
+	switch {
+	case small && !a.Signbit():
+		return th.Add(tl)
+	case small:
+		// pi - t
+		chi, clo = atan2Pi2Hi128.Add(atan2Pi2Hi128), atan2Pi2Lo128.Add(atan2Pi2Lo128)
+		th, tl = th.Neg(), tl.Neg()
+	case !a.Signbit():
+		// pi/2 - t
+		chi, clo = atan2Pi2Hi128, atan2Pi2Lo128
+		th, tl = th.Neg(), tl.Neg()
+	default:
+		// pi/2 + t
+		chi, clo = atan2Pi2Hi128, atan2Pi2Lo128
+	}
+	sh := chi.Add(th)
+	se := th.Sub(sh.Sub(chi)) // chi + th = sh + se
+	return sh.Add(se.Add(clo.Add(tl)))
 }
 
 // Atan returns the arctangent, in radians, of a.
