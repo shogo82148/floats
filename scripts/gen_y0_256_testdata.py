@@ -67,7 +67,7 @@ def main():
     # around the boundaries and the zeros
     for b in (2, 8, 128):
         for d in (-1, 1):
-            xs.append(mpmath.mpf(b) * (1 + d * mpmath.mpf(2) ** -240))
+            xs.append(dec(enc(mpmath.mpf(b)) + d))  # the adjacent representable values
     for k in range(1, 30):
         z = mpmath.findroot(lambda t: mpmath.bessely(0, t), (k - 0.75) * mpmath.pi, tol=mpmath.mpf(10) ** -280)
         xs.append(z * (1 + mpmath.mpf(rnd.random() - 0.5) * 1e-6))
