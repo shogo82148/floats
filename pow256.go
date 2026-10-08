@@ -1,5 +1,12 @@
 package floats
 
+import (
+	"math"
+	"math/bits"
+
+	"github.com/shogo82148/ints"
+)
+
 // Pow returns a**b, the base-a exponential of b.
 //
 // Special cases are (in order):
@@ -35,12 +42,6 @@ func (a Float256) Pow(b Float256) Float256 {
 		// Half = 0.5
 		Half = Float256{
 			0x3fff_e000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-
-		// MaxInt64 = 2^63
-		MaxInt64 = Float256{
-			0x4003_e000_0000_0000, 0x0000_0000_0000_0000,
 			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
 		}
 	)
@@ -86,72 +87,125 @@ func (a Float256) Pow(b Float256) Float256 {
 		}
 	case b.Eq(Half):
 		return a.Sqrt()
-	case b.Eq(Half.Neg()):
-		return One.Quo(a.Sqrt())
 	}
 
-	absy := b
-	flip := false
-	if absy.Lt(Zero) {
-		absy = absy.Neg()
-		flip = true
-	}
-	yi, yf := absy.Modf()
-	if !yf.IsZero() && a.Lt(Zero) {
+	bi, bf := b.Abs().Modf()
+	if !bf.IsZero() && a.Lt(Zero) {
 		return NewFloat256NaN()
 	}
-	if yi.Ge(MaxInt64) {
-		// yi is a large even int that will lead to overflow (or underflow to 0)
-		// for all x except -1 (x == 1 was handled earlier)
-		switch {
-		case a.Eq(One.Neg()):
-			return One
-		case a.Abs().Lt(One) == (b.Gt(Zero)):
-			return Zero
-		default:
-			return NewFloat256Inf(1)
+	neg := a.Signbit() && isOddInt256(b)
+	r := pow256Abs(a.Abs(), b, bi, bf.IsZero())
+	if neg {
+		return r.Neg()
+	}
+	return r
+}
+
+// pow256Abs returns x**b for x > 0 and x != 1. bi is |b| rounded toward zero, and isInt reports whether b is an integer.
+func pow256Abs(x, b, bi Float256, isInt bool) Float256 {
+	var (
+		half = Float256{0x3fff_e000_0000_0000}
+	)
+
+	if isInt {
+		if x1, xe := x.Frexp(); x1.Eq(half) {
+			// x is a power of two, so that the result is exactly a power of two, and it may be the midpoint of
+			// the subnormal numbers.
+			return pow256Two(xe-1, bi, b.Lt(Float256{}))
+		}
+
+		// The exact product of the integers has at least (s-1) |b| + 1 bits, where s is the number of the significant
+		// bits of x. It can be the midpoint of two adjacent Float256 values only if it has 238 bits. In that case the
+		// partial products of successive squarings are exact, and only the last multiplication rounds, so that
+		// it is correctly rounded. Otherwise the result can not be the midpoint, and exp and log below are accurate enough.
+		_, _, m := x.normalize()
+		s := 237 - m.TrailingZeros()
+		if bi.Le(NewFloat256(238)) && (s-1)*int(bi.Int64())+1 <= 238 {
+			return powInt256(x, int(bi.Int64()), b.Lt(Float256{}))
 		}
 	}
 
-	// ans = a1 * 2**ae (= 1 for now).
-	a1 := One
-	ae := 0
+	// x**b = exp(b ln(x)). b ln(x) is calculated in fixed point with 320 fractional bits,
+	// whose absolute error is about 2**-290 if the result does not overflow or underflow. The relative error of ln(x)
+	// is about 2**-254 if x is close to 1 (|x-1| < 2**-8), and much smaller otherwise.
+	lsign, v, e := log256Fix(x)
 
-	// ans *= x**yf
-	if !yf.IsZero() {
-		if yf.Gt(Half) {
-			yf = yf.Sub(One)
-			yi = yi.Add(One)
-		}
-		a1 = (yf.Mul(a.Log())).Exp()
+	// the estimate of b ln(x) to detect the overflow and underflow
+	zf := b.Float64().BuiltIn() * math.Ldexp(float64(v.Rsh(uint(max(v.BitLen()-64, 0)))[7]), e+max(v.BitLen()-64, 0))
+	if lsign != 0 {
+		zf = -zf
+	}
+	switch {
+	case zf > 182500: // ln(2**262144) ~ 181704
+		return NewFloat256Inf(1)
+	case zf < -182500:
+		return Float256{}
 	}
 
-	// ans *= x**yi
-	// by multiplying in successive squarings
-	// of x according to bits of yi.
-	// accumulate powers of two into exp.
-	x1, xe := a.Frexp()
-	for i := yi.Int64(); i != 0; i >>= 1 {
-		if i&1 != 0 {
-			a1 = a1.Mul(x1)
-			ae += xe
+	// z = |b ln(x)| = mb × v × 2**(eb-236+e)
+	_, eb, mb := b.normalize()
+	// The shift is negative: it is eb - 236 if ln(x) is not tiny (e = -320), where eb <= 26 because |ln(x)| >= 2**-8
+	// and |b ln(x)| < 2**18, and it is eb - 236 + e + 320 with e <= -746 otherwise.
+	// The product is < 2**338 after the shift because |b ln(x)| < 2**18, so that it fits z.
+	z := mulShr256(mb, v, uint(236-eb-e-320))
+
+	var mant gammaFix256
+	var k int
+	if zneg := (lsign != 0) != b.Signbit(); zneg {
+		mant, k = gammaExpNeg256(z)
+	} else {
+		mant, k = gammaExp256(z)
+	}
+	return lgamma256FromPair(false, mant, k)
+}
+
+// mulShr256 returns (m × v) >> s truncated to the low 384 bits, where m and v are big-endian words.
+func mulShr256(m ints.Uint256, v ints.Uint512, s uint) gammaFix256 {
+	// little-endian 768-bit product
+	var prod [12]uint64
+	for i := 0; i < 4; i++ {
+		var carry uint64
+		for j := 0; j < 8; j++ {
+			hi, lo := bits.Mul64(m[3-i], v[7-j])
+			var c uint64
+			lo, c = bits.Add64(lo, prod[i+j], 0)
+			hi += c
+			lo, c = bits.Add64(lo, carry, 0)
+			hi += c
+			prod[i+j] = lo
+			carry = hi
 		}
-		x1 = x1.Mul(x1)
-		xe <<= 1
-		if x1.Lt(Half) {
-			x1 = x1.Add(x1)
-			xe--
-		}
+		prod[i+8] = carry
 	}
 
-	// ans = a1*2**ae
-	// if flip { ans = 1/ans }
-	// but in the opposite order
+	var z gammaFix256
+	ws, bs := int(s/64), s%64
+	for i := range z {
+		k := ws + 5 - i // little-endian index of the word
+		var w uint64
+		if k < 12 {
+			w = prod[k] >> bs
+			if bs != 0 && k+1 < 12 {
+				w |= prod[k+1] << (64 - bs)
+			}
+		}
+		z[i] = w
+	}
+	return z
+}
+
+// pow256Two returns (2**e)**n for e != 0 and the non-negative integer n, or its reciprocal if flip is true.
+// |e| >= 1, so that the result overflows or underflows if n > 2**20 (|e n| > 1000000).
+func pow256Two(e int, n Float256, flip bool) Float256 {
+	if n.Gt(Float256{0x4001_3000_0000_0000}) { // n > 2**20
+		n = Float256{0x4001_3000_0000_0000}
+	}
+	// |e n| <= 262378 × 2**20 fits in int64.
+	ae := int64(e) * n.Int64()
 	if flip {
-		a1 = One.Quo(a1)
 		ae = -ae
 	}
-	return a1.Ldexp(ae)
+	return Float256(uvone256).Ldexp(int(max(min(ae, 1000000), -1000000)))
 }
 
 func isOddInt256(x Float256) bool {

@@ -440,7 +440,13 @@ func gammaExpReduce256(s gammaFix256) (n uint64, r gammaFix256) {
 		n--
 		nl2 = gammaMulLn2(&gamma256Ln2By256, n)
 	}
-	return n, s.sub(nl2)
+	r = s.sub(nl2)
+	if l := (gammaFix256{0, gamma256Ln2By256[1], gamma256Ln2By256[2], gamma256Ln2By256[3], gamma256Ln2By256[4], gamma256Ln2By256[5]}); r.cmp(l) >= 0 {
+		// n is too small by one because of the rounding error, if s is extremely close to a multiple of ln(2)/256.
+		n++
+		r = r.sub(l)
+	}
+	return n, r
 }
 
 // gammaExpNegSmall256 returns e**(-x) for 0 <= x <= ln(2)/256.
