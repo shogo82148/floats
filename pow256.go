@@ -1,6 +1,7 @@
 package floats
 
 import (
+	"encoding/binary"
 	"math"
 	"math/big"
 )
@@ -146,13 +147,13 @@ func pow256Abs(x, b, bi Float256, isInt bool) Float256 {
 	// The shift is negative: it is eb - 236 if ln(x) is not tiny (e = -320), where eb <= 26 because |ln(x)| >= 2**-8
 	// and |b ln(x)| < 2**18, and it is eb - 236 + e + 320 with e <= -746 otherwise.
 	prod.Rsh(prod, uint(236-eb-e-320))
+	// prod < 2**338 because |b ln(x)| < 2**18, so that it fits z. big.Word may be 32 bits, so that the 64-bit limbs are
+	// extracted through the big-endian bytes.
+	var buf [48]byte
+	prod.FillBytes(buf[:])
 	var z gammaFix256
-	words := prod.Bits()
 	for i := range z {
-		// z[5] is the least significant word
-		if k := len(z) - 1 - i; k < len(words) {
-			z[i] = uint64(words[k])
-		}
+		z[i] = binary.BigEndian.Uint64(buf[8*i:])
 	}
 
 	var mant gammaFix256
