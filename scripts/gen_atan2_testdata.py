@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-# Generates testdata/atan2_128.txt.
+# Generates testdata/atan2_128.txt or testdata/atan2_256.txt.
 # Each line contains the bits of y, the bits of x, and the correctly rounded atan2(y, x) in hexadecimal.
 #
-# Usage: python3 scripts/gen_atan2_testdata.py
+# Usage: python3 scripts/gen_atan2_testdata.py [128|256]
 
 import random
+import sys
 import mpmath
 
-P, EB = 112, 15
+BITS = int(sys.argv[1]) if len(sys.argv) > 1 else 128
+P, EB = {128: (112, 15), 256: (236, 19)}[BITS]
 B = (1 << (EB - 1)) - 1
 width = (P + EB + 1) // 4
-rnd = random.Random(128)
+rnd = random.Random(BITS)
 WORK = 4 * P + 64
 
 
@@ -91,12 +93,13 @@ for i in range(0, 65):
                 # the reciprocal ratio, where the arguments are swapped
                 pairs.append(ratio_input(1 / ratio, rnd.randint(-50, 50), sy, sx))
 # tiny and huge ratios
-for k in range(1, 400, 3):
+for k in range(1, 400 if BITS == 128 else 800, 3 if BITS == 128 else 7):
     for sy, sx in ((0, 0), (1, 1)):
         pairs.append(ratio_input(mpmath.mpf(2) ** (-k), rnd.randint(-100, 100), sy, sx))
         pairs.append(ratio_input(mpmath.mpf(2) ** k, rnd.randint(-100, 100), sy, sx))
 # extreme exponents
-for ey, ex in ((-16494, 16383), (16383, -16494), (16383, 16383), (-16494, -16494), (-16382, 16383), (16383, -16382)):
+EMIN = 1 - B - P  # the exponent of the smallest subnormal
+for ey, ex in ((EMIN, B), (B, EMIN), (B, B), (EMIN, EMIN), (1 - B, B), (B, 1 - B)):
     for sy, sx in ((0, 0), (0, 1), (1, 0), (1, 1)):
         for _ in range(3):
             def mk(e, s):
@@ -114,7 +117,7 @@ for k in range(-30, 31):
         pairs.append((enc(1 << P, k, sy), enc(1 << P, 0, sx)))
         pairs.append((enc(1 << P, 0, sy), enc(1 << P, k, sx)))
 
-with open("testdata/atan2_128.txt", "w") as f:
+with open(f"testdata/atan2_{BITS}.txt", "w") as f:
     for y, x in pairs:
         with mpmath.workprec(WORK):
             r = round_bits(mpmath.atan2(dec(y), dec(x)))
