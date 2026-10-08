@@ -284,3 +284,40 @@ func BenchmarkFloat16_Atan2(b *testing.B) {
 		runtime.KeepAlive(y.Atan2(x))
 	}
 }
+
+func TestFloat16_Atan2_Fallback(t *testing.T) {
+	t.Parallel()
+	// the results are close to a rounding boundary,
+	// so the fast path falls back to math.Atan2.
+	tests := []struct{ y, x Float16 }{
+		{0x1e0b, 0x4004}, // 0.00587 / 2.006
+		{0x9e0b, 0x4004},
+		{0x2a3b, 0x4fff}, // y << x: the result is subnormal
+		{0x0001, 0x7bff}, // the smallest subnormal / the largest normal
+		{0x0400, 0x0001}, // normal y, subnormal x
+		{0x0001, 0x0400}, // subnormal y, normal x
+	}
+	for _, tt := range tests {
+		want := NewFloat16(math.Atan2(tt.y.Float64().BuiltIn(), tt.x.Float64().BuiltIn()))
+		if got := tt.y.Atan2(tt.x); !eq16(got, want) {
+			t.Errorf("Atan2(%v, %v) = %v; want %v", tt.y, tt.x, got, want)
+		}
+	}
+}
+
+func TestFloat16_Atan2_Sample(t *testing.T) {
+	t.Parallel()
+	// compare with the correctly rounded float64 result.
+	for y := 0; y < 0x10000; y += 17 {
+		for x := 0; x < 0x10000; x += 13 {
+			a, b := Float16(y), Float16(x)
+			if a.IsNaN() || b.IsNaN() {
+				continue
+			}
+			want := NewFloat16(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+			if got := a.Atan2(b); !eq16(got, want) {
+				t.Fatalf("Atan2(%v, %v) = %v; want %v", a, b, got, want)
+			}
+		}
+	}
+}
