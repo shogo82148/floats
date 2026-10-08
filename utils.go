@@ -214,16 +214,3 @@ func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
 	}
 	return q
 }
-
-// power256 computes x**n
-func power256(x Float256, n int) Float256 {
-	result := Float256(uvone256)
-	for n != 0 {
-		if n%2 == 1 {
-			result = result.Mul(x)
-		}
-		n /= 2
-		x = x.Mul(x)
-	}
-	return result
-}

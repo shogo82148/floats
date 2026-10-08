@@ -7,39 +7,39 @@ package floats
 //	±0.Asin() = ±0
 //	x.Asin() = NaN if x < -1 or x > 1
 func (a Float256) Asin() Float256 {
+	one := Float256(uvone256)
+	ax := a.Abs()
 	switch {
 	case a.IsZero():
 		return a
-	case a.IsNaN():
+	case a.IsNaN() || ax.Gt(one):
 		return NewFloat256NaN()
+	case ax == one:
+		return atan2Pi2Hi256.Copysign(a)
 	}
 
-	sign := a.Signbit()
-	if sign {
-		a = a.Neg()
-	}
+	// asin(x) = atan2(x, c), where c = sqrt(1-x**2) = sqrt((1-x)(1+x)).
+	// c is computed in double-Float256 (ch + cl) to keep the relative accuracy.
+	xh, xl := twoSum256(one, ax.Neg()) // 1-x
+	yh, yl := twoSum256(one, ax)       // 1+x
+	mh, ml := twoProduct256(xh, yh)
+	ml = ml.Add(xh.Mul(yl).Add(xl.Mul(yh))) // 1-x**2 = mh + ml
+	ch := mh.Sqrt()
+	cl := FMA256(ch.Neg(), ch, mh).Add(ml).Quo(ch.Add(ch))
 
-	var Dot7 = Float256{
-		0x3fff_e666_6666_6666, 0x6666_6666_6666_6666,
-		0x6666_6666_6666_6666, 0x6666_6666_6666_6666,
-	} // 0.7
-	temp := Float256(uvone256).Sub(a.Mul(a)).Sqrt()
-	if a.Gt(Dot7) {
-		// asin(x) = pi/2 - atan(sqrt(1-x²)/x)
-		var Pi2 = Float256{
-			0x3fff_f921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
-		temp = Pi2.Sub(satan256(temp.Quo(a)))
+	// atan2(x, c) = atan(p/q) or pi/2 - atan(p/q), where p = min(x, c), q = max(x, c).
+	var r Float256
+	if ax.Gt(ch) {
+		th, tl := atan256RatioDD(ch, cl, ax, Float256{})
+		th, tl = th.Neg(), tl.Neg()
+		sh := atan2Pi2Hi256.Add(th)
+		se := th.Sub(sh.Sub(atan2Pi2Hi256)) // pi/2 + th = sh + se
+		r = sh.Add(se.Add(atan2Pi2Lo256.Add(tl)))
 	} else {
-		// asin(x) = atan(x/sqrt(1-x²))
-		temp = satan256(a.Quo(temp))
+		th, tl := atan256RatioDD(ax, Float256{}, ch, cl)
+		r = th.Add(tl)
 	}
-
-	if sign {
-		temp = temp.Neg()
-	}
-	return temp
+	return r.Copysign(a)
 }
 
 // Acos returns the arccosine, in radians, of a.
@@ -74,71 +74,6 @@ func (a Float256) Atan() Float256 {
 	}
 	// atan(a) = atan2(a, 1)
 	return atan2Finite256(a, Float256(uvone256))
-}
-
-// satan256 reduces its argument (known to be positive)
-// to the range [0, 0.66] and calls xatan.
-func satan256(x Float256) Float256 {
-	var (
-		One = Float256(uvone256)
-
-		// Dot66 = 0.66
-		Dot66 = Float256{
-			0x3fff_e51e_b851_eb85, 0x1eb8_51eb_851e_b851,
-			0xeb85_1eb8_51eb_851e, 0xb851_eb85_1eb8_51ec,
-		}
-
-		// Tan3pio8 = tan(3*pi/8) = 1 + sqrt(2)
-		Tan3pio8 = Float256{
-			0x4000_0350_4f33_3f9d, 0xe648_4597_d89b_3754,
-			0xabe9_f1d6_f60b_a893, 0xba84_ced1_7ac8_5833,
-		}
-
-		// Pi/2 split into two parts
-		Pi2Hi = Float256{
-			0x3fff_f921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
-		Pi2Lo = Float256{
-			0x3ff1_1cd9_128a_5043, 0xcc71_a026_ef7c_a8cd,
-			0x9e69_d218_d981_5853, 0x6f92_fd1a_85bb_f1f6,
-		}
-
-		// Pi/4 split into two parts
-		Pi4Hi = Float256{
-			0x3fff_e921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
-		Pi4Lo = Float256{
-			0x3ff1_0cd9_128a_5043, 0xcc71_a026_ef7c_a8cd,
-			0x9e69_d218_d981_5853, 0x6f92_f43b_26c1_359d,
-		}
-	)
-
-	switch {
-	case x.Le(Dot66):
-		return xatan256(x)
-	case x.Gt(Tan3pio8):
-		// atan(x) = pi/2 - atan(1/x)
-		return Pi2Hi.Sub(xatan256(One.Quo(x))).Add(Pi2Lo)
-	default:
-		// atan(x) = pi/4 + atan((x-1)/(x+1))
-		return Pi4Hi.Add(xatan256((x.Sub(One)).Quo(x.Add(One)))).Add(Pi4Lo)
-	}
-}
-
-// xatan256 returns the arctangent.
-// it is valid in the range [0, 0.66].
-func xatan256(x Float256) Float256 {
-	var y Float256
-	for n := 130; n >= 0; n-- {
-		term := power256(x, 2*n+1).Quo(NewFloat256(float64(2*n + 1)))
-		if n%2 != 0 {
-			term = term.Neg()
-		}
-		y = y.Add(term)
-	}
-	return y
 }
 
 // Atan2 returns the arc tangent of a/b, using
@@ -297,6 +232,42 @@ func atan256Ratio(p, q Float256) (hi, lo Float256) {
 	nh, nl := twoSum256(p.Sub(cqh), cql.Neg()) // p - cqh is exact
 	dh := q.Add(cph)
 	dl := cph.Sub(dh.Sub(q)).Add(cpl) // q + cph = dh + (cph - (dh - q)), because q >= cph
+
+	// u = uh + ul = n/d.
+	uh := nh.Quo(dh)
+	rem := FMA256(uh.Neg(), dh, nh).Add(nl).Sub(uh.Mul(dl))
+	ul := rem.Quo(dh)
+
+	// atan(c) + u + tail, where atan(c) > |u|.
+	th := atan2Table256Hi[i]
+	hi = th.Add(uh)
+	lo = uh.Sub(hi.Sub(th)).Add(atan2Table256Lo[i].Add(atan256Tail(uh, ul)))
+	return hi, lo
+}
+
+// atan256RatioDD returns atan(p/q) as a pair (hi, lo) such that atan(p/q) = hi + lo
+// and |lo| is about ulp(hi) or less, for p = ph + pl and q = qh + ql with 0 < p <= q.
+// The arguments are not scaled, so they must be in the range where the products
+// of them do not overflow or underflow, such as [2**-1000, 1].
+func atan256RatioDD(ph, pl, qh, ql Float256) (hi, lo Float256) {
+	r := ph.Quo(qh)
+
+	// the table index: the nearest i/256 to r.
+	i := int(r.Float64().BuiltIn()*256 + 0.5)
+	if i == 0 {
+		// atan(r) = r - r**3/3 + ..., where r < 1/512.
+		rem := FMA256(r.Neg(), qh, ph).Add(pl).Sub(r.Mul(ql)) // p - r*q
+		return r, atan256Tail(r, rem.Quo(qh))
+	}
+
+	// u = (p - c*q) / (q + c*p), where c = i/256.
+	// |u| <= 1/512, and atan(p/q) = atan(c) + atan(u).
+	c := NewFloat256(float64(i) / 256)
+	cqh, cql := twoProduct256(c, qh)
+	cph, cpl := twoProduct256(c, ph)
+	nh, nl := twoSum256(ph.Sub(cqh), pl.Sub(cql).Sub(c.Mul(ql))) // ph - cqh is exact
+	dh := qh.Add(cph)
+	dl := cph.Sub(dh.Sub(qh)).Add(ql.Add(cpl).Add(c.Mul(pl))) // qh + cph = dh + (cph - (dh - qh)), because qh >= cph
 
 	// u = uh + ul = n/d.
 	uh := nh.Quo(dh)
