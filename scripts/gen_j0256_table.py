@@ -42,7 +42,7 @@ while True:
     k += 1
 
 print("// j0256Zeros[k-1] is the k-th positive zero of J0 in fixed point with 504 fractional bits in eight 64-bit words,")
-print("// the first of which has the integer part in the lowest 8 bits.")
+print("// the first of which has the integer part in the highest 8 bits.")
 print(f"var j0256Zeros = [...][8]uint64{{")
 for z in zeros:
     print(f"\t{{{limbs(fix(z, 504), 8)}}},")

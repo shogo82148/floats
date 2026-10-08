@@ -9,7 +9,7 @@ var j0256TwoOverPi = [6]uint64{0x0000000000000000, 0xa2f9836e4e441529, 0xfc2757d
 var j0256HalfSqrt2 = [6]uint64{0x0000000000000000, 0xb504f333f9de6484, 0x597d89b3754abe9f, 0x1d6f60ba893ba84c, 0xed17ac8583339915, 0x4afc83043ab8a2c4}
 
 // j0256Zeros[k-1] is the k-th positive zero of J0 in fixed point with 504 fractional bits in eight 64-bit words,
-// the first of which has the integer part in the lowest 8 bits.
+// the first of which has the integer part in the highest 8 bits.
 var j0256Zeros = [...][8]uint64{
 	{0x0267a2a5d2e367f7, 0x85631412ed38d372, 0x200ade2c3804aefe, 0xf2f3926eedea85ff, 0x65f261dbfd22f494, 0x13d08372ab7697c2, 0x5b193be98b5104f8, 0xf4dcf53aa444cd39},
 	{0x058523d6cb0b9145, 0xd41533582945bed3, 0x875ecf2012f17545, 0x1154b62e03de2ec7, 0xecea0e23a4d76c7a, 0x3e06be7facbdca54, 0xfeda19c6d28f8a5c, 0x6225fa1327d46c98},
