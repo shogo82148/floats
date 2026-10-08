@@ -277,3 +277,10 @@ func TestFloat16_Atan2(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFloat16_Atan2(b *testing.B) {
+	y, x := exact16(1.5), exact16(-2.25)
+	for b.Loop() {
+		runtime.KeepAlive(y.Atan2(x))
+	}
+}
