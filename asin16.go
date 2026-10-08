@@ -153,5 +153,37 @@ func atanSeries16(z float64) float64 {
 //	+Inf.Atan2(x) = +Pi/2
 //	-Inf.Atan2(x) = -Pi/2
 func (a Float16) Atan2(b Float16) Float16 {
-	return NewFloat16(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+	iy := a &^ signMask16
+	ix := b &^ signMask16
+	if iy < 0x0400 || iy >= uvinf16 || ix < 0x0400 || ix >= uvinf16 {
+		// zeros, subnormals, infinities and NaNs.
+		return NewFloat16(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+	}
+
+	// Both are normal Float16 values, so the conversions are exact.
+	y := normal16ToFloat64(iy)
+	x := normal16ToFloat64(ix)
+	var r float64
+	if y <= x {
+		r = atanKernel16(y / x)
+	} else {
+		// atan(y/x) = pi/2 - atan(x/y)
+		r = math.Pi/2 - atanKernel16(x/y)
+	}
+	if b&signMask16 != 0 {
+		// atan2(y, -x) = pi - atan2(y, x)
+		r = math.Pi - r
+	}
+	// The kernel has a relative error of about 2e-11. If r is that close to
+	// a rounding boundary of Float16 (or the result is subnormal),
+	// the rounding may be wrong, so fall back to the accurate path.
+	const window = 1 << 19 // in units of the last place of float64
+	frac := math.Float64bits(r) & (1<<42 - 1)
+	if r < 0x1p-14 || frac-(1<<41)+window < 2*window {
+		return NewFloat16(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+	}
+	if a&signMask16 != 0 {
+		r = -r
+	}
+	return NewFloat16(r)
 }
