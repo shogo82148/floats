@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 // Hypot32 returns [Sqrt](p*p + q*q), taking care to avoid
 // unnecessary overflow and underflow.
 //
@@ -21,12 +23,10 @@ func Hypot32(p, q Float32) Float32 {
 		return NewFloat32NaN()
 	}
 
-	if p.Lt(q) {
-		p, q = q, p
-	}
-	if p.IsZero() {
-		return 0
-	}
-	q = q.Quo(p)
-	return p.Mul(Float32(1).Add(q.Mul(q)).Sqrt())
+	// Float32 squares are exact in float64, and the sum and square root
+	// are each rounded once with 53 bits of precision, so the result is
+	// correctly rounded in all but astronomically rare double-rounding cases.
+	// float64 has enough range that no scaling is needed.
+	x, y := p.Float64().BuiltIn(), q.Float64().BuiltIn()
+	return NewFloat32(math.Sqrt(x*x + y*y))
 }
