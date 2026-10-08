@@ -1,5 +1,7 @@
 package floats
 
+import "math"
+
 // Hypot16 returns [Sqrt](p*p + q*q), taking care to avoid
 // unnecessary overflow and underflow.
 //
@@ -21,12 +23,9 @@ func Hypot16(p, q Float16) Float16 {
 		return NewFloat16NaN()
 	}
 
-	if p.Lt(q) {
-		p, q = q, p
-	}
-	if p.IsZero() {
-		return 0
-	}
-	q = q.Quo(p)
-	return p.Mul(Float16(uvone16).Add(q.Mul(q)).Sqrt())
+	// Float16 products are exact in float64, and the sum and square root
+	// are each rounded once with 53 bits of precision, so the result is
+	// correctly rounded in all but astronomically rare double-rounding cases.
+	x, y := p.Float64().BuiltIn(), q.Float64().BuiltIn()
+	return NewFloat16(math.Sqrt(x*x + y*y))
 }
