@@ -42,8 +42,8 @@ func (a Float256) Y1() Float256 {
 	}
 }
 
-// y1CF2_256 returns Y1(x) for 2 <= x < 500; see y1CF2_128 for the
-// derivation.
+// y1CF2_256 returns Y1(x) for 2 <= x < 500; it evaluates Temme's CF2
+// continued fraction as described for y1CF2_128.
 func y1CF2_256(x Float256) Float256 {
 	var (
 		Zero = Float256{}
