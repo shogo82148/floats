@@ -7,33 +7,39 @@ package floats
 //	±0.Asin() = ±0
 //	x.Asin() = NaN if x < -1 or x > 1
 func (a Float128) Asin() Float128 {
+	one := Float128(uvone128)
+	ax := a.Abs()
 	switch {
 	case a.IsZero():
 		return a
-	case a.IsNaN():
+	case a.IsNaN() || ax.Gt(one):
 		return NewFloat128NaN()
+	case ax == one:
+		return atan2Pi2Hi128.Copysign(a)
 	}
 
-	sign := a.Signbit()
-	if sign {
-		a = a.Neg()
-	}
+	// asin(x) = atan2(x, c), where c = sqrt(1-x**2) = sqrt((1-x)(1+x)).
+	// c is computed in double-Float128 (ch + cl) to keep the relative accuracy.
+	xh, xl := twoSum128(one, ax.Neg()) // 1-x
+	yh, yl := twoSum128(one, ax)       // 1+x
+	mh, ml := twoProduct128(xh, yh)
+	ml = ml.Add(xh.Mul(yl).Add(xl.Mul(yh))) // 1-x**2 = mh + ml
+	ch := mh.Sqrt()
+	cl := FMA128(ch.Neg(), ch, mh).Add(ml).Quo(ch.Add(ch))
 
-	var Dot7 = Float128{0x3ffe_6666_6666_6666, 0x6666_6666_6666_6666} // 0.7
-	temp := Float128(uvone128).Sub(a.Mul(a)).Sqrt()
-	if a.Gt(Dot7) {
-		// asin(x) = pi/2 - atan(sqrt(1-x²)/x)
-		var Pi2 = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
-		temp = Pi2.Sub(satan128(temp.Quo(a)))
+	// atan2(x, c) = atan(p/q) or pi/2 - atan(p/q), where p = min(x, c), q = max(x, c).
+	var r Float128
+	if ax.Gt(ch) {
+		th, tl := atan128RatioDD(ch, cl, ax, Float128{})
+		th, tl = th.Neg(), tl.Neg()
+		sh := atan2Pi2Hi128.Add(th)
+		se := th.Sub(sh.Sub(atan2Pi2Hi128)) // pi/2 + th = sh + se
+		r = sh.Add(se.Add(atan2Pi2Lo128.Add(tl)))
 	} else {
-		// asin(x) = atan(x/sqrt(1-x²))
-		temp = satan128(a.Quo(temp))
+		th, tl := atan128RatioDD(ax, Float128{}, ch, cl)
+		r = th.Add(tl)
 	}
-
-	if sign {
-		temp = temp.Neg()
-	}
-	return temp
+	return r.Copysign(a)
 }
 
 // Acos returns the arccosine, in radians, of a.
@@ -65,53 +71,6 @@ func (a Float128) Atan() Float128 {
 	}
 	// atan(a) = atan2(a, 1)
 	return atan2Finite128(a, Float128(uvone128))
-}
-
-// satan128 reduces its argument (known to be positive)
-// to the range [0, 0.66] and calls xatan.
-func satan128(x Float128) Float128 {
-	var (
-		One = Float128(uvone128)
-
-		// Dot66 = 0.66
-		Dot66 = Float128{0x3ffe_51eb_851e_b851, 0xeb85_1eb8_51eb_851f}
-
-		// Tan3pio8 = tan(3*pi/8) = 1 + sqrt(2)
-		Tan3pio8 = Float128{0x4000_3504_f333_f9de, 0x6484_597d_89b3_754b}
-
-		// Pi/2 split into two parts
-		Pi2Hi = Float128{0x3fff_921f_b544_42d1, 0x8469_898c_c517_01b8}
-		Pi2Lo = Float128{0x3f8c_cd12_9024_e088, 0xa67c_c740_20bb_ea64}
-
-		// Pi/4 split into two parts
-		Pi4Hi = Float128{0x3ffe_921f_b544_42d1, 0x8469_898c_c517_01b8}
-		Pi4Lo = Float128{0x3f8b_cd12_9024_e088, 0xa67c_c740_20bb_ea64}
-	)
-
-	switch {
-	case x.Le(Dot66):
-		return xatan128(x)
-	case x.Gt(Tan3pio8):
-		// atan(x) = pi/2 - atan(1/x)
-		return Pi2Hi.Sub(xatan128(One.Quo(x))).Add(Pi2Lo)
-	default:
-		// atan(x) = pi/4 + atan((x-1)/(x+1))
-		return Pi4Hi.Add(xatan128((x.Sub(One)).Quo(x.Add(One)))).Add(Pi4Lo)
-	}
-}
-
-// xatan128 returns the arctangent.
-// it is valid in the range [0, 0.66].
-func xatan128(x Float128) Float128 {
-	var y Float128
-	for n := 60; n >= 0; n-- {
-		term := power128(x, 2*n+1).Quo(NewFloat128(float64(2*n + 1)))
-		if n%2 != 0 {
-			term = term.Neg()
-		}
-		y = y.Add(term)
-	}
-	return y
 }
 
 // Atan2 returns the arc tangent of a/b, using
@@ -250,6 +209,42 @@ func atan128Ratio(p, q Float128) (hi, lo Float128) {
 	nh, nl := twoSum128(p.Sub(cqh), cql.Neg()) // p - cqh is exact
 	dh := q.Add(cph)
 	dl := cph.Sub(dh.Sub(q)).Add(cpl) // q + cph = dh + (cph - (dh - q)), because q >= cph
+
+	// u = uh + ul = n/d.
+	uh := nh.Quo(dh)
+	rem := FMA128(uh.Neg(), dh, nh).Add(nl).Sub(uh.Mul(dl))
+	ul := rem.Quo(dh)
+
+	// atan(c) + u + tail, where atan(c) > |u|.
+	th := atan2TableHi128[i]
+	hi = th.Add(uh)
+	lo = uh.Sub(hi.Sub(th)).Add(atan2TableLo128[i].Add(atan128Tail(uh, ul)))
+	return hi, lo
+}
+
+// atan128RatioDD returns atan(p/q) as a pair (hi, lo) such that atan(p/q) = hi + lo
+// and |lo| is about ulp(hi) or less, for p = ph + pl and q = qh + ql with 0 < p <= q.
+// The arguments are not scaled, so they must be in the range where the products
+// of them do not overflow or underflow, such as [2**-1000, 1].
+func atan128RatioDD(ph, pl, qh, ql Float128) (hi, lo Float128) {
+	r := ph.Quo(qh)
+
+	// the table index: the nearest i/64 to r.
+	i := int(r.Float64().BuiltIn()*64 + 0.5)
+	if i == 0 {
+		// atan(r) = r - r**3/3 + ..., where r < 1/128.
+		rem := FMA128(r.Neg(), qh, ph).Add(pl).Sub(r.Mul(ql)) // p - r*q
+		return r, atan128Tail(r, rem.Quo(qh))
+	}
+
+	// u = (p - c*q) / (q + c*p), where c = i/64.
+	// |u| <= 1/128, and atan(p/q) = atan(c) + atan(u).
+	c := NewFloat128(float64(i) / 64)
+	cqh, cql := twoProduct128(c, qh)
+	cph, cpl := twoProduct128(c, ph)
+	nh, nl := twoSum128(ph.Sub(cqh), pl.Sub(cql).Sub(c.Mul(ql))) // ph - cqh is exact
+	dh := qh.Add(cph)
+	dl := cph.Sub(dh.Sub(qh)).Add(ql.Add(cpl).Add(c.Mul(pl))) // qh + cph = dh + (cph - (dh - qh)), because qh >= cph
 
 	// u = uh + ul = n/d.
 	uh := nh.Quo(dh)
