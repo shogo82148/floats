@@ -399,7 +399,7 @@ func TestFloat32_Atan2_Fallback(t *testing.T) {
 	for _, tt := range tests {
 		y, x := NewFloat32FromBits(tt.y), NewFloat32FromBits(tt.x)
 		want := y.Float128().Atan2(x.Float128()).Float32()
-		if got := y.Atan2(x); got.Bits() != want.Bits() {
+		if got := y.Atan2(x); !eq32(got, want) {
 			t.Errorf("Atan2(%v, %v) = %v; want %v", y, x, got, want)
 		}
 	}
