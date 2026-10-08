@@ -1,5 +1,12 @@
 package floats
 
+import (
+	"math"
+	"math/bits"
+
+	"github.com/shogo82148/ints"
+)
+
 // J0 returns the order-zero Bessel function of the first kind.
 //
 // Special cases are:
@@ -18,397 +25,356 @@ func (a Float256) J0() Float256 {
 	}
 
 	x := a.Abs()
-
-	var Threshold = Float256{
-		0x4000_7f40_0000_0000, 0x0000_0000_0000_0000,
-		0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-	} // 500
-
-	if x.Lt(Threshold) {
-		return j0Miller256(x)
+	_, exp, m := x.normalize()
+	switch {
+	case exp < -118:
+		// J0(x) = 1 - x**2/4 + ... is rounded to 1 for |x| < 2**-118.
+		return Float256(uvone256)
+	case exp < -100:
+		return j0Tiny256(exp, m)
+	case exp < 4:
+		// x < 16
+		return j0Taylor256(exp, m)
+	case x.Lt(Float256{0x4000_5b80_0000_0000}): // 110
+		return j0Miller256(exp, m)
 	}
-	return j0Asymptotic256(x)
+	return j0Hankel256(x, exp, m)
 }
 
-// j0Miller256 returns J0(x) for 0 < x < 500 using Miller's algorithm: a
-// backward recurrence starting from an arbitrary trial value at a high
-// order, which is numerically stable (unlike the power series, which loses
-// precision to cancellation once x is more than a handful), followed by
-// normalizing against the identity J0(x) + 2*sum(J[2k](x)) = 1.
-func j0Miller256(x Float256) Float256 {
-	var (
-		Zero = Float256{}
-		One  = Float256(uvone256)
-		Two  = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-	)
-
-	// The margin below controls the accuracy: the backward recurrence's
-	// sensitivity to the arbitrary starting value decays the further the
-	// starting order is past x, so a bigger margin means more correct
-	// digits. 400 keeps the error many orders of magnitude below
-	// Float256's precision for all x in (0, 500).
-	m := x.Ceil().Int64() + 400
-	if m%2 != 0 {
-		m++
+// j0Tiny256 returns J0(x) for x = m × 2**(exp-236), -118 <= exp < -100, which is 1 - x**2/4 with the relative error
+// less than 2**-198. The decision of the rounding depends on the low bits of x**2, so that it is calculated exactly.
+func j0Tiny256(exp int, m ints.Uint256) Float256 {
+	// x**2/4 = T × 2**(2 exp - 474), where T = m**2. 1 - x**2/4 = (2**511 - T 2**(2 exp - 474 + 511)) 2**-511.
+	t := m.Mul512(m)
+	sh := uint(-(2*exp + 37)) // 2 exp - 474 + 511 = 2 exp + 37 < 0
+	ts := t.Rsh(sh)
+	sticky := t.Lsh(512-sh) != (ints.Uint512{})
+	v := ints.Uint512{1 << 63}.Sub(ts)
+	if sticky {
+		// the exact value is v - f for 0 < f < 1.
+		v = v.Sub(ints.Uint512{7: 1})
 	}
+	return fixToFloat256(0, v, sticky, -511)
+}
 
-	Jnp1 := Zero
-	Jn := One
-	sum := Zero
-	for n := m; n >= 1; n-- {
-		coef := Two.Mul(NewFloat256(float64(n))).Quo(x)
-		Jnm1 := FMA256(coef, Jn, Jnp1.Neg())
+// j0Fix256 returns x = m × 2**(exp-236) in fixed point with 320 fractional bits.
+// The result must be less than 2**64.
+func j0Fix256(exp int, m ints.Uint256) gammaFix256 {
+	if s := exp + 84; s >= 0 {
+		return gammaFix256FromUint256(m, uint(s))
+	} else {
+		return gammaFix256{0, 0, m[0], m[1], m[2], m[3]}.shr(uint(-s))
+	}
+}
+
+// divUint returns a/d.
+func (a gammaFix256) divUint(d uint64) gammaFix256 {
+	var r gammaFix256
+	var rem uint64
+	for i := range a {
+		r[i], rem = bits.Div64(rem, a[i], d)
+	}
+	return r
+}
+
+// j0Result returns the signed fixed point number v × 2**e as Float256.
+func j0Result(v lgammaFix256, e int) Float256 {
+	if v.v == (gammaFix256{}) {
+		return Float256{}
+	}
+	return lgamma256FromPair(v.neg, v.v, e)
+}
+
+// j0Taylor256 returns J0(x) for x = m × 2**(exp-236) < 16 by the Taylor series
+//
+//	J0(x) = sum (-1)**k (x**2/4)**k/(k!)**2.
+//
+// The terms are less than 2**9 times larger than the sum, so that the relative accuracy is lost only by 9 bits.
+func j0Taylor256(exp int, m ints.Uint256) Float256 {
+	x := j0Fix256(exp, m)
+	u := gammaMul6(x, x).shr(2) // x**2/4
+	sum := lgammaFix256{false, gammaOne256}
+	t := lgammaFix256{false, gammaOne256}
+	for k := uint64(1); ; k++ {
+		t = lgammaFix256{!t.neg, gammaMul6(t.v, u).divUint(k * k)}
+		if t.v == (gammaFix256{}) {
+			break
+		}
+		sum = sum.add(t)
+	}
+	if j0Small(sum) {
+		if r, ok := j0Near256(exp, m); ok {
+			return r
+		}
+	}
+	return j0Result(sum, 0)
+}
+
+// j0Small reports whether |v| < 2**-60, that is, the fixed point calculation may lose the relative accuracy.
+func j0Small(v lgammaFix256) bool {
+	return v.v[0] == 0 && v.v[1] < 1<<4
+}
+
+// j0Miller256 returns J0(x) for 16 <= x < 110 using Miller's algorithm: a backward recurrence
+// J(n-1) = 2n/x J(n) - J(n+1) starting from an arbitrary trial value at a high order, which is numerically stable,
+// followed by normalizing against the identity J0(x) + 2 sum J(2k)(x) = 1.
+// The calculation is in fixed point with 320 fractional bits, and the values are scaled down when they are large.
+func j0Miller256(exp int, m ints.Uint256) Float256 {
+	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
+	r := gammaRecip256(gammaFix256FromUint256(m, 84))
+
+	// The starting order n is even and J(n)(x) ~ (x/2)**n/n! is less than 2**-345, which is far smaller than
+	// the values around the order x, so that the error of the arbitrary starting value is negligible.
+	x64 := math.Ldexp(float64(m[0]), exp-44) // the approximate x
+	n := int(x64)
+	for ; float64(n)*math.Log(x64/2)-lgamma64(float64(n+1)) > -345*math.Ln2; n++ {
+	}
+	n += n % 2
+
+	jn1 := lgammaFix256{} // J(n+1)
+	jn := lgammaFix256{false, gammaOne256}
+	sum := lgammaFix256{false, gammaOne256.shl(1)} // 2 J(n)
+	for ; n >= 1; n-- {
+		coef := r.mulUint(uint64(2 * n)).shr(uint(exp)) // 2n/x
+		jm := lgammaFix256{jn.neg, gammaMul6(jn.v, coef)}.add(jn1.negate())
 		if (n-1)%2 == 0 {
-			if n == 1 {
-				sum = sum.Add(Jnm1)
-			} else {
-				sum = sum.Add(Jnm1).Add(Jnm1)
+			sum = sum.add(jm)
+			if n != 1 {
+				sum = sum.add(jm)
 			}
 		}
-		Jnp1 = Jn
-		Jn = Jnm1
+		jn1, jn = jn, jm
+		if jn.v[0] >= 1<<48 {
+			// scale down not to overflow. The ratio is not changed.
+			jn.v, jn1.v, sum.v = jn.v.shr(64), jn1.v.shr(64), sum.v.shr(64)
+		}
 	}
-	return Jn.Quo(sum)
+
+	// J0(x) = jn/sum
+	sv, e := gammaNormalize256(sum.v, 0)
+	res := lgammaFix256{jn.neg, gammaMul6(jn.v, gammaRecip256(sv))}
+	if e >= 0 && j0Small(res.shr(e)) {
+		if r, ok := j0Near256(exp, m); ok {
+			return r
+		}
+	}
+	return j0Result(res, -e)
 }
 
-// j0Asymptotic256 returns J0(x) for x >= 500 using Hankel's asymptotic
-// expansion
+// shr returns v × 2**-s for s >= 0.
+func (v lgammaFix256) shr(s int) lgammaFix256 {
+	return lgammaFix256{v.neg, v.v.shr(uint(s))}
+}
+
+// j0Near256 returns J0(x) for x = m × 2**(exp-236) close to a zero z of J0, by the Taylor series around z:
 //
-//	J0(x) ~ sqrt(2/(pi*x)) * (P(x)*cos(x-pi/4) - Q(x)*sin(x-pi/4))
-//	      = sqrt(1/(pi*x)) * ((P(x)+Q(x))*cos(x) + (P(x)-Q(x))*sin(x))
+//	J0(z+h) = -J1(z) h (1 + d(2) h + d(3) h**2 + ...), d(n+2) = -((n+1)**2 d(n+1) + z d(n) + d(n-1))/(z (n+2) (n+1)),
 //
-// where P and Q are the (exact, rational) Hankel coefficients for order 0
-// (see e.g. Abramowitz & Stegun 9.2.5-9.2.10).
-func j0Asymptotic256(x Float256) Float256 {
-	var (
-		One = Float256(uvone256)
-		Pi  = Float256{
-			0x4000_0921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
+// where d(0) = 0 and d(1) = 1. h = x - z is calculated exactly (it is accurate to 2**-504), so that the relative
+// accuracy is not lost even if J0(x) is extremely small. ok is false if x is not close to a zero in the table.
+func j0Near256(exp int, m ints.Uint256) (Float256, bool) {
+	// x in fixed point with 504 fractional bits. x < 256.
+	x := m.Uint512().Lsh(uint(exp + 268))
 
-		P0 = Float256{
-			0x3fff_f000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	// the k-th zero is about (k-1/4) pi.
+	k0 := int(math.Ldexp(float64(m[0]), exp-44)/math.Pi + 0.25)
+	best := -1
+	var hmag ints.Uint512
+	var hneg bool
+	for k := k0 - 1; k <= k0+1; k++ {
+		if k < 1 || k > len(j0256Zeros) {
+			continue
 		}
-		P1 = Float256{
-			0xbfff_b200_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		z := ints.Uint512(j0256Zeros[k-1])
+		d, neg := x.Sub(z), false
+		if x.Cmp(z) < 0 {
+			d, neg = z.Sub(x), true
 		}
-		P2 = Float256{
-			0x3fff_bcb6_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+		if best < 0 || d.Cmp(hmag) < 0 {
+			best, hmag, hneg = k, d, neg
 		}
-		P3 = Float256{
-			0xbfff_e251_ee80_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P4 = Float256{
-			0x4000_184b_d1aa_9800, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P5 = Float256{
-			0xc000_5b81_18d3_7ff7, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P6 = Float256{
-			0x4000_a7bc_2e57_7297, 0x2478_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P7 = Float256{
-			0xc000_fd03_66d1_f2a1, 0xfc53_4280_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P8 = Float256{
-			0x4001_57da_65df_946f, 0x8af5_6022_4180_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P9 = Float256{
-			0xc001_b963_5110_8138, 0x6765_e379_d021_4c00,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P10 = Float256{
-			0x4002_20fb_5f45_4e21, 0x90e3_6470_1880_77dd,
-			0xa800_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P11 = Float256{
-			0xc002_8be4_83c6_188f, 0x8e44_cc93_f185_f231,
-			0xc7b6_c000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		P12 = Float256{
-			0x4002_fb97_8561_d4be, 0xa0f5_b1e2_8a03_fe7f,
-			0xa0a6_8e05_c000_0000, 0x0000_0000_0000_0000,
-		}
-		P13 = Float256{
-			0xc003_702e_194d_e62d, 0x0b52_4403_1b68_2687,
-			0x95fc_2260_9a41_8000, 0x0000_0000_0000_0000,
-		}
-		P14 = Float256{
-			0x4003_e633_1b68_4f70, 0x53b6_1f1e_398c_78c3,
-			0xe0f6_e7c4_c590_57f7, 0x0000_0000_0000_0000,
-		}
-		P15 = Float256{
-			0xc004_619d_358b_4a03, 0x25df_6539_244b_3f7b,
-			0xe815_2b27_b81f_f4dd, 0xcfaa_0000_0000_0000,
-		}
-		P16 = Float256{
-			0x4004_e001_693c_ab40, 0xb4a3_e3f5_542d_5217,
-			0x9a9a_608c_34f6_ee5f, 0x222c_9cf8_c000_0000,
-		}
-		P17 = Float256{
-			0xc005_6083_65b1_f0ab, 0x0b28_db08_409b_732b,
-			0x4dde_e074_fb06_a83f, 0x05cf_035c_9175_8000,
-		}
-		P18 = Float256{
-			0x4005_e332_b47a_bb4b, 0x97f8_bc29_82e9_87dc,
-			0x7350_83b4_14f7_514d, 0x0f32_1ee8_e958_dead,
-		}
-		P19 = Float256{
-			0xc006_68fb_4afd_7d74, 0xf885_3e8f_2302_7322,
-			0xbde0_6b62_992f_019e, 0x4b50_c1cb_abc6_9e99,
-		}
-		P20 = Float256{
-			0x4006_f215_5dc2_b3d9, 0x87d4_323c_260e_4fb9,
-			0x1425_279d_bc53_523b, 0xb308_9215_d699_77c5,
-		}
-		P21 = Float256{
-			0xc007_7cf8_6d19_2a66, 0x662c_c892_8494_eaa7,
-			0x7d26_26f5_1c0a_a9b9, 0x2380_bec0_b80d_87d3,
-		}
-		P22 = Float256{
-			0x4008_098d_d73a_b7d7, 0x450c_805c_2df2_dc47,
-			0x5b9e_1e28_7b93_c1ed, 0xe5b0_f3a8_413c_b13c,
-		}
-		P23 = Float256{
-			0xc008_98b6_3195_9e3b, 0x421b_5776_67b5_298d,
-			0x3d7a_3c86_ff40_f241, 0x3c3f_c901_124f_0823,
-		}
-		P24 = Float256{
-			0x4009_2a17_d904_2c2d, 0x70b3_53b4_de11_f1d5,
-			0x1580_f721_5698_b463, 0x2bf2_494d_d85a_819e,
-		}
-		P25 = Float256{
-			0xc009_bdf8_fc64_41d2, 0x9093_b0d3_4fc8_89fa,
-			0xc302_bb2b_2df5_e366, 0xf5b0_5531_7d1e_5063,
-		}
-		P26 = Float256{
-			0x400a_52a9_cd4f_3cb1, 0x6e1b_9a5c_a7b1_43a2,
-			0x8413_6182_56b0_4b9a, 0xc5e4_591f_860b_926f,
-		}
-		P27 = Float256{
-			0xc00a_e91e_a5e1_a7ba, 0x3f07_557f_4cdb_8d60,
-			0xce6f_104c_161c_aa81, 0x82c7_938b_8efb_7e60,
-		}
-		P28 = Float256{
-			0x400b_8237_9e68_5ace, 0xd31c_bcb5_3b07_5c02,
-			0x3074_7c53_dd60_0b53, 0x06c6_313a_9226_63f9,
-		}
-		P29 = Float256{
-			0xc00c_1c65_ce5a_da55, 0xa996_684a_4447_c0cd,
-			0xf91a_1e68_4cf9_3db5, 0x67fe_9427_6457_631e,
-		}
-		P30 = Float256{
-			0x400c_b7ba_6d2d_5902, 0x3ceb_e102_ae04_1409,
-			0xf7f1_2f16_7d7a_24fe, 0x6628_0487_cfdb_6ebe,
-		}
+	}
+	if best < 0 || hmag.IsZero() || hmag.BitLen() > 504-30 {
+		return Float256{}, false
+	}
 
-		Q0 = Float256{
-			0xbfff_c000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q1 = Float256{
-			0x3fff_b2c0_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q2 = Float256{
-			0xbfff_cd11_e000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q3 = Float256{
-			0x3fff_fba4_c598_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q4 = Float256{
-			0xc000_3861_6a64_f6c0, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q5 = Float256{
-			0x4000_813a_afea_4e57, 0x7400_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q6 = Float256{
-			0xc000_d1d4_7059_b0d9, 0x89db_6000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q7 = Float256{
-			0x4001_296a_b69b_a805, 0xe7fb_1286_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q8 = Float256{
-			0xc001_87e0_02ac_4183, 0x68f7_f438_e026_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q9 = Float256{
-			0x4001_ec95_1379_875f, 0xb617_8cf0_821b_6190,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q10 = Float256{
-			0xc002_553d_7328_c73e, 0xef50_3819_27c9_d2df,
-			0xb620_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q11 = Float256{
-			0x4002_c32f_8782_421c, 0x7b82_a08a_fa90_64f0,
-			0x53e4_9280_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Q12 = Float256{
-			0xc003_34b3_d91e_48aa, 0x3b2b_8c44_ef65_13ac,
-			0x6689_c4a4_2780_0000, 0x0000_0000_0000_0000,
-		}
-		Q13 = Float256{
-			0x4003_aa4d_4ec3_8521, 0xd0c6_2c7c_2970_dc43,
-			0x3867_a453_d991_e200, 0x0000_0000_0000_0000,
-		}
-		Q14 = Float256{
-			0xc004_236e_3feb_81ab, 0x1333_7971_8eec_1f7e,
-			0xc1cd_12ff_783b_5fc0, 0x6600_0000_0000_0000,
-		}
-		Q15 = Float256{
-			0x4004_a084_851d_4388, 0xc229_09b2_4b63_b9a9,
-			0x4a58_7efc_2667_c613, 0x5bd5_8c00_0000_0000,
-		}
-		Q16 = Float256{
-			0xc005_2002_6190_9f6a, 0x1d69_0529_eeae_8b24,
-			0x5637_2415_efe2_de4e, 0x8cc9_d5fa_8180_0000,
-		}
-		Q17 = Float256{
-			0x4005_a18c_8d9d_d80c, 0xa10f_3f2b_af2c_83b5,
-			0x0c86_bdf6_d50e_8f7c, 0x1e58_2b49_6727_7100,
-		}
-		Q18 = Float256{
-			0xc006_259a_14b2_f6bf, 0x2aba_da35_6969_795b,
-			0xe421_ad46_77ce_b788, 0xec9c_aaac_0544_7bda,
-		}
-		Q19 = Float256{
-			0x4006_adab_b103_bca5, 0x7066_0c9b_f3c9_379e,
-			0x56f3_d33b_d2c1_ba13, 0x7124_fdf7_48e3_d965,
-		}
-		Q20 = Float256{
-			0xc007_369b_9706_0029, 0xdb6b_f7f9_57f7_a5e9,
-			0xad22_f035_ee6b_181f, 0xce69_4ce0_dcec_a501,
-		}
-		Q21 = Float256{
-			0x4007_c303_b412_1f33, 0x70f7_f38d_00bd_5e32,
-			0xffe2_759d_aa85_6aca, 0xa753_44a4_0632_5e79,
-		}
-		Q22 = Float256{
-			0xc008_5192_1558_2c7e, 0xd6be_6553_4ae1_f175,
-			0xf420_e011_d5db_e290, 0xc0b5_dea5_88c4_6b8e,
-		}
-		Q23 = Float256{
-			0x4008_e1c3_7a3d_1a87, 0x7d8a_8151_58f9_5a66,
-			0x9215_ee71_f9fe_d5a1, 0x51a0_d461_d013_680a,
-		}
-		Q24 = Float256{
-			0xc009_7392_6b15_ecf9, 0x2f93_3e85_70c6_3c45,
-			0x66c3_1f3e_b342_a9c0, 0xffb7_eaf1_6e4d_8505,
-		}
-		Q25 = Float256{
-			0x400a_076b_1ba1_b4c3, 0x20af_f196_fc5b_414c,
-			0x1a72_092e_585c_73d0, 0x088d_2a68_2d3a_9b51,
-		}
-		Q26 = Float256{
-			0xc00a_9e54_a1ec_2163, 0xd260_1aac_1669_66b5,
-			0x8230_8dac_9ca7_c9f6, 0x8295_b402_0f8a_946e,
-		}
-		Q27 = Float256{
-			0x400b_3532_50e2_23ce, 0x0354_9204_61da_a506,
-			0x6ec6_68a4_9121_9b70, 0xaa72_0b07_6abe_11f7,
-		}
-		Q28 = Float256{
-			0xc00b_cfe1_f8d9_5f34, 0xfd31_d679_ab69_e5c3,
-			0xb0f1_7ada_7e7d_5192, 0xd103_7ec9_e91d_a513,
-		}
-		Q29 = Float256{
-			0x400c_69bc_be39_e697, 0x91c8_e03f_a5ea_dc8e,
-			0x33bf_8da0_64d0_323f, 0xe2cf_a939_316e_b9d0,
-		}
-		Q30 = Float256{
-			0xc00d_063f_29ef_3041, 0x3254_b14e_5505_1a32,
-			0x978f_5ada_50c1_f1cc, 0x7b8c_6feb_76aa_9174,
-		}
-	)
+	// h = hm × 2**he, where hm is in [1, 2), and hs is h in fixed point.
+	bl := hmag.BitLen()
+	top := hmag.Rsh(uint(bl - 321)) // bl >= 321 is not guaranteed, but |h| > 2**-183 holds for the Float256 values near a zero
+	if bl < 321 {
+		top = hmag.Lsh(uint(321 - bl))
+	}
+	hm := gammaFix256{top[2], top[3], top[4], top[5], top[6], top[7]}
+	he := bl - 1 - 504
+	hv := hmag.Rsh(184)
+	hs := lgammaFix256{hneg, gammaFix256{hv[2], hv[3], hv[4], hv[5], hv[6], hv[7]}}
 
-	w := One.Quo(x.Mul(x))
+	zv := ints.Uint512(j0256Zeros[best-1]).Rsh(184)
+	z := gammaFix256{zv[2], zv[3], zv[4], zv[5], zv[6], zv[7]}
+	zn, ze := gammaNormalize256(z, 0)
+	zinv := gammaRecip256(zn).shr(uint(ze)) // 1/z
 
-	p := P30
-	p = FMA256(p, w, P29)
-	p = FMA256(p, w, P28)
-	p = FMA256(p, w, P27)
-	p = FMA256(p, w, P26)
-	p = FMA256(p, w, P25)
-	p = FMA256(p, w, P24)
-	p = FMA256(p, w, P23)
-	p = FMA256(p, w, P22)
-	p = FMA256(p, w, P21)
-	p = FMA256(p, w, P20)
-	p = FMA256(p, w, P19)
-	p = FMA256(p, w, P18)
-	p = FMA256(p, w, P17)
-	p = FMA256(p, w, P16)
-	p = FMA256(p, w, P15)
-	p = FMA256(p, w, P14)
-	p = FMA256(p, w, P13)
-	p = FMA256(p, w, P12)
-	p = FMA256(p, w, P11)
-	p = FMA256(p, w, P10)
-	p = FMA256(p, w, P9)
-	p = FMA256(p, w, P8)
-	p = FMA256(p, w, P7)
-	p = FMA256(p, w, P6)
-	p = FMA256(p, w, P5)
-	p = FMA256(p, w, P4)
-	p = FMA256(p, w, P3)
-	p = FMA256(p, w, P2)
-	p = FMA256(p, w, P1)
-	p = FMA256(p, w, P0)
+	// d(n+2) = -((n+1)**2 d(n+1) + z d(n) + d(n-1))/(z (n+2) (n+1))
+	const terms = 14
+	var d [terms + 1]lgammaFix256
+	d[1] = lgammaFix256{false, gammaOne256}
+	for n := 0; n+2 <= terms; n++ {
+		t := lgammaFix256{d[n+1].neg, d[n+1].v.mulUint(uint64((n + 1) * (n + 1)))}
+		t = t.add(lgammaFix256{d[n].neg, gammaMul6(d[n].v, z)})
+		if n > 0 {
+			t = t.add(d[n-1])
+		}
+		d[n+2] = lgammaFix256{!t.neg, gammaMul6(t.v, zinv).divUint(uint64((n + 2) * (n + 1)))}
+	}
+	// the sum of d(n) h**(n-1) by Horner's method
+	sum := d[terms]
+	for n := terms - 1; n >= 1; n-- {
+		sum = d[n].add(lgammaFix256{sum.neg != hs.neg, gammaMul6(sum.v, hs.v)})
+	}
 
-	q := Q30
-	q = FMA256(q, w, Q29)
-	q = FMA256(q, w, Q28)
-	q = FMA256(q, w, Q27)
-	q = FMA256(q, w, Q26)
-	q = FMA256(q, w, Q25)
-	q = FMA256(q, w, Q24)
-	q = FMA256(q, w, Q23)
-	q = FMA256(q, w, Q22)
-	q = FMA256(q, w, Q21)
-	q = FMA256(q, w, Q20)
-	q = FMA256(q, w, Q19)
-	q = FMA256(q, w, Q18)
-	q = FMA256(q, w, Q17)
-	q = FMA256(q, w, Q16)
-	q = FMA256(q, w, Q15)
-	q = FMA256(q, w, Q14)
-	q = FMA256(q, w, Q13)
-	q = FMA256(q, w, Q12)
-	q = FMA256(q, w, Q11)
-	q = FMA256(q, w, Q10)
-	q = FMA256(q, w, Q9)
-	q = FMA256(q, w, Q8)
-	q = FMA256(q, w, Q7)
-	q = FMA256(q, w, Q6)
-	q = FMA256(q, w, Q5)
-	q = FMA256(q, w, Q4)
-	q = FMA256(q, w, Q3)
-	q = FMA256(q, w, Q2)
-	q = FMA256(q, w, Q1)
-	q = FMA256(q, w, Q0)
-	q = q.Quo(x)
+	// J0(z+h) = -J1(z) h sum, and the sign of -J1(z) is (-1)**k.
+	v := gammaMul6(gammaMul6(gammaFix256(j0256ZeroJ1[best-1]), hm), sum.v)
+	neg := best%2 == 1 != (hneg != sum.neg)
+	return j0Result(lgammaFix256{neg, v}, he), true
+}
 
-	sin, cos := x.Sincos()
-	amp := One.Quo(Pi.Mul(x)).Sqrt()
-	return amp.Mul(p.Add(q).Mul(cos).Add(p.Sub(q).Mul(sin)))
+// lgamma64 returns the logarithm of Gamma(x) for x > 0.
+func lgamma64(x float64) float64 {
+	v, _ := math.Lgamma(x)
+	return v
+}
+
+// j0Hankel256 returns J0(x) for x >= 110 using Hankel's asymptotic expansion
+//
+//	J0(x) = sqrt(2/(pi x)) (P(x) cos(x-pi/4) - Q(x) sin(x-pi/4)),
+//
+// where P(x) = sum (-1)**k t(2k), Q(x) = -sum (-1)**k t(2k+1), and t(k) = ((2k-1)!!)**2/(k! (8 x)**k).
+// The terms decrease until k ~ 2x, and the minimum, which is less than 2**-300 for x >= 110, is the error.
+func j0Hankel256(x Float256, exp int, m ints.Uint256) Float256 {
+	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
+	r := gammaRecip256(gammaFix256FromUint256(m, 84))
+	w := r.shr(uint(exp + 3)) // 1/(8x)
+
+	// P and Qs = -Q
+	p := lgammaFix256{false, gammaOne256}
+	var qs lgammaFix256
+	t := gammaOne256
+	for k := uint64(1); ; k++ {
+		next := gammaMul6(t, w).mulUint((2*k - 1) * (2*k - 1)).divUint(k)
+		if next == (gammaFix256{}) || next.cmp(t) >= 0 {
+			break
+		}
+		t = next
+		// the sign is (-1)**(k/2)
+		term := lgammaFix256{(k/2)%2 == 1, t}
+		if k%2 == 0 {
+			p = p.add(term)
+		} else {
+			qs = qs.add(term)
+		}
+	}
+
+	// cos(chi) and sin(chi) for chi = x - pi/4 = (j-1) pi/4 + z, where x = j pi/4 + z (mod 2 pi) and |z| <= pi/4.
+	j, hi, lo := reduce256(x)
+	z := float256ToFix(hi).add(float256ToFix(lo))
+	s, c := sincosFix256(z)
+	c, s = rotateOctant(int((j+7)%8), c, s)
+
+	// P cos(chi) - Q sin(chi) = P cos(chi) + Qs sin(chi)
+	val := lgammaFix256{p.neg != c.neg, gammaMul6(p.v, c.v)}.add(lgammaFix256{qs.neg != s.neg, gammaMul6(qs.v, s.v)})
+
+	if exp < 8 && j0Small(val) {
+		// J0(x) is extremely small, and the absolute error 2**-300 of the expansion is not negligible.
+		if r, ok := j0Near256(exp, m); ok {
+			return r
+		}
+	}
+
+	// sqrt(2/(pi x)) = sqrt(2/pi/xm 2**-exp). If exp is odd, 2**-exp = 2 × 2**-(exp+1).
+	v := gammaMul6(gammaFix256(j0256TwoOverPi), r)
+	e := exp
+	if e%2 != 0 {
+		v = v.shl(1)
+		e++
+	}
+	amp := gammaMul6(v, j0Rsqrt256(v))
+	return j0Result(lgammaFix256{val.neg, gammaMul6(val.v, amp)}, -e/2)
+}
+
+// float256ToFix returns a as the signed fixed point number with 320 fractional bits. |a| must be less than 2**64.
+func float256ToFix(a Float256) lgammaFix256 {
+	if a.IsZero() {
+		return lgammaFix256{}
+	}
+	sign, exp, m := a.normalize()
+	return lgammaFix256{sign != 0, j0Fix256(exp, m)}
+}
+
+// sincosFix256 returns sin(z) and cos(z) for |z| <= 1 in fixed point with 320 fractional bits by the Taylor series.
+func sincosFix256(z lgammaFix256) (s, c lgammaFix256) {
+	u := gammaMul6(z.v, z.v)
+	s = z
+	c = lgammaFix256{false, gammaOne256}
+	ts, tc := z, c
+	for k := uint64(1); ; k++ {
+		tc = lgammaFix256{!tc.neg, gammaMul6(tc.v, u).divUint((2*k - 1) * (2 * k))}
+		ts = lgammaFix256{!ts.neg, gammaMul6(ts.v, u).divUint((2 * k) * (2*k + 1))}
+		if tc.v == (gammaFix256{}) && ts.v == (gammaFix256{}) {
+			break
+		}
+		c = c.add(tc)
+		s = s.add(ts)
+	}
+	return s, c
+}
+
+// rotateOctant returns cos(k pi/4 + z) and sin(k pi/4 + z) for 0 <= k < 8, where c = cos(z) and s = sin(z).
+func rotateOctant(k int, c, s lgammaFix256) (cos, sin lgammaFix256) {
+	// cos(a+z) = cos(a) c - sin(a) s, sin(a+z) = sin(a) c + cos(a) s, and (cos(a), sin(a)) = ±(1, 0), ±(0, 1) or
+	// (±1, ±1) sqrt(2)/2.
+	h := gammaFix256(j0256HalfSqrt2)
+	rot := func(ca, sa lgammaFix256) (lgammaFix256, lgammaFix256) {
+		mul := func(a, b lgammaFix256) lgammaFix256 {
+			if a.v == (gammaFix256{}) || b.v == (gammaFix256{}) {
+				return lgammaFix256{}
+			}
+			return lgammaFix256{a.neg != b.neg, gammaMul6(a.v, b.v)}
+		}
+		return mul(ca, c).add(mul(sa, s).negate()), mul(sa, c).add(mul(ca, s))
+	}
+	one := lgammaFix256{false, gammaOne256}
+	zero := lgammaFix256{}
+	hp, hn := lgammaFix256{false, h}, lgammaFix256{true, h}
+	switch k {
+	case 0:
+		return rot(one, zero)
+	case 1:
+		return rot(hp, hp)
+	case 2:
+		return rot(zero, one)
+	case 3:
+		return rot(hn, hp)
+	case 4:
+		return rot(one.negate(), zero)
+	case 5:
+		return rot(hn, hn)
+	case 6:
+		return rot(zero, one.negate())
+	}
+	return rot(hp, hn)
+}
+
+// j0Rsqrt256 returns about 1/sqrt(v) for v in (1/4, 2) by Newton's method.
+func j0Rsqrt256(v gammaFix256) gammaFix256 {
+	// the initial approximation with about 52 bits
+	f := float64(v[0]) + float64(v[1])*0x1p-64
+	g := 1 / math.Sqrt(f)
+	r := gammaFix256{uint64(g), uint64((g - math.Floor(g)) * 0x1p64)}
+	// r = r (3 - v r**2)/2 doubles the precision: 52 -> 104 -> 208 -> 416
+	three := gammaOne256.shl(1).add(gammaOne256)
+	for range 3 {
+		t := gammaMul6(v, gammaMul6(r, r))
+		r = gammaMul6(r, three.sub(t)).shr(1)
+	}
+	return r
 }
