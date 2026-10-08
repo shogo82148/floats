@@ -138,5 +138,38 @@ func atanSeries32(z float64) float64 {
 //	+Inf.Atan2(x) = +Pi/2
 //	-Inf.Atan2(x) = -Pi/2
 func (a Float32) Atan2(b Float32) Float32 {
-	return NewFloat32(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+	iy := a.Bits() &^ signMask32
+	ix := b.Bits() &^ signMask32
+	if iy == 0 || iy >= 0x7f800000 || ix == 0 || ix >= 0x7f800000 {
+		// zeros, infinities and NaNs.
+		return NewFloat32(math.Atan2(a.Float64().BuiltIn(), b.Float64().BuiltIn()))
+	}
+
+	// the conversions are exact, and the ratio never overflows nor underflows.
+	y := float64(math.Float32frombits(iy))
+	x := float64(math.Float32frombits(ix))
+	var r float64
+	if y <= x {
+		r = atanKernel32(y / x)
+	} else {
+		// atan(y/x) = pi/2 - atan(x/y)
+		r = math.Pi/2 - atanKernel32(x/y)
+	}
+	if b.Signbit() {
+		// atan2(y, -x) = pi - atan2(y, x)
+		r = math.Pi - r
+	}
+
+	// The computation has a relative error of a few 1e-16. If r is that close
+	// to a rounding boundary of Float32 (or the result is subnormal),
+	// the rounding may be wrong, so fall back to the accurate path.
+	const window = 1 << 6 // in units of the last place of float64
+	frac := math.Float64bits(r) & (1<<29 - 1)
+	if r < 0x1p-126 || frac-(1<<28)+window < 2*window {
+		return a.Float128().Atan2(b.Float128()).Float32()
+	}
+	if a.Signbit() {
+		r = -r
+	}
+	return Float32(r)
 }
