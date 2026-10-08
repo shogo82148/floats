@@ -219,12 +219,105 @@ func (a Float256) Atan2(b Float256) Float256 {
 		return Pi2.Copysign(a)
 	}
 
-	q := a.Quo(b).Atan()
-	if b.Lt(Zero) {
-		if q.Le(Zero) {
-			return q.Add(Pi)
-		}
-		return q.Sub(Pi)
+	return atan2Finite256(a, b)
+}
+
+// twoProduct256 returns hi, lo such that hi+lo = a*b exactly (as real numbers),
+// with hi = a*b rounded to the nearest Float256.
+func twoProduct256(a, b Float256) (hi, lo Float256) {
+	hi = a.Mul(b)
+	lo = FMA256(a, b, hi.Neg())
+	return
+}
+
+// atan2Finite256 returns the arc tangent of y/x for finite and nonzero y and x.
+func atan2Finite256(y, x Float256) Float256 {
+	// atan2(y, x) = c + s*atan(p/q), where p = min(|y|, |x|), q = max(|y|, |x|).
+	p, q := y.Abs(), x.Abs()
+	swapped := p.Gt(q)
+	if swapped {
+		p, q = q, p
 	}
-	return q
+
+	// t = th + tl = atan(p/q), where 0 < p/q <= 1 and |tl| is about ulp(th) or less.
+	th, tl := atan256Ratio(p, q)
+
+	var r Float256
+	if !swapped && !x.Signbit() {
+		// atan2 = t
+		r = th.Add(tl)
+	} else {
+		// atan2 = c + s*t, where |c| >= |t|.
+		var chi, clo Float256
+		switch {
+		case swapped && !x.Signbit():
+			// atan2 = pi/2 - t
+			chi, clo = atan2Pi2Hi256, atan2Pi2Lo256
+			th, tl = th.Neg(), tl.Neg()
+		case !swapped:
+			// atan2 = pi - t
+			chi, clo = atan2Pi2Hi256.Add(atan2Pi2Hi256), atan2Pi2Lo256.Add(atan2Pi2Lo256)
+			th, tl = th.Neg(), tl.Neg()
+		default:
+			// atan2 = pi/2 + t
+			chi, clo = atan2Pi2Hi256, atan2Pi2Lo256
+		}
+		sh := chi.Add(th)
+		se := th.Sub(sh.Sub(chi)) // chi + th = sh + se
+		r = sh.Add(se.Add(clo.Add(tl)))
+	}
+	if y.Signbit() {
+		return r.Neg()
+	}
+	return r
+}
+
+// atan256Ratio returns atan(p/q) as a pair (hi, lo) such that atan(p/q) = hi + lo
+// and |lo| is about ulp(hi) or less, for finite p and q with 0 < p <= q.
+func atan256Ratio(p, q Float256) (hi, lo Float256) {
+	r := p.Quo(q)
+
+	// the table index: the nearest i/256 to r.
+	i := int(r.Float64().BuiltIn()*256 + 0.5)
+	if i == 0 {
+		// atan(r) = r - r**3/3 + ..., where r < 1/512.
+		ul := FMA256(r.Neg(), q, p).Quo(q) // p/q = r + ul
+		return r, atan256Tail(r, ul)
+	}
+
+	// scale p and q so that 1 <= q < 2, to avoid overflow and underflow.
+	e := q.Ilogb()
+	p, q = p.Ldexp(-e), q.Ldexp(-e)
+
+	// u = (p - c*q) / (q + c*p), where c = i/256.
+	// |u| <= 1/512, and atan(p/q) = atan(c) + atan(u).
+	c := NewFloat256(float64(i) / 256)
+	cqh, cql := twoProduct256(c, q)
+	cph, cpl := twoProduct256(c, p)
+	nh, nl := twoSum256(p.Sub(cqh), cql.Neg()) // p - cqh is exact
+	dh := q.Add(cph)
+	dl := cph.Sub(dh.Sub(q)).Add(cpl) // q + cph = dh + (cph - (dh - q)), because q >= cph
+
+	// u = uh + ul = n/d.
+	uh := nh.Quo(dh)
+	rem := FMA256(uh.Neg(), dh, nh).Add(nl).Sub(uh.Mul(dl))
+	ul := rem.Quo(dh)
+
+	// atan(c) + u + tail, where atan(c) > |u|.
+	th := atan2Table256Hi[i]
+	hi = th.Add(uh)
+	lo = uh.Sub(hi.Sub(th)).Add(atan2Table256Lo[i].Add(atan256Tail(uh, ul)))
+	return hi, lo
+}
+
+// atan256Tail returns ul + (atan(u) - u) for u = uh + ul, |u| <= 1/511.
+func atan256Tail(uh, ul Float256) Float256 {
+	z := uh.Mul(uh)
+	// (atan(u) - u)/u**3 = c[0] + c[1]*z + ... + c[13]*z**13
+	n := len(atan2Coeffs256)
+	s := atan2Coeffs256[n-1]
+	for k := n - 2; k >= 0; k-- {
+		s = FMA256(s, z, atan2Coeffs256[k])
+	}
+	return ul.Add(uh.Mul(z).Mul(s))
 }
