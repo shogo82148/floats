@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -57,5 +58,34 @@ func TestFloat128_J0(t *testing.T) {
 		if !eq128(got, tt.want) {
 			t.Errorf("J0(%v) = %v; want %v", tt.x, got, tt.want)
 		}
+	}
+}
+
+// TestFloat128_J0Accuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat128_J0Accuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat128Testdata(t, "testdata/j0128.txt", "J0", Float128.J0)
+}
+
+func BenchmarkFloat128_J0(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		x    Float128
+	}{
+		{"one", exact128(1)},
+		{"tiny", exact128(0x1p-50)},
+		{"taylor", exact128(1.5)},
+		{"miller", exact128(50.5)},
+		{"hankel-small", exact128(200.5)},
+		{"hankel-large", exact128(1e5)},
+		{"hankel-huge", exact128(0x1p1000)},
+		{"near-zero", exact128(2.404825557695773)},
+		{"negative", exact128(-50.5)},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.J0())
+			}
+		})
 	}
 }
