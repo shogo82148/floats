@@ -123,7 +123,7 @@ func ynExt256MulUint(a ynExt256, v uint64) ynExt256 {
 	l := uint(bits.LeadingZeros64(p[0]))
 	e := a.e + 64 - int(l)
 	if l != 0 {
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			p[i] = p[i]<<l | p[i+1]>>(64-l)
 		}
 		p[4] <<= l
