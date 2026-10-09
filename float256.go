@@ -341,20 +341,9 @@ func (a Float256) Quo(b Float256) Float256 {
 
 	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
 	frac = roundToNearestEven256(frac, 3)
-	// detect carry-out caused by rounding
-	if frac[0]>>(shift256+1-192) != 0 {
-		frac = ints.Uint256{
-			frac[0] >> 1,
-			frac[1]>>1 | frac[0]<<63,
-			frac[2]>>1 | frac[1]<<63,
-			frac[3]>>1 | frac[2]<<63,
-		}
-		exp++
-		if exp >= mask256 {
-			// overflow
-			return Float256{sign | uvinf256[0], uvinf256[1], uvinf256[2], uvinf256[3]}
-		}
-	}
+	// The rounding never carries out of the fraction:
+	// the quotient of two fractions in [1, 2) differs from 2 by more than
+	// half of the unit in the last place, so it is never rounded up to 2.
 	return Float256{
 		sign | uint64(exp)<<(shift256-192) | frac[0]&fracMask256[0],
 		frac[1],
