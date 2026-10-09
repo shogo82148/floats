@@ -391,11 +391,12 @@ func BenchmarkFloat32_Y0(b *testing.B) {
 		name string
 		x    Float32
 	}{
-		{"small", exact32(0.5)},    // math.Y0
-		{"medium", exact32(5)},     // the polynomials
-		{"medium2", exact32(50.5)}, // the polynomials
-		{"large", exact32(1000.5)}, // math.Y0
-		{"huge", NewFloat32(1e20)}, // math.Y0
+		{"small", exact32(0.5)},                  // math.Y0
+		{"medium", exact32(5)},                   // the polynomials
+		{"medium2", exact32(50.5)},               // the polynomials
+		{"hard", NewFloat32FromBits(0x4026f6b5)}, // the result is too close to the midpoint: Float256.Y0
+		{"large", exact32(1000.5)},               // math.Y0
+		{"huge", NewFloat32(1e20)},               // math.Y0
 	} {
 		b.Run(tt.name, func(b *testing.B) {
 			for b.Loop() {
