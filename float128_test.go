@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
 	"runtime"
 	"testing"
 
@@ -1284,6 +1285,45 @@ func BenchmarkFMA128(b *testing.B) {
 	for b.Loop() {
 		runtime.KeepAlive(FMA128(f, f, f))
 	}
+}
+
+func BenchmarkFMA128_Cases(b *testing.B) {
+	r := rand.New(rand.NewPCG(1, 2))
+	gen := func(f func() (x, y, z Float128)) func(b *testing.B) {
+		return func(b *testing.B) {
+			const n = 1024
+			var xs, ys, zs [n]Float128
+			for i := range n {
+				xs[i], ys[i], zs[i] = f()
+			}
+			b.ResetTimer()
+			for i := 0; b.Loop(); i++ {
+				runtime.KeepAlive(FMA128(xs[i%n], ys[i%n], zs[i%n]))
+			}
+		}
+	}
+	unit := func() Float128 { // [1, 2)
+		return Float128{0x3fff_0000_0000_0000 | r.Uint64()&0x0000_ffff_ffff_ffff, r.Uint64()}
+	}
+	scaled := func(e int) Float128 {
+		x := unit()
+		x[0] += uint64(e) << 48
+		return x
+	}
+	b.Run("same-exponent", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(1) }))
+	b.Run("z-large", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(40) }))
+	b.Run("z-small", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(-60) }))
+	b.Run("z-tiny", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(-300) }))
+	b.Run("subtract", gen(func() (x, y, z Float128) {
+		x, y = unit(), unit()
+		return x, y, x.Mul(y).Neg()
+	}))
+	b.Run("cancel", gen(func() (x, y, z Float128) {
+		x, y = unit(), unit()
+		z = x.Mul(y).Neg()
+		z[1] ^= r.Uint64() >> 40
+		return x, y, z
+	}))
 }
 
 func TestFloat128_Nextafter(t *testing.T) {
