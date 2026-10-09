@@ -1310,16 +1310,27 @@ func BenchmarkFMA128_Cases(b *testing.B) {
 		x[0] += uint64(e) << 48
 		return x
 	}
-	b.Run("same-exponent", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(1) }))
+	b.Run("same-exponent", gen(func() (x, y, z Float128) {
+		x, y = unit(), unit()
+		p := x.Mul(y)
+		z = unit()
+		z[0] = z[0]&^(mask128<<(shift128-64)) | p[0]&(mask128<<(shift128-64))
+		return x, y, z
+	}))
 	b.Run("z-large", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(40) }))
 	b.Run("z-small", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(-60) }))
 	b.Run("z-tiny", gen(func() (x, y, z Float128) { return unit(), unit(), scaled(-300) }))
-	b.Run("subtract", gen(func() (x, y, z Float128) {
+	exact := func() (x, y Float128) { // the product is exact
 		x, y = unit(), unit()
+		x[1], y[1] = 0, 0
+		return
+	}
+	b.Run("cancel-exact", gen(func() (x, y, z Float128) {
+		x, y = exact()
 		return x, y, x.Mul(y).Neg()
 	}))
 	b.Run("cancel", gen(func() (x, y, z Float128) {
-		x, y = unit(), unit()
+		x, y = exact()
 		z = x.Mul(y).Neg()
 		z[1] ^= r.Uint64() >> 40
 		return x, y, z
