@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
 	"runtime"
 	"testing"
 
@@ -2818,6 +2819,57 @@ func BenchmarkFMA256(b *testing.B) {
 	for b.Loop() {
 		runtime.KeepAlive(FMA256(f, f, f))
 	}
+}
+
+func BenchmarkFMA256_Cases(b *testing.B) {
+	r := rand.New(rand.NewPCG(1, 2))
+	gen := func(f func() (x, y, z Float256)) func(b *testing.B) {
+		return func(b *testing.B) {
+			const n = 1024
+			var xs, ys, zs [n]Float256
+			for i := range n {
+				xs[i], ys[i], zs[i] = f()
+			}
+			b.ResetTimer()
+			for i := 0; b.Loop(); i++ {
+				runtime.KeepAlive(FMA256(xs[i%n], ys[i%n], zs[i%n]))
+			}
+		}
+	}
+	const expMask = mask256 << (shift256 - 192)
+	unit := func() Float256 { // [1, 2)
+		return Float256{0x3fff_f000_0000_0000 | r.Uint64()&0x0000_0fff_ffff_ffff, r.Uint64(), r.Uint64(), r.Uint64()}
+	}
+	scaled := func(e int) Float256 {
+		x := unit()
+		x[0] += uint64(e) << (shift256 - 192)
+		return x
+	}
+	b.Run("same-exponent", gen(func() (x, y, z Float256) {
+		x, y = unit(), unit()
+		p := x.Mul(y)
+		z = unit()
+		z[0] = z[0]&^expMask | p[0]&expMask
+		return x, y, z
+	}))
+	b.Run("z-large", gen(func() (x, y, z Float256) { return unit(), unit(), scaled(40) }))
+	b.Run("z-small", gen(func() (x, y, z Float256) { return unit(), unit(), scaled(-60) }))
+	b.Run("z-tiny", gen(func() (x, y, z Float256) { return unit(), unit(), scaled(-300) }))
+	exact := func() (x, y Float256) { // the product is exact
+		x, y = unit(), unit()
+		x[2], x[3], y[2], y[3] = 0, 0, 0, 0
+		return
+	}
+	b.Run("cancel-exact", gen(func() (x, y, z Float256) {
+		x, y = exact()
+		return x, y, x.Mul(y).Neg()
+	}))
+	b.Run("cancel", gen(func() (x, y, z Float256) {
+		x, y = exact()
+		z = x.Mul(y).Neg()
+		z[3] ^= r.Uint64() >> 40
+		return x, y, z
+	}))
 }
 
 func TestFloat256_Nextafter(t *testing.T) {
