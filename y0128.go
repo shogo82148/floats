@@ -99,60 +99,6 @@ func y0Taylor128(x Float128) Float128 {
 	return r
 }
 
-// temmeY0Y1_128 returns Y0(x) and Y1(x) for 0 < x < 2 using Temme's series,
-// which is built to remain accurate through x's log singularity at 0
-// (unlike the textbook power series for Y0/Y1, which shares J0's power
-// series' cancellation problem).
-//
-// This is the nu=0 specialization of Temme's general-order series (Numerical
-// Recipes §6.7): several of the general recurrences collapse at nu=0 (e.g.
-// the p/q sequences coincide, and the term that is singular as nu -> 0
-// vanishes identically rather than needing a limit), leaving
-//
-//	p_0 = q_0 = 1/pi
-//	f_0 = -(2/pi)*(EulerGamma + ln(x/2))
-//	p_k = p_(k-1)/k                        (k >= 1)
-//	f_k = (k*f_(k-1) + 2*p_(k-1)) / k**2    (k >= 1)
-//	c_k = (-x**2/4)**k / k!
-//	h_k = -k*f_k + p_k
-//
-//	Y0(x) = -sum(c_k * f_k)
-//	Y1(x) = -(2/x) * sum(c_k * h_k)
-func temmeY0Y1_128(x Float128) (y0, y1 Float128) {
-	var (
-		One   = Float128(uvone128)
-		Two   = Float128{0x4000_0000_0000_0000, 0x0000_0000_0000_0000}
-		Four  = Float128{0x4001_0000_0000_0000, 0x0000_0000_0000_0000}
-		Pi    = Float128{0x4000_921f_b544_42d1, 0x8469_898c_c517_01b8}
-		Euler = Float128{0x3ffe_2788_cfc6_fb61, 0x8f49_a37c_7f02_02a6}
-	)
-
-	negQuarterX2 := x.Mul(x).Quo(Four).Neg()
-
-	p := One.Quo(Pi)
-	f := Two.Quo(Pi).Mul(Euler.Add(x.Quo(Two).Log())).Neg()
-	c := One
-
-	sumG := c.Mul(f)
-	sumH := c.Mul(p)
-
-	const N = 40
-	for k := 1; k <= N; k++ {
-		kf := NewFloat128(float64(k))
-		pPrev, fPrev := p, f
-		p = pPrev.Quo(kf)
-		f = kf.Mul(fPrev).Add(Two.Mul(pPrev)).Quo(kf.Mul(kf))
-		c = c.Mul(negQuarterX2).Quo(kf)
-		h := kf.Mul(f).Neg().Add(p)
-		sumG = sumG.Add(c.Mul(f))
-		sumH = sumH.Add(c.Mul(h))
-	}
-
-	y0 = sumG.Neg()
-	y1 = Two.Quo(x).Mul(sumH).Neg()
-	return y0, y1
-}
-
 // y0Asymptotic128 returns Y0(x) for x >= 64 using Hankel's asymptotic
 // expansion
 //
