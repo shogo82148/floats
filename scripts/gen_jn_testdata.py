@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-# Generates testdata/jn256.txt, the correctly rounded Jn(x) for various n and x.
+# Generates testdata/jn128.txt and testdata/jn256.txt, the correctly rounded Jn(x) for various n and x.
 # Each line contains n in decimal, and the bits of x and the result in hexadecimal.
 #
-# Usage: python3 scripts/gen_jn_testdata.py
+# Usage: python3 scripts/gen_jn_testdata.py [128|256]
 
 import functools
 import math
 import random
+import sys
 from multiprocessing import Pool
 
 import mpmath
@@ -16,6 +17,12 @@ from gen_gamma_testdata import round_bits, to_mpf
 
 P, EB = 236, 19
 B = (1 << (EB - 1)) - 1
+
+
+def init(p, eb):
+    global P, EB, B
+    P, EB = p, eb
+    B = (1 << (EB - 1)) - 1
 
 
 def compute(nx):
@@ -41,8 +48,8 @@ def compute(nx):
         return round_bits(y, P, EB)
 
 
-def main():
-    rnd = random.Random(2563)
+def main(name):
+    rnd = random.Random(2563 if P == 236 else 1283)
     width = (P + EB + 1) // 4
     prec = 4 * P + 400
 
@@ -76,12 +83,16 @@ def main():
             sign_n = rnd.getrandbits(1)
             cases.append((-n if sign_n else n, v | (sign_x << (P + EB))))
     cases = list(dict.fromkeys(cases))
-    with Pool() as p:
+    with Pool(initializer=init, initargs=(P, EB)) as p:
         results = p.map(compute, cases, chunksize=2)
-    with open("testdata/jn256.txt", "w") as f:
+    with open(f"testdata/{name}.txt", "w") as f:
         for (n, v), y in zip(cases, results):
             f.write(f"{n} {v:0{width}x} {y:0{width}x}\n")
 
 
 if __name__ == "__main__":
-    main()
+    if (sys.argv[1] if len(sys.argv) > 1 else "256") == "128":
+        init(112, 15)
+        main("jn128")
+    else:
+        main("jn256")

@@ -1,7 +1,12 @@
 package floats
 
 import (
+	"bufio"
 	"math"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +65,70 @@ func TestFloat128_Jn(t *testing.T) {
 		if !eq128(got, tt.want) {
 			t.Errorf("Jn(%d, %v) = %v; want %v", tt.n, tt.x, got, tt.want)
 		}
+	}
+}
+
+// TestFloat128_JnAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat128_JnAccuracy(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/jn128.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) Float128 {
+		var x Float128
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 3 || len(fields[1]) != 32 || len(fields[2]) != 32 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		n, err := strconv.Atoi(fields[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		x, want := parse(fields[1]), parse(fields[2])
+		if got := x.Jn(n); !eq128(got, want) {
+			t.Errorf("Jn(%d, %v) = %v; want %v", n, x, got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func BenchmarkFloat128_Jn(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		n    int
+		x    Float128
+	}{
+		{"taylor", 10, exact128(2.5)},
+		{"miller-small", 10, exact128(20.5)},
+		{"miller", 10, exact128(100.5)},
+		{"miller-large-n", 1000, exact128(1000.5)},
+		{"hankel", 5, exact128(1000.5)},
+		{"hankel-huge", 5, exact128(0x1p1000)},
+		{"negative", -5, exact128(-100.5)},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Jn(tt.n))
+			}
+		})
 	}
 }
