@@ -1,7 +1,12 @@
 package floats
 
 import (
+	"bufio"
 	"math"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -49,6 +54,17 @@ func TestFloat256_Jn(t *testing.T) {
 		x    Float256
 		want Float256
 	}{
+		// n = 0, 1, -1 are J0 and J1
+		{0, exact256(0), exact256(1)},
+		{1, exact256(0), exact256(0)},
+		{-1, exact256(0), exact256(math.Copysign(0, -1))},
+		{-1, exact256(math.Inf(1)), exact256(math.Copysign(0, -1))},
+
+		// underflow of the Taylor series: (x/2)**n/n! is less than the smallest subnormal number
+		{40000, exact256(3), exact256(0)},
+		{-40001, exact256(-3), exact256(0)},
+		{2, exact256(0x1p-200000), exact256(0)},
+		{300, exact256(0x1p-1000), exact256(0)},
 		{2, exact256(0), exact256(0)},
 		{2, exact256(math.Inf(1)), exact256(0)},
 		{2, exact256(math.Inf(-1)), exact256(0)},
@@ -60,5 +76,82 @@ func TestFloat256_Jn(t *testing.T) {
 		if !eq256(got, tt.want) {
 			t.Errorf("Jn(%d, %v) = %v; want %v", tt.n, tt.x, got, tt.want)
 		}
+	}
+}
+
+// TestFloat256_JnAccuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_JnAccuracy(t *testing.T) {
+	t.Parallel()
+	f, err := os.Open("testdata/jn256.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	parse := func(s string) Float256 {
+		var x Float256
+		for i := range x {
+			v, err := strconv.ParseUint(s[16*i:16*(i+1)], 16, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			x[i] = v
+		}
+		return x
+	}
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 3 || len(fields[1]) != 64 || len(fields[2]) != 64 {
+			t.Fatalf("malformed line: %q", sc.Text())
+		}
+		n, err := strconv.Atoi(fields[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		x, want := parse(fields[1]), parse(fields[2])
+		if got := x.Jn(n); !eq256(got, want) {
+			t.Errorf("Jn(%d, %v) = %v; want %v", n, x, got, want)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func BenchmarkFloat256_Jn(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		n    int
+		x    Float256
+	}{
+		{"taylor", 10, exact256(2.5)},
+		{"miller-small", 10, exact256(20.5)},
+		{"miller", 10, exact256(100.5)},
+		{"miller-large-n", 1000, exact256(1000.5)},
+		{"hankel", 5, exact256(1000.5)},
+		{"hankel-huge", 5, exact256(0x1p1000)},
+		{"negative", -5, exact256(-100.5)},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.Jn(tt.n))
+			}
+		})
+	}
+}
+
+// TestFloat256_JnHankelBreak checks that Hankel's expansion stops where the terms begin to increase
+// (the result has the error of the minimum term, which is far larger than Float256's precision for x < 110).
+func TestFloat256_JnHankelBreak(t *testing.T) {
+	t.Parallel()
+	x := exact256(30)
+	_, exp, m := x.normalize()
+	got, want := jnHankel256(2, x, exp, m), x.Jn(2)
+	if d := got.Sub(want).Abs(); d.Gt(exact256(0x1p-60)) {
+		t.Errorf("jnHankel256(2, 30) = %v; want %v", got, want)
 	}
 }
