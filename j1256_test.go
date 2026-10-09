@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"runtime"
 	"testing"
 )
 
@@ -56,6 +57,46 @@ func TestFloat256_J1(t *testing.T) {
 		got := tt.x.J1()
 		if !eq256(got, tt.want) {
 			t.Errorf("J1(%v) = %v; want %v", tt.x, got, tt.want)
+		}
+	}
+}
+
+// TestFloat256_J1Accuracy requires the correctly rounded result for every vector of the test data.
+func TestFloat256_J1Accuracy(t *testing.T) {
+	t.Parallel()
+	checkFloat256Testdata(t, "testdata/j1256.txt", "J1", Float256.J1)
+}
+
+func BenchmarkFloat256_J1(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		x    Float256
+	}{
+		{"tiny", exact256(0x1p-150)},
+		{"taylor", exact256(1.5)},
+		{"miller", exact256(50.5)},
+		{"hankel-small", exact256(200.5)},
+		{"hankel-large", exact256(1e5)},
+		{"hankel-huge", exact256(0x1p1000)},
+		{"near-zero", exact256(3.8317059702075125)},
+		{"negative", exact256(-50.5)},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			for b.Loop() {
+				runtime.KeepAlive(tt.x.J1())
+			}
+		})
+	}
+}
+
+func TestFloat256_J1Internals(t *testing.T) {
+	t.Parallel()
+
+	// j1Near256 handles only the values close to the zeros of the table.
+	for _, x := range []Float256{exact256(3), exact256(5), exact256(1000), exact256(0.5)} {
+		_, exp, m := x.normalize()
+		if got, ok := j1Near256(exp, m); ok {
+			t.Errorf("j1Near256(%v) = %v, true; want false", x, got)
 		}
 	}
 }

@@ -120,6 +120,22 @@ func j0Small(v lgammaFix256) bool {
 // followed by normalizing against the identity J0(x) + 2 sum J(2k)(x) = 1.
 // The calculation is in fixed point with 320 fractional bits, and the values are scaled down when they are large.
 func j0Miller256(exp int, m ints.Uint256) Float256 {
+	j0, _, sum := millerCore256(exp, m)
+
+	// J0(x) = j0/sum
+	sv, e := gammaNormalize256(sum.v, 0)
+	res := lgammaFix256{j0.neg, gammaMul6(j0.v, gammaRecip256(sv))}
+	if e >= 0 && j0Small(res.shr(e)) {
+		if r, ok := j0Near256(exp, m); ok {
+			return r
+		}
+	}
+	return j0Result(res, -e)
+}
+
+// millerCore256 returns the unnormalized J0(x), J1(x) and the sum J0 + 2 sum J(2k) of Miller's algorithm for
+// x = m × 2**(exp-236). The normalized value is j/sum.
+func millerCore256(exp int, m ints.Uint256) (j0, j1, sum lgammaFix256) {
 	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
 	r := gammaRecip256(gammaFix256FromUint256(m, 84))
 
@@ -133,7 +149,7 @@ func j0Miller256(exp int, m ints.Uint256) Float256 {
 
 	jn1 := lgammaFix256{} // J(n+1)
 	jn := lgammaFix256{false, gammaOne256}
-	sum := lgammaFix256{false, gammaOne256.shl(1)} // 2 J(n)
+	sum = lgammaFix256{false, gammaOne256.shl(1)} // 2 J(n)
 	for ; n >= 1; n-- {
 		coef := r.mulUint(uint64(2 * n)).shr(uint(exp)) // 2n/x
 		jm := lgammaFix256{jn.neg, gammaMul6(jn.v, coef)}.add(jn1.negate())
@@ -149,16 +165,7 @@ func j0Miller256(exp int, m ints.Uint256) Float256 {
 			jn.v, jn1.v, sum.v = jn.v.shr(64), jn1.v.shr(64), sum.v.shr(64)
 		}
 	}
-
-	// J0(x) = jn/sum
-	sv, e := gammaNormalize256(sum.v, 0)
-	res := lgammaFix256{jn.neg, gammaMul6(jn.v, gammaRecip256(sv))}
-	if e >= 0 && j0Small(res.shr(e)) {
-		if r, ok := j0Near256(exp, m); ok {
-			return r
-		}
-	}
-	return j0Result(res, -e)
+	return jn, jn1, sum
 }
 
 // shr returns v × 2**-s for s >= 0.
@@ -290,15 +297,21 @@ func j0Hankel256(x Float256, exp int, m ints.Uint256) Float256 {
 		}
 	}
 
+	amp, e := besselAmp256(r, exp)
+	return j0Result(lgammaFix256{val.neg, gammaMul6(val.v, amp)}, -e/2)
+}
+
+// besselAmp256 returns amp and e such that sqrt(2/(pi x)) = amp × 2**(-e/2), where e is even,
+// for x = xm × 2**exp and r = 1/xm.
+func besselAmp256(r gammaFix256, exp int) (amp gammaFix256, e int) {
 	// sqrt(2/(pi x)) = sqrt(2/pi/xm 2**-exp). If exp is odd, 2**-exp = 2 × 2**-(exp+1).
 	v := gammaMul6(gammaFix256(j0256TwoOverPi), r)
-	e := exp
+	e = exp
 	if e%2 != 0 {
 		v = v.shl(1)
 		e++
 	}
-	amp := gammaMul6(v, j0Rsqrt256(v))
-	return j0Result(lgammaFix256{val.neg, gammaMul6(val.v, amp)}, -e/2)
+	return gammaMul6(v, j0Rsqrt256(v)), e
 }
 
 // float256ToFix returns a as the signed fixed point number with 320 fractional bits. |a| must be less than 2**64.
