@@ -50,7 +50,7 @@ func (a Float128) Yn(n int) Float128 {
 
 // ynForward128 returns Yn(x) for n >= 2, x > 0 using the forward recurrence
 // Y[k+1] = (2k/x)*Y[k] - Y[k-1] starting from Y0(x) and Y1(x). Unlike the
-// same recurrence for J (see jnMiller128), this direction is unconditionally
+// same recurrence for J (see jnMiller256), this direction is unconditionally
 // stable for Y: Y grows (or at worst oscillates with bounded amplitude) as
 // the order increases, so it is the dominant solution the recurrence
 // naturally tracks, and no Miller-style backward correction is needed.
