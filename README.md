@@ -10,6 +10,7 @@ The floats package provides types for handling multi-precision floating-point nu
 Supported types are:
 
 - [Float16](https://pkg.go.dev/github.com/shogo82148/floats#Float16): [Half-precision floating-point format](https://en.wikipedia.org/wiki/Half-precision_floating-point_format)
+- [BFloat16](https://pkg.go.dev/github.com/shogo82148/floats#BFloat16): [Bfloat16 floating-point format](https://en.wikipedia.org/wiki/Bfloat16_floating-point_format)
 - [Float32](https://pkg.go.dev/github.com/shogo82148/floats#Float32): [Single-precision floating-point format](https://en.wikipedia.org/wiki/Single-precision_floating-point_format)
 - [Float64](https://pkg.go.dev/github.com/shogo82148/floats#Float64): [Double-precision floating-point format](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
 - [Float128](https://pkg.go.dev/github.com/shogo82148/floats#Float128): [Quadruple-precision floating-point format](https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format)

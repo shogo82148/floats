@@ -1,0 +1,257 @@
+// convert bfloat16 to string
+
+package floats
+
+import (
+	"encoding"
+	"encoding/json"
+	"fmt"
+	"strconv"
+)
+
+var _ fmt.Formatter = BFloat16(0)
+
+// Format implements [fmt.Formatter].
+func (a BFloat16) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
+}
+
+var _ fmt.Stringer = BFloat16(0)
+
+// String returns the string representation of a.
+func (a BFloat16) String() string {
+	return a.Text('g', -1)
+}
+
+// Text returns the string representation of a in the given format and precision.
+func (a BFloat16) Text(fmt byte, prec int) string {
+	return string(a.Append(make([]byte, 0, 8), fmt, prec))
+}
+
+// Append appends the string representation of a in the given format and precision to buf and returns the extended buffer.
+func (a BFloat16) Append(dst []byte, fmt byte, prec int) []byte {
+	// special numbers
+	switch {
+	case a.IsNaN():
+		return append(dst, "NaN"...)
+	case a.IsInf(1):
+		return append(dst, "+Inf"...)
+	case a.IsInf(-1):
+		return append(dst, "-Inf"...)
+	}
+
+	switch fmt {
+	case 'b':
+		return a.appendBin(dst)
+	case 'x', 'X':
+		return a.appendHex(dst, fmt, prec)
+	case 'f', 'e', 'E', 'g', 'G':
+		return a.append(dst, fmt, prec)
+	}
+
+	// unknown format
+	return append(dst, '%', fmt)
+}
+
+func (a BFloat16) appendBin(dst []byte) []byte {
+	sign, exp, frac := a.split()
+	exp -= shiftbf16
+
+	if sign != 0 {
+		dst = append(dst, '-')
+	}
+	dst = strconv.AppendUint(dst, uint64(frac), 10)
+	dst = append(dst, 'p')
+	if exp >= 0 {
+		dst = append(dst, '+')
+	}
+	return strconv.AppendInt(dst, int64(exp), 10)
+}
+
+func (a BFloat16) appendHex(dst []byte, fmt byte, prec int) []byte {
+	// The hexadecimal representation depends only on the value of a,
+	// and a BFloat16 value is exactly representable in Float32.
+	return a.Float32().Append(dst, fmt, prec)
+}
+
+func (a BFloat16) append(dst []byte, fmt byte, prec int) []byte {
+	sign, exp, frac := a.split()
+
+	var buf [decimalDigitsBF16]byte
+	d := &decimal{d: buf[:]}
+	d.AssignUint64(uint64(frac))
+	d.Shift(exp - shiftbf16)
+	shortest := prec < 0
+	if shortest {
+		roundShortestbf16(d, frac, exp)
+		// Precision for shortest representation mode.
+		switch fmt {
+		case 'e', 'E':
+			prec = d.nd - 1
+		case 'f':
+			prec = max(d.nd-d.dp, 0)
+		case 'g', 'G':
+			prec = d.nd
+		}
+	} else {
+		// Round appropriately.
+		switch fmt {
+		case 'e', 'E':
+			d.Round(prec + 1)
+		case 'f':
+			d.Round(d.dp + prec)
+		case 'g', 'G':
+			if prec == 0 {
+				prec = 1
+			}
+			d.Round(prec)
+		}
+	}
+	return formatDigits(dst, sign != 0, d, shortest, prec, fmt)
+}
+
+func roundShortestbf16(d *decimal, frac uint16, exp int) {
+	// If mantissa is zero, the number is zero; stop now.
+	if frac == 0 {
+		d.nd = 0
+		return
+	}
+
+	minexp := -biasbf16 + 1 // minimum possible exponent
+
+	// d = frac << (exp - shiftbf16)
+	// Next highest floating point number is frac+1 << exp-shiftbf16.
+	// Our upper bound is halfway between, frac*2+1 << exp-shiftbf16-1.
+	var upperBuf [decimalDigitsBF16]byte
+	upper := &decimal{d: upperBuf[:]}
+	upper.AssignUint64(uint64(frac*2 + 1))
+	upper.Shift(exp - shiftbf16 - 1)
+
+	// d = frac << (exp - shiftbf16)
+	// Next lowest floating point number is frac-1 << exp-shiftbf16,
+	// unless frac-1 drops the significant bit and exp is not the minimum exp,
+	// in which case the next lowest is frac*2-1 << exp-shiftbf16-1.
+	// Either way, call it fraclo << explo-shiftbf16.
+	// Our lower bound is halfway between, fraclo*2+1 << explo-shiftbf16-1.
+	var fraclo uint16
+	var explo int
+	if frac > 1<<shiftbf16 || exp == minexp {
+		fraclo = frac - 1
+		explo = exp
+	} else {
+		fraclo = frac*2 - 1
+		explo = exp - 1
+	}
+	var lowerBuf [decimalDigitsBF16]byte
+	lower := &decimal{d: lowerBuf[:]}
+	lower.AssignUint64(uint64(fraclo*2 + 1))
+	lower.Shift(explo - shiftbf16 - 1)
+
+	// The upper and lower bounds are possible outputs only if
+	// the original mantissa is even, so that IEEE round-to-even
+	// would round to the original mantissa and not the neighbors.
+	inclusive := frac%2 == 0
+
+	// As we walk the digits we want to know whether rounding up would fall
+	// within the upper bound. This is tracked by upperdelta:
+	//
+	// If upperdelta == 0, the digits of d and upper are the same so far.
+	//
+	// If upperdelta == 1, we saw a difference of 1 between d and upper on a
+	// previous digit and subsequently only 9s for d and 0s for upper.
+	// (Thus rounding up may fall outside the bound, if it is exclusive.)
+	//
+	// If upperdelta == 2, then the difference is greater than 1
+	// and we know that rounding up falls within the bound.
+	var upperdelta uint8
+
+	// Now we can figure out the minimum number of digits required.
+	// Walk along until d has distinguished itself from upper and lower.
+	for ui := 0; ; ui++ {
+		// lower, d, and upper may have the decimal points at different
+		// places. In this case upper is the longest, so we iterate from
+		// ui==0 and start li and mi at (possibly) -1.
+		mi := ui - upper.dp + d.dp
+		if mi >= d.nd {
+			break
+		}
+		li := ui - upper.dp + lower.dp
+		l := byte('0') // lower digit
+		if li >= 0 && li < lower.nd {
+			l = lower.d[li]
+		}
+		m := byte('0') // middle digit
+		if mi >= 0 {
+			m = d.d[mi]
+		}
+		u := byte('0') // upper digit
+		if ui < upper.nd {
+			u = upper.d[ui]
+		}
+
+		// Okay to round down (truncate) if lower has a different digit
+		// or if lower is inclusive and is exactly the result of rounding
+		// down (i.e., and we have reached the final digit of lower).
+		okdown := l != m || inclusive && li+1 == lower.nd
+
+		switch {
+		case upperdelta == 0 && m+1 < u:
+			// Example:
+			// m = 12345xxx
+			// u = 12347xxx
+			upperdelta = 2
+		case upperdelta == 0 && m != u:
+			// Example:
+			// m = 12345xxx
+			// u = 12346xxx
+			upperdelta = 1
+		case upperdelta == 1 && (m != '9' || u != '0'):
+			// Example:
+			// m = 1234598x
+			// u = 1234600x
+			upperdelta = 2
+		}
+		// Okay to round up if upper has a different digit and either upper
+		// is inclusive or upper is bigger than the result of rounding up.
+		okup := upperdelta > 0 && (inclusive || upperdelta > 1 || ui+1 < upper.nd)
+
+		// If it's okay to do either, then round to the nearest one.
+		// If it's okay to do only one, do it.
+		switch {
+		case okdown && okup:
+			d.Round(mi + 1)
+			return
+		case okdown:
+			d.RoundDown(mi + 1)
+			return
+		case okup:
+			d.RoundUp(mi + 1)
+			return
+		}
+	}
+}
+
+var _ json.Marshaler = BFloat16(0)
+
+// MarshalJSON implements [json.Marshaler].
+func (a BFloat16) MarshalJSON() ([]byte, error) {
+	// JSON does not support NaN and Inf values.
+	if a.IsNaN() || a.IsInf(0) {
+		return nil, fmt.Errorf("floats: cannot marshal %v to JSON", a)
+	}
+	return a.Append(nil, 'g', -1), nil
+}
+
+var _ encoding.TextMarshaler = BFloat16(0)
+
+// MarshalText implements [encoding.TextMarshaler].
+func (a BFloat16) MarshalText() ([]byte, error) {
+	return a.Append(nil, 'g', -1), nil
+}
+
+var _ encoding.TextAppender = BFloat16(0)
+
+// AppendText implements [encoding.TextAppender].
+func (a BFloat16) AppendText(dst []byte) ([]byte, error) {
+	return a.Append(dst, 'g', -1), nil
+}
