@@ -1,6 +1,8 @@
 package floats
 
 import (
+	"math"
+	"math/bits"
 	"math/rand/v2"
 	"testing"
 
@@ -371,6 +373,158 @@ func TestFMA256Sticky(t *testing.T) {
 		}
 		if got := fmaReference256(tt.x, tt.y, tt.z); got != tt.want {
 			t.Errorf("fmaReference256(%x, %x, %x) = %x, want %x", tt.x, tt.y, tt.z, got, tt.want)
+		}
+	}
+}
+
+// fmaReference32 is the reference implementation of FMA32. It returns x * y + z, computed with only one rounding.
+// (That is, FMA32 returns the fused multiply-add of x, y, and z.)
+func fmaReference32(x, y, z Float32) Float32 {
+	// Split x, y, z into sign, exponent, mantissa.
+	signX, expX, fracX := x.normalize()
+	signY, expY, fracY := y.normalize()
+	signZ, expZ, fracZ0 := z.normalize()
+
+	// Inf or NaN involved. At most one rounding will occur.
+	if x == 0 || y == 0 || expX == mask32-bias32 || expY == mask32-bias32 {
+		return x*y + z
+	}
+	if z == 0 {
+		return x * y
+	}
+	// Handle non-finite z separately. Evaluating x*y+z where
+	// x and y are finite, but z is infinite, should always result in z.
+	if expZ == mask32-bias32 {
+		return z
+	}
+
+	// Compute product p = x*y as sign, exponent, mantissa.
+	expP := expX + expY + 1
+	fracP := uint64(fracX<<7) * uint64(fracY<<8)
+	signP := signX ^ signY // product sign
+
+	// Normalize product.
+	is62zero := uint((^fracP >> 62) & 1)
+	fracP <<= is62zero
+	expP -= int(is62zero)
+
+	fracZ := uint64(fracZ0) << (7 + 32)
+
+	// Swap addition operands so |p| >= |z|
+	if expP < expZ || expP == expZ && fracP < fracZ {
+		signP, signZ = signZ, signP
+		expP, expZ = expZ, expP
+		fracP, fracZ = fracZ, fracP
+	}
+
+	// Special case: if p == -z the result is always +0 since neither operand is zero.
+	if signP != signZ && expP == expZ && fracP == fracZ {
+		return 0
+	}
+
+	// Align mantissa
+	fracZ = shrcompress64(fracZ, uint(expP-expZ))
+
+	// Compute resulting significands, normalizing if necessary.
+	var frac uint32
+	if signP == signZ {
+		// Adding fracP + fracZ
+		fracP += fracZ
+		expP += int(fracP >> 63)
+		frac = uint32(shrcompress64(fracP, uint(32+fracP>>63)))
+	} else {
+		// Subtracting fracP - fracZ
+		fracP -= fracZ
+		nz := bits.LeadingZeros64(fracP) - 1
+		expP -= nz
+		frac = uint32(shrcompress64(fracP<<uint(nz), 32))
+	}
+
+	// check for underflow
+	expP += bias32
+	if expP <= 0 {
+		n := uint(1 - expP)
+		frac = roundToNearestEven32(frac, n+7)
+		return Float32(math.Float32frombits(signP | frac))
+	}
+
+	// Round and break ties to even
+	frac = roundToNearestEven32(frac, 7)
+	if frac&(1<<(shift32+1)) != 0 {
+		expP++
+		frac >>= 1
+	}
+	if expP >= mask32 {
+		// overflow
+		return Float32(math.Float32frombits(signP | uvinf32))
+	}
+	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
+}
+
+// randomFMAOperands32 returns x, y, z for testing FMA32.
+// z is chosen to be close to -x*y or to the subnormal / overflow ranges.
+func randomFMAOperands32(r *rand.Rand) (x, y, z Float32) {
+	rnd := func() Float32 {
+		b := r.Uint32()
+		switch r.IntN(8) {
+		case 0:
+			b &^= 0x7f80_0000 // subnormal
+		case 1:
+			b |= 0x7f80_0000 // Inf, NaN
+		case 2:
+			b = b&^0x7f80_0000 | uint32(r.IntN(40)+110)<<23 // close to 1
+		}
+		return Float32(math.Float32frombits(b))
+	}
+	short := func(a Float32) Float32 {
+		n := uint(r.IntN(24))
+		return Float32(math.Float32frombits(math.Float32bits(float32(a)) >> n << n))
+	}
+	x, y = rnd(), rnd()
+	if r.IntN(2) == 0 {
+		// short fractions, to make exact products
+		x, y = short(x), short(y)
+	}
+	if r.IntN(2) == 0 {
+		// the exponent of y is chosen so that x*y is in the normal range
+		e := int(math.Float32bits(float32(x))>>23&0xff) - 127
+		b := math.Float32bits(float32(y))&^0x7f80_0000 | uint32(127-e+r.IntN(40)-20)&0xff<<23
+		y = Float32(math.Float32frombits(b))
+	}
+	p := float64(x) * float64(y)
+	switch r.IntN(4) {
+	case 0:
+		// cancellation: z is close to -x*y
+		z = Float32(-p)
+		z = Float32(math.Float32frombits(math.Float32bits(float32(z)) ^ uint32(r.Uint64()>>r.IntN(64))&0xffff))
+	case 1:
+		// the exponent of z is close to the one of x*y
+		z = rnd()
+		e := int(math.Float64bits(p)>>52&0x7ff) - 1023 + r.IntN(60) - 30
+		z = Float32(math.Ldexp(float64(math.Float32frombits(math.Float32bits(float32(z))&0x807f_ffff|127<<23)), e))
+	case 2:
+		// z is much smaller than x*y
+		z = short(rnd())
+		e := int(math.Float64bits(p)>>52&0x7ff) - 1023 - r.IntN(100)
+		z = Float32(math.Ldexp(float64(math.Float32frombits(math.Float32bits(float32(z))&0x807f_ffff|127<<23)), e))
+	default:
+		z = rnd()
+	}
+	if r.IntN(2) == 0 {
+		z = -z
+	}
+	return
+}
+
+func TestFMA32Random(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(31, 32))
+	for range 5_000_000 {
+		x, y, z := randomFMAOperands32(r)
+		got := FMA32(x, y, z)
+		want := fmaReference32(x, y, z)
+		if math.Float32bits(float32(got)) != math.Float32bits(float32(want)) && !(got.IsNaN() && want.IsNaN()) {
+			t.Fatalf("FMA32(%x, %x, %x) = %x, want %x", x, y, z, got, want)
 		}
 	}
 }
