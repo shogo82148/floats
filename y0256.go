@@ -109,56 +109,6 @@ func y0Taylor256(x Float256) Float256 {
 	return r
 }
 
-// temmeY0Y1_256 returns Y0(x) and Y1(x) for 0 < x < 2 using Temme's series;
-// see temmeY0Y1_128 for the derivation (the nu=0 specialization of Numerical
-// Recipes §6.7's general-order series).
-func temmeY0Y1_256(x Float256) (y0, y1 Float256) {
-	var (
-		One = Float256(uvone256)
-		Two = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Four = Float256{
-			0x4000_1000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Pi = Float256{
-			0x4000_0921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
-		Euler = Float256{
-			0x3fff_e278_8cfc_6fb6, 0x18f4_9a37_c7f0_202a,
-			0x596a_d439_d987_5ecb, 0x9803_2180_7be6_8e13,
-		}
-	)
-
-	negQuarterX2 := x.Mul(x).Quo(Four).Neg()
-
-	p := One.Quo(Pi)
-	f := Two.Quo(Pi).Mul(Euler.Add(x.Quo(Two).Log())).Neg()
-	c := One
-
-	sumG := c.Mul(f)
-	sumH := c.Mul(p)
-
-	const N = 40
-	for k := 1; k <= N; k++ {
-		kf := NewFloat256(float64(k))
-		pPrev, fPrev := p, f
-		p = pPrev.Quo(kf)
-		f = kf.Mul(fPrev).Add(Two.Mul(pPrev)).Quo(kf.Mul(kf))
-		c = c.Mul(negQuarterX2).Quo(kf)
-		h := kf.Mul(f).Neg().Add(p)
-		sumG = sumG.Add(c.Mul(f))
-		sumH = sumH.Add(c.Mul(h))
-	}
-
-	y0 = sumG.Neg()
-	y1 = Two.Quo(x).Mul(sumH).Neg()
-	return y0, y1
-}
-
 // y0Asymptotic256 returns Y0(x) for x >= 128 using Hankel's asymptotic
 // expansion
 //
