@@ -278,10 +278,14 @@ func TestParseBFloat16_Exact(t *testing.T) {
 		mid := math.Float32frombits(uint32(i)<<16 | 0x8000)
 		ms := strconv.FormatFloat(float64(mid), 'f', -1, 64)
 		check(ms)
-		check(ms + "1")
+		check(ms + "1") // just above the tie
 		if strings.Contains(ms, ".") {
-			check(strings.TrimRight(ms, "0123456789") + ms[strings.Index(ms, ".")+1:] + "9")
+			// just below the tie: the last digit of the fraction is 5.
+			check(ms[:len(ms)-1] + "4" + strings.Repeat("9", 20))
 		}
+		// the neighbors in float64
+		check(strconv.FormatFloat(math.Nextafter(float64(mid), 0), 'f', -1, 64))
+		check(strconv.FormatFloat(math.Nextafter(float64(mid), math.Inf(1)), 'f', -1, 64))
 		check(strconv.FormatFloat(x, 'e', 20, 64))
 	}
 
@@ -315,9 +319,12 @@ func TestParseBFloat16_Hex(t *testing.T) {
 		}
 		// the ties and the values around them
 		mid := float64(math.Float32frombits(uint32(i)<<16 | 0x8000))
+		hm := strconv.FormatFloat(mid, 'x', -1, 64)
+		p := strings.IndexByte(hm, 'p')
 		for _, s := range []string{
-			strconv.FormatFloat(mid, 'x', -1, 64),
-			strconv.FormatFloat(mid, 'x', -1, 64)[:len(strconv.FormatFloat(mid, 'x', -1, 64))-4] + "1p+00",
+			hm,
+			hm[:p] + "01" + hm[p:], // just above the tie
+			strconv.FormatFloat(math.Nextafter(mid, 0), 'x', -1, 64), // just below the tie
 		} {
 			f, _, err := big.ParseFloat(s, 0, 400, big.ToNearestEven)
 			if err != nil {

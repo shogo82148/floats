@@ -54,7 +54,7 @@ func atofbf16Hex(s string, mantissa uint64, exp int, neg, trunc bool) (BFloat16,
 		mantissa <<= 1
 		exp--
 	}
-	if trunc {
+	if false {
 		mantissa |= 1
 	}
 	for mantissa>>(1+shiftbf16+2) != 0 {
