@@ -8,6 +8,7 @@ import (
 	"github.com/shogo82148/ints"
 )
 
+// toBig converts x to an exact big.Float.
 func (x ynExt256) toBig() *big.Float {
 	m := new(big.Int)
 	for _, w := range x.m {
@@ -21,6 +22,7 @@ func (x ynExt256) toBig() *big.Float {
 	return f
 }
 
+// ynExt256FromBig converts f, which must be representable in 256 bits, to ynExt256.
 func ynExt256FromBig(f *big.Float) ynExt256 {
 	if f.Sign() == 0 {
 		return ynExt256{}
@@ -38,6 +40,7 @@ func ynExt256FromBig(f *big.Float) ynExt256 {
 	return ynExt256{m: m, e: exp - 1, neg: neg}
 }
 
+// randYnExt256 returns a random value with the exponent e, including the special significands.
 func randYnExt256(r *rand.Rand, e int) ynExt256 {
 	m := ints.Uint256{r.Uint64() | 1<<63, r.Uint64(), r.Uint64(), r.Uint64()}
 	switch r.IntN(8) {
@@ -49,6 +52,7 @@ func randYnExt256(r *rand.Rand, e int) ynExt256 {
 	return ynExt256{m: m, e: e, neg: r.IntN(2) == 0}
 }
 
+// TestYnExt256 compares Add, Mul and Inv with the 256-bit math/big.Float, which is correctly rounded.
 func TestYnExt256(t *testing.T) {
 	t.Parallel()
 	r := rand.New(rand.NewPCG(1, 2))
@@ -91,6 +95,7 @@ func TestYnExt256(t *testing.T) {
 	}
 }
 
+// TestYnExt256Float256 checks the conversion between ynExt256 and Float256.
 func TestYnExt256Float256(t *testing.T) {
 	t.Parallel()
 	r := rand.New(rand.NewPCG(3, 4))
@@ -122,5 +127,40 @@ func TestYnExt256Float256(t *testing.T) {
 	}
 	if got := (ynExt256{m: ints.Uint256{1 << 63}, e: -300000, neg: true}).Float256(); !got.IsZero() || !got.Signbit() {
 		t.Errorf("underflow = %v", got)
+	}
+}
+
+// TestYnExt256Special checks the zeros, the carry-out of the rounding, and the cancellation.
+func TestYnExt256Special(t *testing.T) {
+	t.Parallel()
+	one := ynExt256FromUint(1)
+	var zero ynExt256
+	if got := ynExt256FromFloat256(Float256{}); got != zero {
+		t.Errorf("FromFloat256(0) = %v", got)
+	}
+	if got := zero.Float256(); !eq256(got, Float256{}) {
+		t.Errorf("zero.Float256() = %v", got)
+	}
+	if got := ynExt256Add(one, zero); got != one {
+		t.Errorf("1 + 0 = %v", got)
+	}
+	if got := ynExt256Add(zero, one); got != one {
+		t.Errorf("0 + 1 = %v", got)
+	}
+	if got := ynExt256Mul(one, zero); got != zero {
+		t.Errorf("1 * 0 = %v", got)
+	}
+	if got := ynExt256Add(one, ynExt256{m: one.m, e: one.e, neg: true}); got != zero {
+		t.Errorf("1 - 1 = %v", got)
+	}
+	// far smaller values do not change the result.
+	if got := ynExt256Add(one, ynExt256{m: one.m, e: -1000}); got != one {
+		t.Errorf("1 + 2**-1000 = %v", got)
+	}
+
+	// the significand of all ones is rounded up to 2**256, and the exponent is carried.
+	ones := ynExt256{m: ints.Uint256{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}, e: 3}
+	if got, want := ones.Float256(), exact256(16); !eq256(got, want) {
+		t.Errorf("Float256(%v) = %v; want %v", ones, got, want)
 	}
 }

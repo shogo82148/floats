@@ -43,6 +43,10 @@ def main():
             for _ in range(count):
                 x = mpmath.mpf(lo) * mpmath.mpf(hi / lo) ** mpmath.mpf(rnd.random())
                 cases.append((n, x))
+    # the boundary of the asymptotic expansion: x = n**2 / 2 and x = 128
+    for n in (16, 20, 100, 300, 1000):
+        cases.append((n, max(mpmath.mpf(n * n) / 2, mpmath.mpf(128)) * (1 + mpmath.mpf(rnd.random()) / 100)))
+
     # the zeros of Y_n, which are searched near the McMahon approximation (k + n/2 - 1/4) pi
     # in low precision. The arguments need to be only close to the zeros.
     for n in (2, 10, 50):
