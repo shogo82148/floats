@@ -24,11 +24,12 @@ type decimal struct {
 // Maximum number of decimal digits that may be produced by (or consumed for a
 // correctly-rounded conversion of) each float type. The worst case is the
 // exact expansion of the largest subnormal value. A small margin is added on
-// top of the computed maxima (16->22, 128->11564, 256->183467).
+// top of the computed maxima (16->22, bf16->94, 128->11564, 256->183467).
 const (
-	decimalDigits16  = 32
-	decimalDigits128 = 12288
-	decimalDigits256 = 190000
+	decimalDigits16   = 32
+	decimalDigitsBF16 = 128
+	decimalDigits128  = 12288
+	decimalDigits256  = 190000
 )
 
 func (a *decimal) String() string {
