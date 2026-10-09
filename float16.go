@@ -204,34 +204,9 @@ func (a Float16) Sqrt() Float16 {
 		return uvnan16
 	}
 
-	_, exp, frac := a.normalize()
-	if exp%2 != 0 {
-		// odd exp, double x to make it even
-		frac <<= 1
-	}
-	// exponent of square root
-	exp >>= 1
-
-	// generate sqrt(frac) bit by bit
-	frac <<= 1
-	var q, s uint16 // q = sqrt(frac)
-	r := uint16(1 << (shift16 + 1))
-	for r != 0 {
-		t := s + r
-		if t <= frac {
-			s = t + r
-			frac -= t
-			q += r
-		}
-		frac <<= 1
-		r >>= 1
-	}
-
-	// final rounding
-	if frac != 0 {
-		q += q & 1
-	}
-	return Float16((exp-1+bias16)<<shift16) + Float16(q>>1)
+	// The square root in float64 is correctly rounded, and rounding it again to 11 bits
+	// is the same as rounding once, because 53 >= 2*11+2.
+	return Float64(math.Sqrt(float64(a.Float32()))).Float16()
 }
 
 // Eq returns a == b.
