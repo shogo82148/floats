@@ -429,3 +429,36 @@ func BenchmarkBFloat16_Arith(b *testing.B) {
 		})
 	}
 }
+
+func TestBFloat16_FlushToZero(t *testing.T) {
+	t.Parallel()
+	for i := range 1 << 16 {
+		a, x := bf16Value(i)
+		want := a
+		if x != 0 && math.Abs(x) < 0x1p-126 {
+			// subnormal
+			want = BFloat16(i & 0x8000)
+		}
+		if got := a.FlushToZero(); got != want {
+			t.Errorf("BFloat16(%#04x).FlushToZero() = %#04x, want %#04x", i, uint16(got), uint16(want))
+		}
+	}
+
+	// the smallest normal number is kept, the largest subnormal number is flushed
+	if got := BFloat16(0x0080).FlushToZero(); got != 0x0080 {
+		t.Errorf("FlushToZero of the smallest normal number = %#04x", uint16(got))
+	}
+	if got := BFloat16(0x807f).FlushToZero(); got != 0x8000 {
+		t.Errorf("FlushToZero of the largest negative subnormal number = %#04x", uint16(got))
+	}
+
+	// emulation of the hardware without subnormal numbers
+	a, b := BFloat16(0x0100), BFloat16(0x3f00) // 2^-125 * 0.5 = 2^-126 (normal)
+	if got := a.FlushToZero().Mul(b.FlushToZero()).FlushToZero(); got != 0x0080 {
+		t.Errorf("flush(2^-125 * 0.5) = %#04x, want 0x0080", uint16(got))
+	}
+	b = 0x3e80 // 0.25: the product 2^-127 is subnormal
+	if got := a.FlushToZero().Mul(b.FlushToZero()).FlushToZero(); got != 0 {
+		t.Errorf("flush(2^-125 * 0.25) = %#04x, want 0", uint16(got))
+	}
+}

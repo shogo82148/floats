@@ -122,6 +122,22 @@ func (a BFloat16) Neg() BFloat16 {
 	return a ^ signMaskbf16
 }
 
+// FlushToZero returns a with the subnormal numbers replaced by zero of the same sign.
+// The other values, including zero, infinities and NaN, are returned as they are.
+//
+// The arithmetic operations of this package support the gradual underflow.
+// Some hardware that supports BFloat16 treats the subnormal numbers as zero;
+// FlushToZero can be used to emulate it, for example:
+//
+//	c := a.FlushToZero().Mul(b.FlushToZero()).FlushToZero()
+func (a BFloat16) FlushToZero() BFloat16 {
+	if a&(maskbf16<<shiftbf16) == 0 {
+		// the exponent field is zero: ±0 or a subnormal number
+		return a & signMaskbf16
+	}
+	return a
+}
+
 // Abs returns the absolute value of a.
 //
 // Special cases:
