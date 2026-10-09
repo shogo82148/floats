@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# Generates testdata/j0128.txt and testdata/j0256.txt, the correctly rounded J0(x) for various x.
+# Generates testdata/j0128.txt, testdata/j0256.txt, testdata/j1256.txt, the correctly rounded J0(x) or J1(x) for various x.
 # Each line contains the bits of x and the result in hexadecimal.
 #
-# Usage: python3 scripts/gen_j0_testdata.py [128|256]
+# Usage: python3 scripts/gen_j0_testdata.py [128|256] [0|1]
 
 import functools
 import random
@@ -15,52 +15,74 @@ from gen_gamma_testdata import round_bits, to_mpf
 
 P, EB = 236, 19
 B = (1 << (EB - 1)) - 1
+NU = 0  # the order of the Bessel function
 
 
-def j0(x):
-    """returns J0(x) for x > 0 with the working precision."""
+def bessel(x):
+    """returns J_NU(x) for x > 0 with the working precision."""
+    if x < 16:
+        # the Taylor series; mpmath.besselj is very slow for tiny x.
+        prec = mpmath.mp.prec
+        half = x / 2
+        term = half**NU / mpmath.factorial(NU)
+        s = mpmath.mpf(0)
+        k = 0
+        while abs(term) >= mpmath.mpf(2) ** -(prec + 10) * abs(s) or k < 2:
+            s += term
+            k += 1
+            term = -term * half * half / (k * (k + NU))
+        if NU == 1 and s == half:
+            # J1(x) = x/2 (1 - x**2/8 + ...) is a little less than x/2, but the difference is lost in the working
+            # precision for tiny x. It matters if x/2 is the midpoint of two subnormal numbers.
+            s = half * (1 - mpmath.mpf(2) ** -prec)
+        return s
     if x < 2**20:
-        return mpmath.besselj(0, x)
+        return mpmath.besselj(NU, x)
     # Hankel's asymptotic expansion, whose terms decrease until they are smaller than 2**-prec for x >= 2**20.
     prec = mpmath.mp.prec
+    mu = 4 * NU * NU
     w = 1 / (8 * x)
     t = mpmath.mpf(1)
     p, q = mpmath.mpf(1), mpmath.mpf(0)
     k = 0
     while True:
         k += 1
-        t = t * (2 * k - 1) ** 2 * w / k
-        if t < mpmath.mpf(2) ** -(prec + 10):
+        t = t * (mu - (2 * k - 1) ** 2) * w / k
+        if abs(t) < mpmath.mpf(2) ** -(prec + 10):
             break
         sgn = -1 if (k // 2) % 2 else 1
         if k % 2 == 0:
             p += sgn * t
         else:
-            q += sgn * t  # q is -Q
-    chi = x - mpmath.pi / 4
-    return mpmath.sqrt(2 / (mpmath.pi * x)) * (p * mpmath.cos(chi) + q * mpmath.sin(chi))
+            q += sgn * t
+    chi = x - (mpmath.mpf(NU) / 2 + mpmath.mpf(1) / 4) * mpmath.pi
+    return mpmath.sqrt(2 / (mpmath.pi * x)) * (p * mpmath.cos(chi) - q * mpmath.sin(chi))
 
 
-def init(p, eb):
-    global P, EB, B
-    P, EB = p, eb
+def init(p, eb, nu):
+    global P, EB, B, NU
+    P, EB, NU = p, eb, nu
     B = (1 << (EB - 1)) - 1
 
 
 def compute(v):
     # x must be converted with enough precision.
-    with mpmath.workprec(4 * P + 400 + max(0, (v >> P) - B)):
+    # the sign bit is not a part of the exponent.
+    with mpmath.workprec(4 * P + 400 + max(0, ((v >> P) & ((1 << EB) - 1)) - B)):
         x = to_mpf(v, P, EB)
         if x == 0:
-            return round_bits(mpmath.mpf(1), P, EB)
-        y = j0(x)
+            return round_bits(mpmath.mpf(1), P, EB) if NU == 0 else 0
+        # J1 is an odd function.
+        y = bessel(abs(x))
+        if x < 0 and NU == 1:
+            y = -y
         if y == 0:
             return 0
         return round_bits(y, P, EB)
 
 
 def main(name):
-    rnd = random.Random(2562 if P == 236 else 1282)
+    rnd = random.Random((2562 if P == 236 else 1282) + NU)
     width = (P + EB + 1) // 4
     prec = 4 * P + 400
 
@@ -97,7 +119,7 @@ def main(name):
                 inputs.append(round_bits(t + d * u, P, EB))
         # the zeros of J0, where the value is small. J0(x) is correctly rounded within an ulp of the zeros below 256.
         for k in range(1, 82):
-            z = mpmath.besseljzero(0, k)
+            z = mpmath.besseljzero(NU, k)
             u = mpmath.mpf(2) ** (int(mpmath.floor(mpmath.log(z, 2))) - P)
             for d in (-2, -1, 0, 1, 2):
                 inputs.append(round_bits(z + d * u, P, EB))
@@ -106,14 +128,16 @@ def main(name):
                 inputs.append(round_bits(z + d * mpmath.mpf(2) ** -58 * (1 + mpmath.mpf(rnd.random())), P, EB))
         # J0(x) is not correctly rounded if |J0(x)| < 2**-70 for x >= 256, so that the points are apart from the zeros.
         for k in (100, 500, 1000, 3000):
-            z = mpmath.besseljzero(0, k)
+            z = mpmath.besseljzero(NU, k)
             for d in (-3, -1, 1, 3):
                 inputs.append(round_bits(z + d * mpmath.mpf(2) ** -50, P, EB))
     # the largest values
     inputs += [enc((1 << (P + 1)) - 1, B), 1, enc(1 << P, B - 1)]
+    if NU == 1:
+        inputs = [v | (rnd.getrandbits(1) << (P + EB)) for v in inputs]  # J1 is odd
     inputs = list(dict.fromkeys(inputs))
 
-    with Pool(initializer=init, initargs=(P, EB)) as p:
+    with Pool(initializer=init, initargs=(P, EB, NU)) as p:
         results = p.map(compute, inputs, chunksize=2)
     with open(f"testdata/{name}.txt", "w") as f:
         for v, y in zip(inputs, results):
@@ -121,8 +145,10 @@ def main(name):
 
 
 if __name__ == "__main__":
+    nu = int(sys.argv[2]) if len(sys.argv) > 2 else 0
     if (sys.argv[1] if len(sys.argv) > 1 else "256") == "128":
-        init(112, 15)
-        main("j0128")
+        init(112, 15, nu)
+        main(f"j{nu}128")
     else:
-        main("j0256")
+        init(236, 19, nu)
+        main(f"j{nu}256")
