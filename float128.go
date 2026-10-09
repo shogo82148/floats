@@ -1,6 +1,8 @@
 package floats
 
 import (
+	"math/bits"
+
 	"github.com/shogo82148/ints"
 )
 
@@ -610,35 +612,37 @@ func FMA128(x, y, z Float128) Float128 {
 	fracP := fracX.Lsh(14).Mul256(fracY.Lsh(15))
 	signP := signX ^ signY // product sign
 
-	// Normalize the product
-	if fracP[0]>>62 == 0 {
-		fracP = ints.Uint256{
-			fracP[0]<<1 | fracP[1]>>63,
-			fracP[1]<<1 | fracP[2]>>63,
-			fracP[2]<<1 | fracP[3]>>63,
-			fracP[3] << 1,
-		}
-		expP--
+	// Normalize the product without branches; the result is random in general.
+	n := (^fracP[0] >> 62) & 1
+	fracP = ints.Uint256{
+		fracP[0]<<n | fracP[1]>>(64-n),
+		fracP[1]<<n | fracP[2]>>(64-n),
+		fracP[2]<<n | fracP[3]>>(64-n),
+		fracP[3] << n,
 	}
+	expP -= int(n)
 
 	// fracZ = fracZ0 << (14 + 128)
 	zz := fracZ0.Lsh(14)
 	fracZ := ints.Uint256{zz[0], zz[1], 0, 0}
 
 	// Swap addition operands so |p| >= |z|
-	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
+	// The low 128 bits of fracZ are zero, so fracP >= fracZ if the high 128 bits are equal.
+	if expP < expZ || expP == expZ && (fracP[0] < fracZ[0] || fracP[0] == fracZ[0] && fracP[1] < fracZ[1]) {
 		signP, signZ = signZ, signP
 		expP, expZ = expZ, expP
 		fracP, fracZ = fracZ, fracP
 	}
 
 	// Special case: if p == -z the result is always +0 since neither operand is zero.
-	if signP != signZ && expP == expZ && fracP.Cmp(fracZ) == 0 {
+	if expP == expZ && fracP[0] == fracZ[0] && fracP[1] == fracZ[1] && fracP[2]|fracP[3] == 0 && signP != signZ {
 		return Float128{0, 0}
 	}
 
 	// Align mantissa
-	fracZ = shrcompress256(fracZ, uint(expP-expZ))
+	if d := uint(expP - expZ); d != 0 {
+		fracZ = shrcompress256(fracZ, d)
+	}
 
 	// Compute resulting significands, normalizing if necessary.
 	var frac ints.Uint128
@@ -670,8 +674,15 @@ func FMA128(x, y, z Float128) Float128 {
 	}
 
 	// Round and break ties to even
-	frac = roundToNearestEven128(frac, 14)
-	if frac[0]&(1<<(shift128+1-64)) != 0 {
+	// frac >> 14 rounded to nearest even.
+	// Adding half - 1 + (the least significant bit of the result) never overflows
+	// because the most significant bit of frac is bit 126.
+	lo, c := bits.Add64(frac[1], 1<<13-1+(frac[1]>>14)&1, 0)
+	hi := frac[0] + c
+	lo = hi<<50 | lo>>14
+	hi >>= 14
+	frac = ints.Uint128{hi, lo}
+	if hi&(1<<(shift128+1-64)) != 0 {
 		expP++
 		frac = frac.Rsh(1)
 	}
