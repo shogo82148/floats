@@ -46,3 +46,24 @@ func (a Float32) Y0() Float32 {
 	// The result is calculated more accurately by Float256.
 	return NewFloat256(x).Y0().Float32()
 }
+
+// y032Poly returns the value of the polynomial of the segment of Y0 for 2 <= x < 64 at x: the width of the segments is
+// 1/4 for [2, 4), 1/2 for [4, 6), and 1 for [6, 64). Its absolute error is less than 2**-48.
+// Y0 itself does not call it, because the call slows Y0 down by about 10%.
+func y032Poly(x float64) float64 {
+	var i int
+	switch {
+	case x < 4:
+		i = int(x*4) - 8
+	case x < 6:
+		i = 8 + int((x-4)*2)
+	default:
+		i = 12 + int(x) - 6
+	}
+	c := &y032Coeffs[i]
+	t := x - y032Centers[i]
+	t2 := t * t
+	t4 := t2 * t2
+	// Estrin's scheme: the dependency chain is shorter than Horner's method.
+	return (((c[0] + t*c[1]) + t2*(c[2]+t*c[3])) + t4*((c[4]+t*c[5])+t2*(c[6]+t*c[7]))) + t4*t4*((c[8]+t*c[9])+t2*(c[10]+t*c[11]))
+}
