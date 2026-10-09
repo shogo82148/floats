@@ -10,7 +10,7 @@
 # NAME is a name of a job (e.g. Exp, Jn2, Pow3, Atan2_8, Hypot0, LgammaSign).
 # All the jobs are checked if no NAME is given. It takes about 10 minutes.
 # DIR is the directory for the output of bf16dump. It is a temporary directory by default.
-# If DIR already has the output, bf16dump is not run again.
+# If DIR already has the output of all the selected jobs, bf16dump is not run again.
 
 import argparse
 import math
@@ -247,7 +247,8 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         directory = args.dir or tmp
-        if not os.path.exists(os.path.join(directory, "Exp.txt")):
+        # j[0] is the name of the output file of the job.
+        if not all(os.path.exists(os.path.join(directory, j[0] + ".txt")) for j in jobs):
             subprocess.run(["go", "run", "./internal/cmd/bf16dump", directory], check=True)
         jobs = [(directory, *job) for job in jobs]
 
