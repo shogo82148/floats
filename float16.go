@@ -551,85 +551,13 @@ func (a Float16) comparable() int16 {
 // FMA16 returns x * y + z, computed with only one rounding.
 // (That is, FMA16 returns the fused multiply-add of x, y, and z.)
 func FMA16(x, y, z Float16) Float16 {
-	// Inf or NaN involved. At most one rounding will occur.
-	if x.IsZero() || y.IsZero() || x&uvinf16 == uvinf16 || y&uvinf16 == uvinf16 {
-		return x.Mul(y).Add(z)
-	}
-	if z.IsZero() {
-		return x.Mul(y)
-	}
-	// Handle non-finite z separately. Evaluating x*y+z where
-	// x and y are finite, but z is infinite, should always result in z.
-	if z&uvinf16 == uvinf16 {
-		return z
-	}
-
-	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.normalize()
-	signY, expY, fracY := y.normalize()
-	signZ, expZ, fracZ0 := z.normalize()
-
-	// Compute product p = x*y as sign, exponent, mantissa.
-	expP := expX + expY + 1
-	fracP := uint32(fracX<<4) * uint32(fracY<<5)
-	signP := signX ^ signY // product sign
-
-	// Normalize product.
-	is30zero := uint((^fracP >> 30) & 1)
-	fracP <<= is30zero
-	expP -= int(is30zero)
-
-	fracZ := uint32(fracZ0) << (4 + 16)
-
-	// Swap addition operands so |p| >= |z|
-	if expP < expZ || expP == expZ && fracP < fracZ {
-		signP, signZ = signZ, signP
-		expP, expZ = expZ, expP
-		fracP, fracZ = fracZ, fracP
-	}
-
-	// Special case: if p == -z the result is always +0 since neither operand is zero.
-	if signP != signZ && expP == expZ && fracP == fracZ {
-		return Float16(0)
-	}
-
-	// Align mantissa
-	fracZ = shrcompress32(fracZ, uint(expP-expZ))
-
-	// Compute resulting significands, normalizing if necessary.
-	var frac uint16
-	if signP == signZ {
-		// Adding fracP + fracZ
-		fracP += fracZ
-		expP += int(fracP >> 31)
-		frac = uint16(shrcompress32(fracP, uint(16+fracP>>31)))
-	} else {
-		// Subtracting fracP - fracZ
-		fracP -= fracZ
-		nz := bits.LeadingZeros32(fracP) - 1
-		expP -= nz
-		frac = uint16(shrcompress32(fracP<<uint(nz), 16))
-	}
-
-	// check for underflow
-	expP += bias16
-	if expP <= 0 {
-		n := uint(1 - expP)
-		frac = roundToNearestEven16(frac, n+4)
-		return Float16(signP | uint16(frac))
-	}
-
-	// Round and break ties to even
-	frac = roundToNearestEven16(frac, 4)
-	if frac&(1<<(shift16+1)) != 0 {
-		expP++
-		frac >>= 1
-	}
-	if expP >= mask16 {
-		// overflow
-		return Float16(signP | uvinf16)
-	}
-	return Float16(signP | uint16(expP<<shift16) | frac&fracMask16)
+	// The product of two float16 values has 22 bits, and it is exact in float64.
+	// The sum p + z is exact unless the exponents of p and z are very different:
+	// then either |p| >= 2^19 and the result overflows whatever z is,
+	// or |p| < 2^-32 |z| and the result is z, which is on the float16 grid,
+	// so the sum never rounds twice in a way that changes the result.
+	p := float64(x.Float32()) * float64(y.Float32())
+	return Float64(p + float64(z.Float32())).Float16()
 }
 
 // Nextafter returns the next representable float16 value after a towards b.
