@@ -100,10 +100,10 @@ func (a Float32) Atanh() Float32 {
 		return a
 	}
 	if ix >= uvone32 {
-		switch {
-		case a == 1:
+		switch a {
+		case 1:
 			return NewFloat32Inf(1)
-		case a == -1:
+		case -1:
 			return NewFloat32Inf(-1)
 		default:
 			// |a| > 1 or NaN

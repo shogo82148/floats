@@ -189,7 +189,7 @@ func TestFloat128_MulRandom(t *testing.T) {
 		b := randomMulOperand128(r, a)
 		got := a.Mul(b)
 		want := mulReference128(a, b)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if got != want && (!got.IsNaN() || !want.IsNaN()) {
 			t.Fatalf("Float128(%x).Mul(%x) = %x, want %x", a, b, got, want)
 		}
 	}
@@ -231,7 +231,7 @@ func TestFloat256_MulRandom(t *testing.T) {
 		b := randomMulOperand256(r, a)
 		got := a.Mul(b)
 		want := mulReference256(a, b)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if got != want && (!got.IsNaN() || !want.IsNaN()) {
 			t.Fatalf("Float256(%x).Mul(%x) = %x, want %x", a, b, got, want)
 		}
 	}

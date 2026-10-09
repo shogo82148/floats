@@ -201,7 +201,7 @@ func testFloat32SinCosTan(t *testing.T, name string) (total, misrounded int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) Float32 {
 		v, err := strconv.ParseUint(s, 16, 32)

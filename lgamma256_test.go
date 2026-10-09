@@ -74,7 +74,7 @@ func TestFloat256_LgammaAccuracy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) Float256 {
 		var x Float256
@@ -118,7 +118,7 @@ func TestFloat256_LgammaKernels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) gammaFix256 {
 		if len(s) != 96 {

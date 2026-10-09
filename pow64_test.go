@@ -13,7 +13,7 @@ func TestFloat64_Pow(t *testing.T) {
 		y    Float64
 		want float64
 	}{
-		{exact64(2), exact64(3), math.Pow(2, 3)},
+		{exact64(2), exact64(3), 8},
 		{exact64(5), exact64(0.5), math.Pow(5, 0.5)},
 		{exact64(5), exact64(1.5), math.Pow(5, 1.5)},
 	}

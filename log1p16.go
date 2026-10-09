@@ -19,11 +19,11 @@ func (a Float16) Log1p() Float16 {
 		return a
 	}
 	if a >= uvinf16 && ix >= uvone16 { // a == +Inf, a <= -1, or NaN
-		switch {
-		case a == uvinf16:
+		switch a {
+		case uvinf16:
 			// log1p(+Inf) = +Inf
 			return a
-		case a == signMask16|uvone16:
+		case signMask16 | uvone16:
 			// log1p(-1) = -Inf
 			return uvneginf16
 		default:

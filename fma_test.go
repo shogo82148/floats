@@ -274,7 +274,7 @@ func TestFMA128Random(t *testing.T) {
 		x, y, z := randomFMAOperands128(r)
 		got := FMA128(x, y, z)
 		want := fmaReference128(x, y, z)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if got != want && (!got.IsNaN() || !want.IsNaN()) {
 			t.Fatalf("FMA128(%x, %x, %x) = %x, want %x", x, y, z, got, want)
 		}
 	}
@@ -338,7 +338,7 @@ func TestFMA256Random(t *testing.T) {
 		x, y, z := randomFMAOperands256(r)
 		got := FMA256(x, y, z)
 		want := fmaReference256(x, y, z)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if got != want && (!got.IsNaN() || !want.IsNaN()) {
 			t.Fatalf("FMA256(%x, %x, %x) = %x, want %x", x, y, z, got, want)
 		}
 	}
@@ -666,7 +666,7 @@ func TestFMA16Random(t *testing.T) {
 		x, y, z := randomFMAOperands16(r)
 		got := FMA16(x, y, z)
 		want := fmaReference16(x, y, z)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if got != want && (!got.IsNaN() || !want.IsNaN()) {
 			t.Fatalf("FMA16(%x, %x, %x) = %x, want %x", x, y, z, got, want)
 		}
 	}

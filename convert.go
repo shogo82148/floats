@@ -50,7 +50,8 @@ func (a Float16) Float128() Float128 {
 	exp := uint64(a>>shift16) & mask16
 	frac := uint64(a & fracMask16)
 
-	if exp == 0 {
+	switch exp {
+	case 0:
 		// a is subnormal number
 		if frac == 0 {
 			// a is zero
@@ -60,10 +61,10 @@ func (a Float16) Float128() Float128 {
 			frac = (frac << (shift16 - l + 1)) & fracMask16
 			exp = bias128 - (bias16 + shift16) + uint64(l)
 		}
-	} else if exp == mask16 {
+	case mask16:
 		// a is infinity or NaN
 		exp = mask128
-	} else {
+	default:
 		// a is normal number
 		exp += bias128 - bias16
 	}
@@ -140,10 +141,11 @@ func (a Float32) Float128() Float128 {
 	exp := int((b >> shift32) & mask32)
 	frac := uint64(b & fracMask32)
 
-	if exp == mask32 {
+	switch exp {
+	case mask32:
 		// a is ±infinity or NaN
 		return Float128{sign | mask128<<(shift128-64) | frac<<(shift128-shift32-64), 0}
-	} else if exp == 0 {
+	case 0:
 		// a is subnormal
 		if frac == 0 {
 			// a is zero
@@ -171,7 +173,8 @@ func (a Float32) Float256() Float256 {
 	exp := int((b >> shift32) & mask32)
 	frac := uint64(b & fracMask32)
 
-	if exp == mask32 {
+	switch exp {
+	case mask32:
 		// a is ±infinity or NaN
 		return Float256{
 			sign | mask256<<(shift256-192) | frac<<(shift256-shift32-192),
@@ -179,7 +182,7 @@ func (a Float32) Float256() Float256 {
 			0,
 			0,
 		}
-	} else if exp == 0 {
+	case 0:
 		// a is subnormal
 		if frac == 0 {
 			// a is zero
@@ -251,13 +254,14 @@ func (a Float64) Float128() Float128 {
 	exp := int((b >> shift64) & mask64)
 	frac := uint64(b & fracMask64)
 
-	if exp == mask64 {
+	switch exp {
+	case mask64:
 		// a is ±infinity or NaN
 		return Float128{
 			sign | mask128<<(shift128-64) | frac>>(64-shift128+shift64),
 			frac << (shift128 - shift64),
 		}
-	} else if exp == 0 {
+	case 0:
 		// a is subnormal
 		if frac == 0 {
 			// a is zero
@@ -284,7 +288,8 @@ func (a Float64) Float256() Float256 {
 	exp := int((b >> shift64) & mask64)
 	frac := uint64(b & fracMask64)
 
-	if exp == mask64 {
+	switch exp {
+	case mask64:
 		// a is ±infinity or NaN
 		return Float256{
 			sign | mask256<<(shift256-192) | frac>>(192-shift256+shift64),
@@ -292,7 +297,7 @@ func (a Float64) Float256() Float256 {
 			0,
 			0,
 		}
-	} else if exp == 0 {
+	case 0:
 		// a is subnormal
 		if frac == 0 {
 			// a is zero
@@ -466,7 +471,8 @@ func (a Float128) Float256() Float256 {
 	exp := int((b[0] >> (shift128 - 64)) & mask128)
 	frac := b.And(fracMask128)
 
-	if exp == mask128 {
+	switch exp {
+	case mask128:
 		// a is ±infinity or NaN
 		frac256 := frac.Uint256().Lsh(shift256 - shift128)
 		return Float256{
@@ -475,7 +481,7 @@ func (a Float128) Float256() Float256 {
 			frac256[2],
 			frac256[3],
 		}
-	} else if exp == 0 {
+	case 0:
 		// a is subnormal
 		if frac.IsZero() {
 			// a is zero

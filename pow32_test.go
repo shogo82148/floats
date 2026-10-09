@@ -17,7 +17,7 @@ func TestFloat32_Pow(t *testing.T) {
 		y    Float32
 		want float64
 	}{
-		{exact32(2), exact32(3), math.Pow(2, 3)},
+		{exact32(2), exact32(3), 8},
 		{exact32(5), exact32(0.5), math.Pow(5, 0.5)},
 		{exact32(5), exact32(1.5), math.Pow(5, 1.5)},
 		{exact32(5), exact32(-1.5), math.Pow(5, -1.5)},
@@ -174,7 +174,7 @@ func TestFloat32_PowAccuracy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) Float32 {
 		v, err := strconv.ParseUint(s, 16, 32)
