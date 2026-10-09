@@ -311,7 +311,7 @@ func (a Float256) Quo(b Float256) Float256 {
 	exp := expA - expB + bias256
 	if fracA.Cmp(fracB) < 0 {
 		exp--
-		fracA = fracA.Lsh(1)
+		fracA = lsh256small(fracA, 1)
 	}
 	if exp >= mask256 {
 		// overflow
@@ -322,7 +322,7 @@ func (a Float256) Quo(b Float256) Float256 {
 	// normalize the divisor so that its most significant bit is set.
 	const norm = 256 - (shift256 + 1)
 	// fracA << (shift + norm) == (fracA << 2) << 256
-	frac, inexact := quo512by256(fracA.Lsh(shift+norm-256), fracB.Lsh(norm))
+	frac, inexact := quo512by256(lsh256small(fracA, shift+norm-256), lsh256small(fracB, norm))
 	if inexact {
 		frac[3] |= 1
 	}
@@ -342,8 +342,13 @@ func (a Float256) Quo(b Float256) Float256 {
 	// round-to-nearest-even (guard+round+sticky are in the low 3 bits)
 	frac = roundToNearestEven256(frac, 3)
 	// detect carry-out caused by rounding
-	if frac.BitLen() > shift256+1 {
-		frac = frac.Rsh(1)
+	if frac[0]>>(shift256+1-192) != 0 {
+		frac = ints.Uint256{
+			frac[0] >> 1,
+			frac[1]>>1 | frac[0]<<63,
+			frac[2]>>1 | frac[1]<<63,
+			frac[3]>>1 | frac[2]<<63,
+		}
 		exp++
 		if exp >= mask256 {
 			// overflow
@@ -569,15 +574,14 @@ func (a Float256) Ge(b Float256) bool {
 
 // normalize returns the sign, exponent, and normalized fraction of a.
 func (a Float256) normalize() (sign uint64, exp int, frac ints.Uint256) {
-	b := ints.Uint256(a)
-	sign = b[0] & signMask256[0]
-	exp = int((b[0]>>(shift256-192))&mask256) - bias256
-	frac = b.And(fracMask256)
+	sign = a[0] & signMask256[0]
+	exp = int((a[0]>>(shift256-192))&mask256) - bias256
+	frac = ints.Uint256{a[0] & fracMask256[0], a[1], a[2], a[3]}
 	if exp == -bias256 {
 		// a is subnormal
 		// normalize
 		l := frac.BitLen()
-		frac = frac.Lsh(uint(shift256-l) + 1)
+		frac = lsh256(frac, uint(shift256-l)+1)
 		exp = l - (bias256 + shift256)
 		return
 	}

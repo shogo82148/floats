@@ -160,6 +160,32 @@ func lsh256(x ints.Uint256, n uint) ints.Uint256 {
 	return y
 }
 
+// lsh256small returns x << n for n in [0, 64).
+func lsh256small(x ints.Uint256, n uint) ints.Uint256 {
+	return ints.Uint256{
+		x[0]<<n | x[1]>>(64-n),
+		x[1]<<n | x[2]>>(64-n),
+		x[2]<<n | x[3]>>(64-n),
+		x[3] << n,
+	}
+}
+
+// rsh256 returns x >> n.
+// It is faster than ints.Uint256.Rsh, which shifts in constant time.
+func rsh256(x ints.Uint256, n uint) ints.Uint256 {
+	if n >= 256 {
+		return ints.Uint256{}
+	}
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint256
+	y[w] = x[0] >> b
+	for i := w + 1; i < len(y); i++ {
+		y[i] = x[i-w]>>b | x[i-w-1]<<(64-b)
+	}
+	return y
+}
+
 // lsh512 returns x << n.
 // It is faster than ints.Uint512.Lsh, which shifts in constant time.
 func lsh512(x ints.Uint512, n uint) ints.Uint512 {
@@ -205,9 +231,9 @@ func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
 // roundToNearestEven256 returns x >> shift rounded to nearest even.
 // shift must be in the range [1, 256].
 func roundToNearestEven256(x ints.Uint256, shift uint) ints.Uint256 {
-	q := x.Rsh(shift)
+	q := rsh256(x, shift)
 	// r is the bits shifted out, aligned to the most significant bit.
-	r := x.Lsh(256 - shift)
+	r := lsh256(x, 256-shift)
 	const half = 1 << 63
 	if r[0] > half || (r[0] == half && (r[1]|r[2]|r[3] != 0 || q[3]&1 != 0)) {
 		q = q.Add(ints.Uint256{0, 0, 0, 1})
