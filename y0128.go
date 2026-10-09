@@ -29,7 +29,8 @@ func (a Float128) Y0() Float128 {
 	case a.Lt(Two):
 		return y0Series128(a)
 	case a.Lt(Threshold64):
-		return y0Taylor128(a)
+		y, _ := y0Taylor128(a, false)
+		return y
 	default:
 		return y0Asymptotic128(a)
 	}
@@ -65,7 +66,9 @@ func y0Series128(x Float128) Float128 {
 // recurrence derived from the differential equation x*y” + y' + x*y = 0:
 //
 //	x0 (n+2)(n+1) c_(n+2) + (n+1)**2 c_(n+1) + x0 c_n + c_(n-1) = 0
-func y0Taylor128(x Float128) Float128 {
+//
+// If deriv is true, it also returns the derivative Y0'(x) = -Y1(x) calculated by the same series.
+func y0Taylor128(x Float128, deriv bool) (y, dy Float128) {
 	// The centers are 2.25, 2.75, ..., 7.75 (step 1/2) and 8.5, 9.5, ..., 63.5 (step 1).
 	xf := x.Float64().BuiltIn()
 	var i int
@@ -93,10 +96,19 @@ func y0Taylor128(x Float128) Float128 {
 	}
 
 	r := c[terms]
+	if deriv {
+		// Horner's method for the polynomial and its derivative.
+		var d Float128
+		for n := terms - 1; n >= 0; n-- {
+			d = FMA128(d, h, r)
+			r = FMA128(r, h, c[n])
+		}
+		return r, d
+	}
 	for n := terms - 1; n >= 0; n-- {
 		r = FMA128(r, h, c[n])
 	}
-	return r
+	return r, Float128{}
 }
 
 // y0Asymptotic128 returns Y0(x) for x >= 64 using Hankel's asymptotic
