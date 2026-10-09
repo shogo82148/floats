@@ -79,17 +79,19 @@ func sqrtRem512(n ints.Uint512) (s ints.Uint256, inexact bool) {
 	// r' is at most 2*sh, so it fits in 129 bits.
 	num := ints.Uint256{rem[2], rem[3], n[4], n[5]}.Rsh(1)
 	num[0] |= rem[1] << 63
-	var q ints.Uint256
-	div := ints.Uint256{0, 0, sh[0], sh[1]}
+	var q1, q0 uint64
 	if (ints.Uint128{num[0], num[1]}).Cmp(sh) >= 0 {
 		// the quotient overflows. clamp it.
-		q = ints.Uint256{0, 0, math.MaxUint64, math.MaxUint64}
+		q1, q0 = math.MaxUint64, math.MaxUint64
 	} else {
-		q, _ = num.DivMod(div)
+		// sh is normalized, so divide by it word by word.
+		var r1, r0 uint64
+		q1, r1, r0 = div3by2(num[0], num[1], num[2], sh[0], sh[1])
+		q0, _, _ = div3by2(r1, r0, num[3], sh[0], sh[1])
 	}
 
 	// s is an overestimate of the root by a small amount.
-	s = ints.Uint256{sh[0], sh[1], q[2], q[3]}
+	s = ints.Uint256{sh[0], sh[1], q1, q0}
 	for {
 		p := s.Mul512(s)
 		if p.Cmp(n) <= 0 {

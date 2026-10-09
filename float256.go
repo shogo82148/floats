@@ -408,8 +408,11 @@ func (a Float256) Add(b Float256) Float256 {
 	// Place the fractions at the top of 256-bit integers, leaving one bit for carry-out.
 	// The extra low bits work as guard, round, and sticky bits.
 	const extra = 256 - 1 - (shift256 + 1) - 1
-	fracA = fracA.Lsh(extra)
-	fracB = shrcompress256(fracB.Lsh(extra), uint(expA-expB))
+	fracA = lsh256small(fracA, extra)
+	fracB = lsh256small(fracB, extra)
+	if d := uint(expA - expB); d != 0 {
+		fracB = shrcompress256(fracB, d)
+	}
 
 	// add the fractions
 	var frac ints.Uint256
@@ -436,7 +439,7 @@ func (a Float256) Add(b Float256) Float256 {
 	if shift := exp - expA + extra; shift > 0 {
 		frac = roundToNearestEven256(frac, uint(shift))
 	} else {
-		frac = frac.Lsh(uint(-shift))
+		frac = lsh256(frac, uint(-shift))
 	}
 
 	// The hidden bit of frac is added to the exponent.
@@ -470,7 +473,7 @@ func (a Float256) Sqrt() Float256 {
 	_, exp, frac := a.normalize()
 	if exp%2 != 0 {
 		// odd exp. double x to make it even
-		frac = frac.Lsh(1)
+		frac = lsh256small(frac, 1)
 	}
 	// exponent of square root
 	exp >>= 1
@@ -479,15 +482,32 @@ func (a Float256) Sqrt() Float256 {
 	// including one guard bit for rounding.
 	// Scale frac so that its top word is normalized for sqrtRem512.
 	const extra = (512 - (shift256 + 2) - (shift256 + 2)) / 2
-	n := ints.Uint512{0, 0, 0, 0, frac[0], frac[1], frac[2], frac[3]}.Lsh(shift256 + 2 + 2*extra)
+	// n = frac << (shift256 + 2 + 2*extra), and the low 256 bits of n are zero.
+	const k = shift256 + 2 + 2*extra - 256
+	hi := lsh256small(frac, k)
+	n := ints.Uint512{hi[0], hi[1], hi[2], hi[3], 0, 0, 0, 0}
 	root, inexact := sqrtRem512(n)
-	q := root.Rsh(extra)
+	q := ints.Uint256{
+		root[0] >> extra,
+		root[1]>>extra | root[0]<<(64-extra),
+		root[2]>>extra | root[1]<<(64-extra),
+		root[3]>>extra | root[2]<<(64-extra),
+	}
 
 	// final rounding
 	if root[3]&(1<<extra-1) != 0 || inexact {
-		q = q.Add(q.And(ints.Uint256{0, 0, 0, 1}))
+		var c uint64
+		q[3], c = bits.Add64(q[3], q[3]&1, 0)
+		q[2], c = bits.Add64(q[2], 0, c)
+		q[1], c = bits.Add64(q[1], 0, c)
+		q[0] += c
 	}
-	q = q.Rsh(1)
+	q = ints.Uint256{
+		q[0] >> 1,
+		q[1]>>1 | q[0]<<63,
+		q[2]>>1 | q[1]<<63,
+		q[3]>>1 | q[2]<<63,
+	}
 	q = q.Add(ints.Uint256{uint64(exp-1+bias256) << (shift256 - 192), 0, 0, 0})
 	return Float256(q)
 }
