@@ -142,7 +142,7 @@ func TestFloat16_JnRandom(t *testing.T) {
 	for range 20000 {
 		var n int
 		var x Float16
-		switch r.IntN(4) {
+		switch r.IntN(5) {
 		case 0, 1:
 			// the Taylor series
 			n = 2 + r.IntN(60)
@@ -151,6 +151,11 @@ func TestFloat16_JnRandom(t *testing.T) {
 			// the forward recurrence
 			x = NewFloat16(2 + 62*r.Float64())
 			n = 2 + r.IntN(int(x.Float64().BuiltIn())-1)
+		case 3:
+			// the Taylor series, where the terms increase at first: sqrt(2 (n+1)) <= x < n
+			n = 2 + r.IntN(62)
+			lo := math.Sqrt(2 * float64(n+1))
+			x = NewFloat16(lo + (float64(n)-lo)*r.Float64())
 		default:
 			// the others, that is, math.Jn
 			n = 2 + r.IntN(30)

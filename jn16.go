@@ -31,10 +31,13 @@ func (a Float16) Jn(n int) Float16 {
 	var y float64
 	var window int64
 	switch {
-	case k > 0 && x > 0 && x*x < 2*float64(k+1):
-		// x**2 < 2 (n+1): the Taylor series, whose relative error is less than 2**-37, that is, 2**16 ulps.
-		y = jn32Taylor(k, x)
-		window = 1 << 16
+	case k > 0 && x > 0 && (x*x < 2*float64(k+1) || (k <= 63 && x < float64(k))):
+		// x**2 < 2 (n+1), or x < n <= 63: the Taylor series.
+		var ok bool
+		y, window, ok = jnTaylor(k, x)
+		if !ok {
+			return NewFloat16(math.Jn(n, a.Float64().BuiltIn()))
+		}
 	case k > 0 && k <= 63 && 2 <= x && x < 64 && float64(k) <= x:
 		// 2 <= n <= x < 64: the forward recurrence from J0 and J1, which is stable for n <= x.
 		// Its absolute error is less than 2**-29, that is, 2**-29 / |y| × 2**53 ulps. y near zero can not be rounded.
