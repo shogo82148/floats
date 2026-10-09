@@ -149,7 +149,7 @@ func TestFloat16_Floor_All(t *testing.T) {
 		a := Float16(i)
 		got := a.Floor()
 		want := NewFloat16(math.Floor(a.Float64().BuiltIn()))
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Floor(%#04x) = %#04x, want %#04x", i, uint16(got), uint16(want))
 		}
 	}
@@ -168,7 +168,7 @@ func TestFloat16_Ceil_All(t *testing.T) {
 		a := Float16(i)
 		got := a.Ceil()
 		want := NewFloat16(math.Ceil(a.Float64().BuiltIn()))
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Ceil(%#04x) = %#04x, want %#04x", i, uint16(got), uint16(want))
 		}
 	}
@@ -187,7 +187,7 @@ func TestFloat16_Trunc_All(t *testing.T) {
 		a := Float16(i)
 		got := a.Trunc()
 		want := NewFloat16(math.Trunc(a.Float64().BuiltIn()))
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Trunc(%#04x) = %#04x, want %#04x", i, uint16(got), uint16(want))
 		}
 	}
@@ -206,7 +206,7 @@ func TestFloat16_Round_All(t *testing.T) {
 		a := Float16(i)
 		got := a.Round()
 		want := NewFloat16(math.Round(a.Float64().BuiltIn()))
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Round(%#04x) = %#04x, want %#04x", i, uint16(got), uint16(want))
 		}
 	}
@@ -225,7 +225,7 @@ func TestFloat16_RoundToEven_All(t *testing.T) {
 		a := Float16(i)
 		got := a.RoundToEven()
 		want := NewFloat16(math.RoundToEven(a.Float64().BuiltIn()))
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("RoundToEven(%#04x) = %#04x, want %#04x", i, uint16(got), uint16(want))
 		}
 	}

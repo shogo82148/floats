@@ -69,7 +69,7 @@ func TestFloat16_ErfAll(t *testing.T) {
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		got, want := x.Erf(), NewFloat16(math.Erf(x.Float64().BuiltIn()))
-		if uint16(got) != uint16(want) && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Erf(%#04x) = %#04x; want %#04x", i, uint16(got), uint16(want))
 		}
 	}
@@ -174,7 +174,7 @@ func TestFloat16_ErfcAll(t *testing.T) {
 	for i := range 1 << 16 {
 		x := NewFloat16FromBits(uint16(i))
 		got, want := x.Erfc(), NewFloat16(math.Erfc(x.Float64().BuiltIn()))
-		if uint16(got) != uint16(want) && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq16(got, want) {
 			t.Errorf("Erfc(%#04x) = %#04x; want %#04x", i, uint16(got), uint16(want))
 		}
 	}

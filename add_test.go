@@ -327,7 +327,7 @@ func TestFloat128_AddRandom(t *testing.T) {
 		b := randomAddOperand128(r, a)
 		got := a.Add(b)
 		want := addReference128(a, b)
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq128(got, want) {
 			t.Fatalf("Float128(%x).Add(%x) = %x, want %x", a, b, got, want)
 		}
 	}
@@ -362,7 +362,7 @@ func TestFloat256_AddRandom(t *testing.T) {
 		b := randomAddOperand256(r, a)
 		got := a.Add(b)
 		want := addReference256(a, b)
-		if got != want && (!got.IsNaN() || !want.IsNaN()) {
+		if !eq256(got, want) {
 			t.Fatalf("Float256(%x).Add(%x) = %x, want %x", a, b, got, want)
 		}
 	}
