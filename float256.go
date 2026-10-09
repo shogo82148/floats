@@ -1,6 +1,10 @@
 package floats
 
-import "github.com/shogo82148/ints"
+import (
+	"math/bits"
+
+	"github.com/shogo82148/ints"
+)
 
 const (
 	mask256  = 0x7_ffff     // mask for exponent
@@ -635,30 +639,41 @@ func FMA256(x, y, z Float256) Float256 {
 	fracP := lsh256(fracX, 18).Mul512(lsh256(fracY, 19))
 	signP := signX ^ signY // product sign
 
-	// Normalize the product
-	if fracP[0]>>62 == 0 {
-		fracP = lsh512(fracP, 1)
-		expP--
+	// Normalize the product without branches; the result is random in general.
+	n := (^fracP[0] >> 62) & 1
+	fracP = ints.Uint512{
+		fracP[0]<<n | fracP[1]>>(64-n),
+		fracP[1]<<n | fracP[2]>>(64-n),
+		fracP[2]<<n | fracP[3]>>(64-n),
+		fracP[3]<<n | fracP[4]>>(64-n),
+		fracP[4]<<n | fracP[5]>>(64-n),
+		fracP[5]<<n | fracP[6]>>(64-n),
+		fracP[6]<<n | fracP[7]>>(64-n),
+		fracP[7] << n,
 	}
+	expP -= int(n)
 
 	// fracZ = fracZ0 << (18 + 256)
 	zz := lsh256(fracZ0, 18)
 	fracZ := ints.Uint512{zz[0], zz[1], zz[2], zz[3], 0, 0, 0, 0}
 
 	// Swap addition operands so |p| >= |z|
-	if expP < expZ || expP == expZ && fracP.Cmp(fracZ) < 0 {
+	// The low 256 bits of fracZ are zero, so fracP >= fracZ if the high 256 bits are equal.
+	if expP < expZ || expP == expZ && cmpHigh256(fracP, fracZ) < 0 {
 		signP, signZ = signZ, signP
 		expP, expZ = expZ, expP
 		fracP, fracZ = fracZ, fracP
 	}
 
 	// Special case: if p == -z the result is always +0 since neither operand is zero.
-	if signP != signZ && expP == expZ && fracP.Cmp(fracZ) == 0 {
+	if expP == expZ && cmpHigh256(fracP, fracZ) == 0 && fracP[4]|fracP[5]|fracP[6]|fracP[7] == 0 && signP != signZ {
 		return Float256{0, 0, 0, 0}
 	}
 
 	// Align mantissa
-	fracZ = shrcompress512(fracZ, uint(expP-expZ))
+	if d := uint(expP - expZ); d != 0 {
+		fracZ = shrcompress512(fracZ, d)
+	}
 
 	// Compute resulting significands, normalizing if necessary.
 	var frac ints.Uint256
@@ -695,7 +710,20 @@ func FMA256(x, y, z Float256) Float256 {
 	}
 
 	// Round and break ties to even
-	frac = roundToNearestEven256(frac, 18)
+	// frac >> 18 rounded to nearest even.
+	// Adding half - 1 + (the least significant bit of the result) never overflows
+	// because the most significant bit of frac is bit 254.
+	var c uint64
+	frac[3], c = bits.Add64(frac[3], 1<<17-1+(frac[3]>>18)&1, 0)
+	frac[2], c = bits.Add64(frac[2], 0, c)
+	frac[1], c = bits.Add64(frac[1], 0, c)
+	frac[0] += c
+	frac = ints.Uint256{
+		frac[0] >> 18,
+		frac[1]>>18 | frac[0]<<46,
+		frac[2]>>18 | frac[1]<<46,
+		frac[3]>>18 | frac[2]<<46,
+	}
 	if frac[0]&(1<<(shift256+1-192)) != 0 {
 		expP++
 		frac = frac.Rsh(1)
@@ -710,6 +738,19 @@ func FMA256(x, y, z Float256) Float256 {
 		frac[2],
 		frac[3],
 	}
+}
+
+// cmpHigh256 compares the high 256 bits of x and y.
+func cmpHigh256(x, y ints.Uint512) int {
+	for i := 0; i < 4; i++ {
+		if x[i] != y[i] {
+			if x[i] < y[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }
 
 // Nextafter returns the next representable float256 value after a towards b.
