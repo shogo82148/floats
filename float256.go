@@ -583,20 +583,21 @@ func (a Float256) Ge(b Float256) bool {
 
 // normalize returns the sign, exponent, and normalized fraction of a.
 func (a Float256) normalize() (sign uint64, exp int, frac ints.Uint256) {
-	sign = a[0] & signMask256[0]
-	exp = int((a[0]>>(shift256-192))&mask256) - bias256
-	frac = ints.Uint256{a[0] & fracMask256[0], a[1], a[2], a[3]}
-	if exp == -bias256 {
-		// a is subnormal
-		// normalize
-		l := frac.BitLen()
-		frac = lsh256(frac, uint(shift256-l)+1)
-		exp = l - (bias256 + shift256)
-		return
+	e := int((a[0] >> (shift256 - 192)) & mask256)
+	if e == 0 {
+		return a.normalizeSubnormal()
 	}
-
 	// a is normal
-	frac[0] = frac[0] | (1 << (shift256 - 192))
+	return a[0] & signMask256[0], e - bias256, ints.Uint256{a[0]&fracMask256[0] | 1<<(shift256-192), a[1], a[2], a[3]}
+}
+
+// normalizeSubnormal is the slow path of normalize for the subnormal numbers and zeros.
+func (a Float256) normalizeSubnormal() (sign uint64, exp int, frac ints.Uint256) {
+	sign = a[0] & signMask256[0]
+	frac = ints.Uint256{a[0] & fracMask256[0], a[1], a[2], a[3]}
+	l := frac.BitLen()
+	frac = lsh256(frac, uint(shift256-l)+1)
+	exp = l - (bias256 + shift256)
 	return
 }
 
@@ -649,7 +650,7 @@ func FMA256(x, y, z Float256) Float256 {
 
 	// Compute product p = x*y as sign, exponent, mantissa.
 	expP := expX + expY + 1
-	fracP := lsh256(fracX, 18).Mul512(lsh256(fracY, 19))
+	fracP := lsh256small(fracX, 18).Mul512(lsh256small(fracY, 19))
 	signP := signX ^ signY // product sign
 
 	// Normalize the product without branches; the result is random in general.
@@ -667,7 +668,7 @@ func FMA256(x, y, z Float256) Float256 {
 	expP -= int(n)
 
 	// fracZ = fracZ0 << (18 + 256)
-	zz := lsh256(fracZ0, 18)
+	zz := lsh256small(fracZ0, 18)
 	fracZ := ints.Uint512{zz[0], zz[1], zz[2], zz[3], 0, 0, 0, 0}
 
 	// Swap addition operands so |p| >= |z|

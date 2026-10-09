@@ -203,6 +203,22 @@ func lsh512(x ints.Uint512, n uint) ints.Uint512 {
 	return y
 }
 
+// rsh512 returns x >> n.
+// It is faster than ints.Uint512.Rsh, which shifts in constant time.
+func rsh512(x ints.Uint512, n uint) ints.Uint512 {
+	if n >= 512 {
+		return ints.Uint512{}
+	}
+	w := int(n / 64)
+	b := n % 64
+	var y ints.Uint512
+	y[w] = x[0] >> b
+	for i := w + 1; i < len(y); i++ {
+		y[i] = x[i-w]>>b | x[i-w-1]<<(64-b)
+	}
+	return y
+}
+
 func roundToNearestEven16(x uint16, shift uint) uint16 {
 	mask := uint16(1)<<(shift-1) - 1
 	x = (x + mask) + ((x >> shift) & 1)
