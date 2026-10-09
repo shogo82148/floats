@@ -367,3 +367,16 @@ func TestFloat256_AddRandom(t *testing.T) {
 		}
 	}
 }
+
+func TestLsh128(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewPCG(13, 14))
+	for range 10_000 {
+		x := ints.Uint128{r.Uint64(), r.Uint64()}
+		for n := uint(0); n <= 130; n++ {
+			if got, want := lsh128(x, n), x.Lsh(n); got != want {
+				t.Fatalf("lsh128(%x, %d) = %x, want %x", x, n, got, want)
+			}
+		}
+	}
+}

@@ -87,12 +87,12 @@ func shrcompress128(x ints.Uint128, n uint) ints.Uint128 {
 	if n >= 128 {
 		return nonzero128(x)
 	}
-	y := x.Rsh(n)
-	// x.Lsh(128-n) is the bits shifted out.
-	if !x.Lsh(128 - n).IsZero() {
-		y[1] |= 1
+	// It is faster than ints.Uint128.Rsh, which shifts in constant time.
+	if n >= 64 {
+		b := n - 64
+		return ints.Uint128{0, x[0]>>b | nonzero64(x[0]<<(64-b)|x[1])}
 	}
-	return y
+	return ints.Uint128{x[0] >> n, x[1]>>n | x[0]<<(64-n) | nonzero64(x[1]<<(64-n))}
 }
 
 func shrcompress256(x ints.Uint256, n uint) ints.Uint256 {
@@ -170,6 +170,23 @@ func lsh256small(x ints.Uint256, n uint) ints.Uint256 {
 	}
 }
 
+// lsh128small returns x << n for n in [0, 64).
+func lsh128small(x ints.Uint128, n uint) ints.Uint128 {
+	return ints.Uint128{x[0]<<n | x[1]>>(64-n), x[1] << n}
+}
+
+// lsh128 returns x << n.
+// It is faster than ints.Uint128.Lsh, which shifts in constant time.
+func lsh128(x ints.Uint128, n uint) ints.Uint128 {
+	switch {
+	case n >= 128:
+		return ints.Uint128{}
+	case n >= 64:
+		return ints.Uint128{x[1] << (n - 64), 0}
+	}
+	return ints.Uint128{x[0]<<n | x[1]>>(64-n), x[1] << n}
+}
+
 // rsh256 returns x >> n.
 // It is faster than ints.Uint256.Rsh, which shifts in constant time.
 func rsh256(x ints.Uint256, n uint) ints.Uint256 {
@@ -234,9 +251,19 @@ func roundToNearestEven32(x uint32, shift uint) uint32 {
 // roundToNearestEven128 returns x >> shift rounded to nearest even.
 // shift must be in the range [1, 128].
 func roundToNearestEven128(x ints.Uint128, shift uint) ints.Uint128 {
-	q := x.Rsh(shift)
-	// r is the bits shifted out, aligned to the most significant bit.
-	r := x.Lsh(128 - shift)
+	// q = x >> shift, and r is the bits shifted out, aligned to the most significant bit.
+	var q, r ints.Uint128
+	switch {
+	case shift < 64:
+		q = ints.Uint128{x[0] >> shift, x[1]>>shift | x[0]<<(64-shift)}
+		r = ints.Uint128{x[1] << (64 - shift), 0}
+	case shift < 128:
+		s := shift - 64
+		q = ints.Uint128{0, x[0] >> s}
+		r = ints.Uint128{x[0]<<(64-s) | x[1]>>s, x[1] << (64 - s)}
+	default:
+		r = x
+	}
 	const half = 1 << 63
 	if r[0] > half || (r[0] == half && (r[1] != 0 || q[1]&1 != 0)) {
 		q = q.Add(ints.Uint128{0, 1})
