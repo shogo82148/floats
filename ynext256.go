@@ -85,7 +85,10 @@ func ynExt256Mul(a, b ynExt256) ynExt256 {
 	p := a.m.Mul512(b.m)
 	e := a.e + b.e + 1
 	if p[0]>>63 == 0 {
-		p = p.Lsh(1)
+		p = ints.Uint512{
+			p[0]<<1 | p[1]>>63, p[1]<<1 | p[2]>>63, p[2]<<1 | p[3]>>63, p[3]<<1 | p[4]>>63,
+			p[4]<<1 | p[5]>>63, p[5]<<1 | p[6]>>63, p[6]<<1 | p[7]>>63, p[7] << 1,
+		}
 		e--
 	}
 	m := ints.Uint256{p[0], p[1], p[2], p[3]}
@@ -99,6 +102,43 @@ func ynExt256Mul(a, b ynExt256) ynExt256 {
 		}
 	}
 	return ynExt256{m: m, e: e, neg: a.neg != b.neg}
+}
+
+// ynExt256MulUint returns a * v rounded to nearest even for v != 0.
+func ynExt256MulUint(a ynExt256, v uint64) ynExt256 {
+	if a.m.IsZero() {
+		return ynExt256{}
+	}
+	// p = a.m * v is in 320 bits: p4 is the high word, and the rest are the low 256 bits.
+	var p [5]uint64
+	var c uint64
+	for i := 3; i >= 0; i-- {
+		hi, lo := bits.Mul64(a.m[i], v)
+		var carry uint64
+		p[i+1], carry = bits.Add64(lo, c, 0)
+		c = hi + carry
+	}
+	p[0] = c
+	// normalize p so that its most significant bit is set.
+	l := uint(bits.LeadingZeros64(p[0]))
+	e := a.e + 64 - int(l)
+	if l != 0 {
+		for i := 0; i < 4; i++ {
+			p[i] = p[i]<<l | p[i+1]>>(64-l)
+		}
+		p[4] <<= l
+	}
+	m := ints.Uint256{p[0], p[1], p[2], p[3]}
+	// the bits shifted out are in p[4], aligned to the most significant bit.
+	const half = 1 << 63
+	if p[4] > half || (p[4] == half && m[3]&1 != 0) {
+		m = m.Add(ints.Uint256{0, 0, 0, 1})
+		if m.IsZero() {
+			m = ints.Uint256{1 << 63, 0, 0, 0}
+			e++
+		}
+	}
+	return ynExt256{m: m, e: e, neg: a.neg}
 }
 
 // ynExt256Add returns a + b rounded to nearest even.
@@ -122,12 +162,13 @@ func ynExt256Add(a, b ynExt256) ynExt256 {
 
 	// A and B are the significands in 512 bits with the 254 bits of headroom for the shift of B.
 	// The bits of B shifted out are the sticky bit.
-	A := ints.Uint512{4: a.m[0], 5: a.m[1], 6: a.m[2], 7: a.m[3]}.Lsh(254)
-	B := ints.Uint512{4: b.m[0], 5: b.m[1], 6: b.m[2], 7: b.m[3]}.Lsh(254)
+	// m << 254 = (m << 62) << 192, and the low 192 bits are zero.
+	A := lsh512(ints.Uint512{4: a.m[0], 5: a.m[1], 6: a.m[2], 7: a.m[3]}, 254)
+	B := lsh512(ints.Uint512{4: b.m[0], 5: b.m[1], 6: b.m[2], 7: b.m[3]}, 254)
 	sticky := false
 	if d > 0 {
-		sticky = !B.Lsh(512 - d).IsZero()
-		B = B.Rsh(d)
+		sticky = lsh512(B, 512-d) != (ints.Uint512{})
+		B = rsh512(B, d)
 	}
 	var R ints.Uint512
 	if a.neg == b.neg {
@@ -144,8 +185,14 @@ func ynExt256Add(a, b ynExt256) ynExt256 {
 	}
 
 	// normalize R. R * 2**(a.e-509) is the value.
-	bl := R.BitLen()
-	R = R.Lsh(uint(512 - bl))
+	var lz uint
+	for lz = 0; lz < 512 && R[lz/64] == 0; lz += 64 {
+	}
+	if lz < 512 {
+		lz += uint(bits.LeadingZeros64(R[lz/64]))
+	}
+	bl := 512 - int(lz)
+	R = lsh512(R, lz)
 	e := a.e + bl - 510
 	m := ints.Uint256{R[0], R[1], R[2], R[3]}
 	const half = 1 << 63
