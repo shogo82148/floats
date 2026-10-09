@@ -95,7 +95,7 @@ func testFloat128LogAccuracy(t *testing.T, name, fname string, fn func(Float128)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) Float128 {
 		var x Float128

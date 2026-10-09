@@ -83,7 +83,7 @@ func lgamma320Near(x, c gammaFix256) (t gammaFix256, tneg, ok bool) {
 // except that the coefficient(1) is c[0] if first is true. s must be less than 2**-18.
 func lgamma320Bracket(s gammaFix256, tneg bool, c [][6]uint64, n int, first bool) lgammaFix256 {
 	coef := func(k int) lgammaFix256 {
-		return lgammaFix256{k%2 == 1 && !(first && k == 1), gammaFix256(c[k-1])}
+		return lgammaFix256{k%2 == 1 && (!first || k != 1), gammaFix256(c[k-1])}
 	}
 	// A step k of Horner's method needs the precision of 312 - 18 (k-1) bits.
 	p := coef(n)

@@ -96,7 +96,7 @@ func checkFloat256Testdata(t *testing.T, name, fn string, f func(Float256) Float
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	parse := func(s string) Float256 {
 		var x Float256
@@ -136,7 +136,7 @@ func TestFloat256_ErfKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) gammaFix256 {
 		if len(s) != 96 {
@@ -193,7 +193,7 @@ func TestFloat256_ErfcKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string, n int) []uint64 {
 		if len(s) != 16*n {

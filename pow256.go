@@ -163,9 +163,9 @@ func pow256Abs(x, b, bi Float256, isInt bool) Float256 {
 func mulShr256(m ints.Uint256, v ints.Uint512, s uint) gammaFix256 {
 	// little-endian 768-bit product
 	var prod [12]uint64
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		var carry uint64
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			hi, lo := bits.Mul64(m[3-i], v[7-j])
 			var c uint64
 			lo, c = bits.Add64(lo, prod[i+j], 0)

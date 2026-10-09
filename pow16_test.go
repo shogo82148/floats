@@ -18,7 +18,7 @@ func TestFloat16_Pow(t *testing.T) {
 		y    Float16
 		want float64
 	}{
-		{exact16(2), exact16(3), math.Pow(2, 3)},
+		{exact16(2), exact16(3), 8},
 		{exact16(5), exact16(0.5), math.Pow(5, 0.5)},
 		{exact16(5), exact16(1.5), math.Pow(5, 1.5)},
 		{exact16(5), exact16(-1.5), math.Pow(5, -1.5)},
@@ -150,7 +150,7 @@ func TestFloat16_PowAccuracy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) Float16 {
 		v, err := strconv.ParseUint(s, 16, 16)

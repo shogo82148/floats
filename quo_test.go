@@ -267,7 +267,7 @@ func TestFloat128_QuoRandom(t *testing.T) {
 		}
 		got := a.Quo(b)
 		want := quoReference128(a, b)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if !eq128(got, want) {
 			t.Fatalf("Float128(%x).Quo(%x) = %x, want %x", a, b, got, want)
 		}
 	}
@@ -287,7 +287,7 @@ func TestFloat256_QuoRandom(t *testing.T) {
 		}
 		got := a.Quo(b)
 		want := quoReference256(a, b)
-		if got != want && !(got.IsNaN() && want.IsNaN()) {
+		if !eq256(got, want) {
 			t.Fatalf("Float256(%x).Quo(%x) = %x, want %x", a, b, got, want)
 		}
 	}

@@ -756,7 +756,7 @@ func FMA256(x, y, z Float256) Float256 {
 
 // cmpHigh256 compares the high 256 bits of x and y.
 func cmpHigh256(x, y ints.Uint512) int {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if x[i] != y[i] {
 			if x[i] < y[i] {
 				return -1

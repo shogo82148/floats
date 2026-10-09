@@ -18,13 +18,13 @@ func (a Float16) Cbrt() Float16 {
 	// a = ±2**e × (1 + f/1024)
 	var e int
 	var f uint16
-	switch {
-	case exp == 0x1f:
+	switch exp {
+	case 0x1f:
 		if frac != 0 {
 			return Float16(sign | 0x7e00) // NaN
 		}
 		return a // ±Inf
-	case exp == 0:
+	case 0:
 		if frac == 0 {
 			return a // ±0
 		}

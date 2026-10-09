@@ -98,7 +98,7 @@ func checkFloat128Testdata(t *testing.T, name, fn string, f func(Float128) Float
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	parse := func(s string) Float128 {
 		var x Float128
@@ -138,7 +138,7 @@ func TestFloat128_ErfKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) ints.Uint256 {
 		if len(s) != 64 {
@@ -190,7 +190,7 @@ func TestFloat128_ErfcKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	parse := func(s string) ints.Uint256 {
 		if len(s) != 64 {
