@@ -278,85 +278,30 @@ func (a Float32) normalize() (sign uint32, exp int, frac uint32) {
 // FMA32 returns x * y + z, computed with only one rounding.
 // (That is, FMA32 returns the fused multiply-add of x, y, and z.)
 func FMA32(x, y, z Float32) Float32 {
-	// Split x, y, z into sign, exponent, mantissa.
-	signX, expX, fracX := x.normalize()
-	signY, expY, fracY := y.normalize()
-	signZ, expZ, fracZ0 := z.normalize()
+	// The product of two float32 values is exact in float64,
+	// and so is the error of the sum of two float64 values.
+	p := float64(x) * float64(y)
+	zz := float64(z)
+	s := p + zz
+	bb := s - p
+	e := (p - (s - bb)) + (zz - bb)
 
-	// Inf or NaN involved. At most one rounding will occur.
-	if x == 0 || y == 0 || expX == mask32-bias32 || expY == mask32-bias32 {
-		return x*y + z
+	// Round s to odd. Rounding to odd with more than 24+1 bits
+	// and then to nearest even to 24 bits is the same as rounding once.
+	// The error e is NaN if p or zz is Inf, and then s is not touched.
+	if e != 0 && math.Abs(s) < math.MaxFloat64 {
+		u := math.Float64bits(s)
+		if u&1 == 0 {
+			// move s toward the true value p + zz
+			if (e > 0) == (s > 0) {
+				u++
+			} else {
+				u--
+			}
+			s = math.Float64frombits(u)
+		}
 	}
-	if z == 0 {
-		return x * y
-	}
-	// Handle non-finite z separately. Evaluating x*y+z where
-	// x and y are finite, but z is infinite, should always result in z.
-	if expZ == mask32-bias32 {
-		return z
-	}
-
-	// Compute product p = x*y as sign, exponent, mantissa.
-	expP := expX + expY + 1
-	fracP := uint64(fracX<<7) * uint64(fracY<<8)
-	signP := signX ^ signY // product sign
-
-	// Normalize product.
-	is62zero := uint((^fracP >> 62) & 1)
-	fracP <<= is62zero
-	expP -= int(is62zero)
-
-	fracZ := uint64(fracZ0) << (7 + 32)
-
-	// Swap addition operands so |p| >= |z|
-	if expP < expZ || expP == expZ && fracP < fracZ {
-		signP, signZ = signZ, signP
-		expP, expZ = expZ, expP
-		fracP, fracZ = fracZ, fracP
-	}
-
-	// Special case: if p == -z the result is always +0 since neither operand is zero.
-	if signP != signZ && expP == expZ && fracP == fracZ {
-		return 0
-	}
-
-	// Align mantissa
-	fracZ = shrcompress64(fracZ, uint(expP-expZ))
-
-	// Compute resulting significands, normalizing if necessary.
-	var frac uint32
-	if signP == signZ {
-		// Adding fracP + fracZ
-		fracP += fracZ
-		expP += int(fracP >> 63)
-		frac = uint32(shrcompress64(fracP, uint(32+fracP>>63)))
-	} else {
-		// Subtracting fracP - fracZ
-		fracP -= fracZ
-		nz := bits.LeadingZeros64(fracP) - 1
-		expP -= nz
-		frac = uint32(shrcompress64(fracP<<uint(nz), 32))
-	}
-
-	// check for underflow
-	expP += bias32
-	if expP <= 0 {
-		n := uint(1 - expP)
-		frac = roundToNearestEven32(frac, n+7)
-		return Float32(math.Float32frombits(signP | frac))
-	}
-
-	// Round and break ties to even
-	frac = roundToNearestEven32(frac, 7)
-	if frac&(1<<(shift32+1)) != 0 {
-		expP++
-		frac >>= 1
-	}
-	if expP >= mask32 {
-		// overflow
-		return Float32(math.Float32frombits(signP | uvinf32))
-	}
-	return Float32(math.Float32frombits(signP | uint32(expP<<shift32) | frac&fracMask32))
+	return Float32(s)
 }
 
 // Nextafter returns the next representable float32 value after a towards b.

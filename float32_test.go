@@ -783,6 +783,14 @@ func TestFMA32(t *testing.T) {
 		{nan, 1, 2, nan},
 		{1, nan, 2, nan},
 		{1, 1.5, inf, inf},
+
+		// the results differ from float32(float64(a)*float64(b)+float64(c))
+		{1.4134664e-18, -2.9687729e+19, 2.4233807e-27, -41.962605},
+		{-2.186861e-39, 4.2086e+32, 7.338478e-36, -9.203622e-07},
+		{-1.8104038e+23, -19.75, 1.4831802e-36, 3.5755477e+24},
+		{-192, -4.2785765e+12, -0.017211914, 8.2148665e+14},
+		{3.815616e+06, -2.859224e-11, -4.6322467e-30, -0.00010909701},
+		{4.1938077e-32, 1.733116e+28, -2.7854e-27, 0.0007268355},
 	}
 
 	for _, test := range tests {
@@ -798,6 +806,43 @@ func BenchmarkFMA32(b *testing.B) {
 	for b.Loop() {
 		runtime.KeepAlive(FMA32(f, f, f))
 	}
+}
+
+func BenchmarkFMA32_Cases(b *testing.B) {
+	r := rand.New(rand.NewPCG(1, 2))
+	unit := func() Float32 { // [1, 2)
+		return Float32(math.Float32frombits(0x3f80_0000 | r.Uint32()&0x007f_ffff))
+	}
+	gen := func(f func() (x, y, z Float32)) func(b *testing.B) {
+		return func(b *testing.B) {
+			const n = 1024
+			var xs, ys, zs [n]Float32
+			for i := range n {
+				xs[i], ys[i], zs[i] = f()
+			}
+			b.ResetTimer()
+			for i := 0; b.Loop(); i++ {
+				runtime.KeepAlive(FMA32(xs[i%n], ys[i%n], zs[i%n]))
+			}
+		}
+	}
+	b.Run("same-exponent", gen(func() (x, y, z Float32) {
+		x, y = unit(), unit()
+		z = unit()
+		if x*y >= 2 {
+			z *= 2
+		}
+		return x, y, z
+	}))
+	b.Run("z-large", gen(func() (x, y, z Float32) { return unit(), unit(), unit() * 0x1p40 }))
+	b.Run("z-small", gen(func() (x, y, z Float32) { return unit(), unit(), unit() * 0x1p-30 }))
+	b.Run("z-tiny", gen(func() (x, y, z Float32) { return unit(), unit(), unit() * 0x1p-100 }))
+	b.Run("cancel", gen(func() (x, y, z Float32) {
+		x, y = unit(), unit()
+		z = Float32(-float64(x) * float64(y))
+		z = Float32(math.Float32frombits(math.Float32bits(float32(z)) ^ r.Uint32()>>16))
+		return x, y, z
+	}))
 }
 
 func TestFloat32_Nextafter(t *testing.T) {
