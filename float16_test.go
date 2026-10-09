@@ -2,6 +2,7 @@ package floats
 
 import (
 	"math"
+	"math/rand/v2"
 	"runtime"
 	"testing"
 
@@ -733,6 +734,14 @@ func TestFMA16(t *testing.T) {
 		{0x3c00, 0x3c00, 0xbc00, 0x0000}, // 1.0 * 1.0 + -1.0 = 0.0
 		{0x890f, 0x03ff, 0x0000, 0x8000},
 		{uvnan16, uvnan16, uvnan16, uvnan16},
+
+		// the results differ from the one rounded twice via float32
+		{0x78c0, 0x3c18, 0x100a, 0x78dd},
+		{0xe7a8, 0xaa80, 0x0005, 0x5639},
+		{0x60cf, 0xba00, 0x8001, 0xdf37},
+		{0xb380, 0xf788, 0x81a7, 0x6f0f},
+		{0xca20, 0xe4f0, 0x8c57, 0x738f},
+		{0xe658, 0xa780, 0x000b, 0x51f3},
 	}
 	for _, test := range tests {
 		got := FMA16(test.a, test.b, test.c)
@@ -747,6 +756,43 @@ func BenchmarkFMA16(b *testing.B) {
 	for b.Loop() {
 		runtime.KeepAlive(FMA16(f, f, f))
 	}
+}
+
+func BenchmarkFMA16_Cases(b *testing.B) {
+	r := rand.New(rand.NewPCG(1, 2))
+	unit := func() Float16 { // [1, 2)
+		return Float16(0x3c00 | r.Uint32()&0x3ff)
+	}
+	gen := func(f func() (x, y, z Float16)) func(b *testing.B) {
+		return func(b *testing.B) {
+			const n = 1024
+			var xs, ys, zs [n]Float16
+			for i := range n {
+				xs[i], ys[i], zs[i] = f()
+			}
+			b.ResetTimer()
+			for i := 0; b.Loop(); i++ {
+				runtime.KeepAlive(FMA16(xs[i%n], ys[i%n], zs[i%n]))
+			}
+		}
+	}
+	scale := func(a Float16, e int) Float16 { return a + Float16(e<<10) }
+	b.Run("same-exponent", gen(func() (x, y, z Float16) {
+		x, y, z = unit(), unit(), unit()
+		if x.Mul(y).Ge(NewFloat16(2)) {
+			z = scale(z, 1)
+		}
+		return
+	}))
+	b.Run("z-large", gen(func() (x, y, z Float16) { return unit(), unit(), scale(unit(), 8) }))
+	b.Run("z-small", gen(func() (x, y, z Float16) { return unit(), unit(), scale(unit(), -8) }))
+	b.Run("z-tiny", gen(func() (x, y, z Float16) { return unit(), unit(), scale(unit(), -14) }))
+	b.Run("cancel", gen(func() (x, y, z Float16) {
+		x, y = unit(), unit()
+		z = x.Mul(y).Neg()
+		z ^= Float16(r.Uint32() >> 28)
+		return
+	}))
 }
 
 func TestFloat16_Nextafter(t *testing.T) {
