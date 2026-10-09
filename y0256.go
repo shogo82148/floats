@@ -35,7 +35,8 @@ func (a Float256) Y0() Float256 {
 	case a.Lt(Two):
 		return y0Series256(a)
 	case a.Lt(Threshold128):
-		return y0Taylor256(a)
+		y, _ := y0Taylor256(a, false)
+		return y
 	default:
 		return y0Asymptotic256(a)
 	}
@@ -75,7 +76,8 @@ func y0Series256(x Float256) Float256 {
 
 // y0Taylor256 returns Y0(x) for 2 <= x < 128 using the Taylor series at the
 // nearest center x0 of the table y0256Taylor; see y0Taylor128.
-func y0Taylor256(x Float256) Float256 {
+// If deriv is true, it also returns the derivative Y0'(x) = -Y1(x) calculated by the same series.
+func y0Taylor256(x Float256, deriv bool) (y, dy Float256) {
 	// The centers are 2.25, 2.75, ..., 7.75 (step 1/2) and 8.5, 9.5, ..., 127.5 (step 1).
 	xf := x.Float64().BuiltIn()
 	var i int
@@ -103,10 +105,19 @@ func y0Taylor256(x Float256) Float256 {
 	}
 
 	r := c[terms]
+	if deriv {
+		// Horner's method for the polynomial and its derivative.
+		var d Float256
+		for n := terms - 1; n >= 0; n-- {
+			d = FMA256(d, h, r)
+			r = FMA256(r, h, c[n])
+		}
+		return r, d
+	}
 	for n := terms - 1; n >= 0; n-- {
 		r = FMA256(r, h, c[n])
 	}
-	return r
+	return r, Float256{}
 }
 
 // y0Asymptotic256 returns Y0(x) for x >= 128 using Hankel's asymptotic
