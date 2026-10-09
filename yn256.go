@@ -135,7 +135,7 @@ func ynForward256(n int, x Float256) Float256 {
 	inv := ynExt256Inv(ynExt256FromFloat256(x))
 	prev, cur := ynExt256FromFloat256(y0), ynExt256FromFloat256(y1)
 	for k := 1; k < n; k++ {
-		c := ynExt256Mul(ynExt256FromUint(uint64(2*k)), inv)
+		c := ynExt256Mul(ynExt256FromUint(2*uint64(k)), inv)
 		prev, cur = cur, ynExt256Add(ynExt256Mul(c, cur), ynExt256{m: prev.m, e: prev.e, neg: !prev.neg})
 		if cur.e > bias256+1 {
 			// The result overflows. |Yk(x)| grows monotonically for k > x/2 once it exceeds 1, and it is negative.

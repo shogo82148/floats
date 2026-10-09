@@ -161,7 +161,7 @@ func TestFloat256_YnOverflow(t *testing.T) {
 	}{
 		{100000, exact256(0.5), exact256(math.Inf(-1))},
 		{-100001, exact256(0.5), exact256(math.Inf(1))},
-		{1 << 40, exact256(1), exact256(math.Inf(-1))},
+		{math.MaxInt, exact256(1), exact256(math.Inf(-1))},
 		{2, exact256(math.SmallestNonzeroFloat64).Ldexp(-300000), exact256(math.Inf(-1))},
 	} {
 		if got := tt.x.Yn(tt.n); !eq256(got, tt.want) {
