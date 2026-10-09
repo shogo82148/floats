@@ -1,5 +1,11 @@
 package floats
 
+import (
+	"math"
+
+	"github.com/shogo82148/ints"
+)
+
 // Jn returns the order-n Bessel function of the first kind.
 //
 // Special cases are:
@@ -32,31 +38,10 @@ func (a Float256) Jn(n int) Float256 {
 
 	var y Float256
 	switch {
-	case x.IsInf(0):
-		y = Float256{}
-	case x.IsZero():
+	case x.IsInf(0), x.IsZero():
 		y = Float256{}
 	default:
-		var (
-			Two = Float256{
-				0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-			}
-			Threshold500 = Float256{
-				0x4000_7f40_0000_0000, 0x0000_0000_0000_0000,
-				0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-			}
-		)
-		nn := NewFloat256(float64(n))
-		threshold := Threshold500
-		if sq := Two.Mul(nn).Mul(nn); sq.Gt(threshold) {
-			threshold = sq
-		}
-		if x.Ge(threshold) {
-			y = jnAsymptotic256(n, x)
-		} else {
-			y = jnMiller256(n, x)
-		}
+		y = jnPositive256(n, x)
 	}
 	if neg && n%2 == 1 {
 		y = y.Neg()
@@ -64,166 +49,161 @@ func (a Float256) Jn(n int) Float256 {
 	return y
 }
 
-// jnMiller256 returns Jn(x) for n >= 2, 0 < x < max(500, 2*n**2) using the
-// same backward recurrence as jnMiller128/jnMiller256: it is unconditionally
-// stable, unlike the forward recurrence J[k+1] = (2k/x)*J[k] - J[k-1], which
-// only stays accurate while k < x.
-func jnMiller256(n int, x Float256) Float256 {
-	var (
-		Zero = Float256{}
-		One  = Float256(uvone256)
-		Two  = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-
-		// RescaleThreshold bounds the unnormalized trial values below
-		// Float256's overflow point. Deep descents (large n and x both
-		// pushing the margin up) can otherwise grow the trial sequence
-		// past Float256's range long before normalization brings it back
-		// down to Jn(x) itself.
-		RescaleThreshold = Float256{
-			0x419f_2cf6_c9c9_bc5f, 0x884a_294e_53ed_c955,
-			0xf57d_1efa_7827_1816, 0xaafd_3571_b9c9_7763,
-		} // 1e2000
-	)
-
-	xCeil := x.Ceil().Int64()
-	m := max(int64(n), xCeil)
-	// The margin below controls the accuracy: the backward recurrence's
-	// sensitivity to the arbitrary starting value decays the further the
-	// starting order is past max(n, x), so a bigger margin means more
-	// correct digits. Near the Miller/asymptotic crossover (x close to
-	// max(500, 2*n**2)), a fixed margin like J0/J1 use is not enough once n
-	// is large: the required margin grows with x there too, so take the
-	// larger of a fixed n-scaled margin and half of x.
-	margin := int64(2*n) + 400
-	if half := xCeil / 2; half > margin {
-		margin = half
+// jnPositive256 returns Jn(x) for n >= 2 and finite x > 0.
+//
+// It is calculated in fixed point with 320 fractional bits:
+//   - x**2 < 2 (n+1): the Taylor series.
+//   - x >= max(110, 2 n**2): Hankel's asymptotic expansion.
+//   - otherwise: Miller's algorithm.
+//
+// The absolute error is about 2**-300 in the scale of the values around the order x, so that Jn(x) may not
+// be correctly rounded when it is extremely close to a zero (|Jn(x)| < 2**-70) if x >= 2.
+func jnPositive256(n int, x Float256) Float256 {
+	_, exp, m := x.normalize()
+	x64 := math.Ldexp(float64(m[0]), exp-44)
+	if x64*x64 < 2*float64(n+1) {
+		return jnTaylor256(n, exp, m)
 	}
-	m += margin
-	if m%2 != 0 {
-		m++
+	if x64 >= 110 && x64 >= 2*float64(n)*float64(n) {
+		return jnHankel256(n, x, exp, m)
 	}
-
-	Jkp1 := Zero
-	Jk := One
-	sum := Zero
-	var target Float256
-	for k := m; k >= 1; k-- {
-		coef := Two.Mul(NewFloat256(float64(k))).Quo(x)
-		Jkm1 := FMA256(coef, Jk, Jkp1.Neg())
-		if k-1 == int64(n) {
-			target = Jkm1
-		}
-		if (k-1)%2 == 0 {
-			if k == 1 {
-				sum = sum.Add(Jkm1)
-			} else {
-				sum = sum.Add(Jkm1).Add(Jkm1)
-			}
-		}
-		Jkp1 = Jk
-		Jk = Jkm1
-
-		if Jk.Abs().Gt(RescaleThreshold) {
-			inv := One.Quo(Jk)
-			Jkp1 = Jkp1.Mul(inv)
-			Jk = Jk.Mul(inv)
-			sum = sum.Mul(inv)
-			target = target.Mul(inv)
-		}
-	}
-	return target.Quo(sum)
+	return jnMiller256(n, exp, m)
 }
 
-// jnAsymptotic256 returns Jn(x) for n >= 2, x >= max(500, 2*n**2) using
-// Hankel's asymptotic expansion
+// jnTaylor256 returns Jn(x) for n >= 2 and x = m × 2**(exp-236) < sqrt(2 (n+1)) by the Taylor series
 //
-//	Jn(x) ~ sqrt(2/(pi*x)) * (P(x)*cos(chi) - Q(x)*sin(chi)),  chi = x - n*pi/2 - pi/4
+//	Jn(x) = (x/2)**n/n! sum (-1)**k (x**2/4)**k n!/(k! (n+k)!).
 //
-// Unlike J0/J1's hardcoded P/Q coefficients, the Hankel coefficients a_k(n)
-// here are computed at runtime via their defining recurrence
-//
-//	a_0(n) = 1, a_k(n) = a_(k-1)(n) * (4*n**2 - (2k-1)**2) / (8k)
-//
-// since n is arbitrary; this is only reached where x is many times larger
-// than n**2, so 40 terms leaves a comfortable margin beyond Float256's
-// precision.
-func jnAsymptotic256(n int, x Float256) Float256 {
-	const M = 40
+// The series decreases (the ratio of the terms is less than 1/2), so that no accuracy is lost.
+func jnTaylor256(n, exp int, m ints.Uint256) Float256 {
+	// (x/2)**n/n! = exp(n log(x/2) - log(n!)), which is less than 1. It underflows (< 2**-262379 ~ e**-181868) soon,
+	// and n < 2**15 otherwise.
+	if float64(n)*math.Log(math.Ldexp(float64(m[0]), exp-44)/2)-lgamma64(float64(n+1)) < -190000 {
+		return Float256{}
+	}
+	xm := gammaFix256FromUint256(m, 84)
+	logHalfX := lgamma320LogPair(xm, exp-1)
+	l := lgammaFix256{logHalfX.neg, logHalfX.v.mulUint(uint64(n))}.add(lgamma320Pos(gammaFix256{uint64(n) + 1}).negate())
+	// (x/2)**n/n! < 1 for x**2 < 2 (n+1), so that the logarithm is negative.
 
-	var (
-		One = Float256(uvone256)
-		Two = Float256{
-			0x4000_0000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
+	// the series, where u = x**2/4
+	x := j0Fix256(exp, m)
+	u := gammaMul6(x, x).shr(2)
+	sum := lgammaFix256{false, gammaOne256}
+	t := lgammaFix256{false, gammaOne256}
+	for k := uint64(1); ; k++ {
+		t = lgammaFix256{!t.neg, gammaMul6(t.v, u).divUint(k * (k + uint64(n)))}
+		if t.v == (gammaFix256{}) {
+			break
 		}
-		Four = Float256{
-			0x4000_1000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Eight = Float256{
-			0x4000_2000_0000_0000, 0x0000_0000_0000_0000,
-			0x0000_0000_0000_0000, 0x0000_0000_0000_0000,
-		}
-		Pi = Float256{
-			0x4000_0921_fb54_442d, 0x1846_9898_cc51_701b,
-			0x839a_2520_49c1_114c, 0xf98e_8041_77d4_c762,
-		}
-		InvSqrt2 = Float256{
-			0x3fff_e6a0_9e66_7f3b, 0xcc90_8b2f_b136_6ea9,
-			0x57d3_e3ad_ec17_5127, 0x7509_9da2_f590_b066,
-		}
-	)
-
-	nu := NewFloat256(float64(n))
-	fourNuSq := Four.Mul(nu).Mul(nu)
-
-	a := make([]Float256, 2*M+2)
-	a[0] = One
-	for k := 1; k < len(a); k++ {
-		kf := NewFloat256(float64(k))
-		twokm1 := Two.Mul(kf).Sub(One)
-		a[k] = a[k-1].Mul(fourNuSq.Sub(twokm1.Mul(twokm1))).Quo(Eight.Mul(kf))
+		sum = sum.add(t)
 	}
 
-	xInv2 := One.Quo(x.Mul(x))
-	P := Float256{}
-	Q := Float256{}
-	pTerm := One
-	qTerm := One.Quo(x)
-	sign := One
-	for k := 0; k <= M; k++ {
-		P = P.Add(sign.Mul(a[2*k]).Mul(pTerm))
-		Q = Q.Add(sign.Mul(a[2*k+1]).Mul(qTerm))
-		pTerm = pTerm.Mul(xInv2)
-		qTerm = qTerm.Mul(xInv2)
-		sign = sign.Neg()
+	mant, e := gammaExpNeg256(l.v)
+	return j0Result(lgammaFix256{sum.neg, gammaMul6(mant, sum.v)}, e)
+}
+
+// jnMiller256 returns Jn(x) for n >= 2 and x = m × 2**(exp-236) >= sqrt(2 (n+1)) using Miller's algorithm
+// (see j0Miller256): a backward recurrence J(k-1) = 2k/x J(k) - J(k+1) from an arbitrary trial value at a high order,
+// followed by the normalization with J0 + 2 sum J(2k) = 1. The recurrence is unconditionally stable for the minimal solution,
+// whereas the forward recurrence is stable only while k < x. The values are scaled down when they are large,
+// so that the result may be extremely small without underflow of the calculation.
+func jnMiller256(n, exp int, m ints.Uint256) Float256 {
+	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
+	r := gammaRecip256(gammaFix256FromUint256(m, 84))
+
+	// The error of the arbitrary starting value is negligible if J(k)(x) ~ (x/2)**k/k! is less than 2**-400 times
+	// of Jn(x) and 1, where Jn(x) >= (x/2)**n/n! exp(-1.5 x**2/(4 (n+1))) for n >= x.
+	x64 := math.Ldexp(float64(m[0]), exp-44)
+	lx := math.Log(x64 / 2)
+	logJ := func(k int) float64 { return float64(k)*lx - lgamma64(float64(k+1)) }
+	low := -40.0
+	if float64(n) >= x64 {
+		low = logJ(n) - 1.5*x64*x64/(4*float64(n+1))
+	}
+	k0 := max(n, int(x64))
+	for logJ(k0) > low-400*math.Ln2 {
+		k0++
+	}
+	k0 += k0 % 2
+
+	jn1 := lgammaFix256{} // J(k+1)
+	jk := lgammaFix256{false, gammaOne256}
+	sum := lgammaFix256{false, gammaOne256.shl(1)} // 2 J(k0)
+	var target lgammaFix256
+	shifts, targetShifts := 0, 0
+	for k := k0; k >= 1; k-- {
+		coef := r.mulUint(uint64(2 * k)).shr(uint(exp)) // 2k/x
+		jm := lgammaFix256{jk.neg, gammaMul6(jk.v, coef)}.add(jn1.negate())
+		if k-1 == n {
+			target, targetShifts = jm, shifts
+		}
+		if (k-1)%2 == 0 {
+			sum = sum.add(jm)
+			if k != 1 {
+				sum = sum.add(jm)
+			}
+		}
+		jn1, jk = jk, jm
+		if jk.v[0] >= 1<<48 {
+			// scale down not to overflow. The ratio is not changed. target is kept and its scale is recorded.
+			jk.v, jn1.v, sum.v = jk.v.shr(64), jn1.v.shr(64), sum.v.shr(64)
+			shifts++
+		}
 	}
 
-	// chi = x - n*pi/2 - pi/4. Computing this directly would subtract a
-	// value of order n from x, which for large x throws away the low-order
-	// bits Sincos needs to reduce the *fractional* part of x accurately
-	// (Sincos(x) itself already reduces x mod 2*pi to full precision; a
-	// prior subtraction of n*pi/2 here would just re-introduce the very
-	// rounding that costs digits). Instead get cos(x-pi/4) and sin(x-pi/4)
-	// from Sincos(x) via the sqrt(2) identity, then rotate by n*pi/2 using
-	// the fact that cos/sin of a multiple of pi/2 is exactly 0, 1, or -1.
-	sinX, cosX := x.Sincos()
-	cosXm4 := InvSqrt2.Mul(cosX.Add(sinX))
-	sinXm4 := InvSqrt2.Mul(sinX.Sub(cosX))
-	var cosChi, sinChi Float256
-	switch ((n % 4) + 4) % 4 {
-	case 0:
-		cosChi, sinChi = cosXm4, sinXm4
-	case 1:
-		cosChi, sinChi = sinXm4, cosXm4.Neg()
-	case 2:
-		cosChi, sinChi = cosXm4.Neg(), sinXm4.Neg()
-	default: // 3
-		cosChi, sinChi = sinXm4.Neg(), cosXm4
+	// Jn(x) = target/sum × 2**(-64 (shifts - targetShifts))
+	sv, e := gammaNormalize256(sum.v, 0)
+	res := lgammaFix256{target.neg, gammaMul6(target.v, gammaRecip256(sv))}
+	return j0Result(res, -e-64*(shifts-targetShifts))
+}
+
+// jnHankel256 returns Jn(x) for n >= 2 and x = m × 2**(exp-236) >= max(110, 2 n**2) using Hankel's asymptotic expansion
+//
+//	Jn(x) = sqrt(2/(pi x)) (P(x) cos(chi) - Q(x) sin(chi)), chi = x - (n/2 + 1/4) pi,
+//
+// where P(x) = sum (-1)**k t(2k), Q(x) = sum (-1)**k t(2k+1), t(k) = prod (4 n**2-(2i-1)**2)/(i 8 x) (see j1Hankel256).
+// The terms decrease until k ~ 2x or the ratios (4 n**2-(2k-1)**2)/(8 k x) < 1/(4k), whichever is later, so that
+// the minimum term, which is the error of the expansion, is less than 2**-300 for x >= max(110, 2 n**2).
+func jnHankel256(n int, x Float256, exp int, m ints.Uint256) Float256 {
+	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
+	r := gammaRecip256(gammaFix256FromUint256(m, 84))
+	w := r.shr(uint(exp + 3)) // 1/(8x)
+
+	mu := 4 * int64(n) * int64(n)
+	p := lgammaFix256{false, gammaOne256}
+	var q lgammaFix256
+	t := lgammaFix256{false, gammaOne256}
+	for k := uint64(1); ; k++ {
+		// t(k) = t(k-1) (4 n**2-(2k-1)**2) w/k
+		c := mu - int64((2*k-1)*(2*k-1))
+		mag := gammaMul6(t.v, w).mulUint(uint64(max(c, -c))).divUint(k)
+		if mag == (gammaFix256{}) {
+			break
+		}
+		if k > 1 && mag.cmp(t.v) >= 0 {
+			break // The terms begin to increase.
+		}
+		t = lgammaFix256{t.neg != (c < 0), mag}
+		// the sign is (-1)**(k/2)
+		term := lgammaFix256{t.neg != ((k/2)%2 == 1), mag}
+		if k%2 == 0 {
+			p = p.add(term)
+		} else {
+			q = q.add(term)
+		}
 	}
-	amp := Two.Quo(Pi.Mul(x)).Sqrt()
-	return amp.Mul(P.Mul(cosChi).Sub(Q.Mul(sinChi)))
+
+	// cos(chi) and sin(chi) for chi = x - (2n+1) pi/4 = (j-2n-1) pi/4 + z, where x = j pi/4 + z (mod 2 pi) and |z| <= pi/4.
+	j, hi, lo := reduce256(x)
+	z := float256ToFix(hi).add(float256ToFix(lo))
+	s, c := sincosFix256(z)
+	c, s = rotateOctant((int(j)+8-(2*n+1)%8)%8, c, s)
+
+	// P cos(chi) - Q sin(chi)
+	q = q.negate()
+	val := lgammaFix256{p.neg != c.neg, gammaMul6(p.v, c.v)}.add(lgammaFix256{q.neg != s.neg, gammaMul6(q.v, s.v)})
+
+	amp, e := besselAmp256(r, exp)
+	return j0Result(lgammaFix256{val.neg, gammaMul6(val.v, amp)}, -e/2)
 }
