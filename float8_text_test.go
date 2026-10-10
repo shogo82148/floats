@@ -341,16 +341,12 @@ func TestFloat8_Append(t *testing.T) {
 func TestFloat8_Format(t *testing.T) {
 	t.Parallel()
 	// Float64 prints the exact value with the formats that have an explicit precision.
-	exact := []string{"%.3f", "%.0e", "%10.2f", "%-10.2f|", "%+.2e", "%x", "%.2x", "%.3g", "%12.4E"}
+	exact := []string{"%.3f", "%.0e", "%10.2f", "%-10.2f|", "%+.2e", "%x", "%.2x", "%.3g", "%12.4E", "%010.3f", "%+012.3f", "%-+10.1e|", "% .2f", "%#.3x", "%#.0e", "%#.0f", "%#08.2f", "%#.4g"}
 	// Float64 prints the shortest representation of Float64, so the shortest representations
 	// of the Float8 values are compared with the Float64 values parsed from them.
-	shortest := []string{"%v", "%g", "%G", "%8v", "%-8v|", "% v"}
+	shortest := []string{"%v", "%g", "%G", "%8v", "%-8v|", "% v", "%+v", "%+8v", "%08v", "%-08v|", "%#g", "%#v"}
 	forEachFloat8(t, func(t *testing.T, enc uint8, a, b float8Value) {
 		for name, v := range map[string]float8Value{"Float8E4M3": a, "Float8E5M2": b} {
-			if v.IsNaN() || math.IsInf(float64(v.Float64()), 0) {
-				// the layout of the non-finite values is shared with the other types.
-				continue
-			}
 			for _, f := range exact {
 				if got, want := fmt.Sprintf(f, v), fmt.Sprintf(f, float64(v.Float64())); got != want {
 					t.Errorf("Sprintf(%q, %s(%#02x)) = %q, want %q", f, name, enc, got, want)
