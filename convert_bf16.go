@@ -88,36 +88,10 @@ func (a Float64) float32RoundToOdd() Float32 {
 
 // BFloat16 converts a to a BFloat16.
 func (a Float128) BFloat16() BFloat16 {
-	f := a.Float64()
-	if f.IsNaN() || f.IsInf(0) || f.Float128() == a {
-		return f.BFloat16()
-	}
-	// a is not representable in Float64. Round to odd.
-	u := math.Float64bits(float64(f))
-	if u&1 == 0 {
-		if f.Float128().Abs().Gt(a.Abs()) {
-			u--
-		} else {
-			u++
-		}
-	}
-	return Float64(math.Float64frombits(u)).BFloat16()
+	return a.float32RoundToOdd().BFloat16()
 }
 
 // BFloat16 converts a to a BFloat16.
 func (a Float256) BFloat16() BFloat16 {
-	f := a.Float64()
-	if f.IsNaN() || f.IsInf(0) || f.Float256() == a {
-		return f.BFloat16()
-	}
-	// a is not representable in Float64. Round to odd.
-	u := math.Float64bits(float64(f))
-	if u&1 == 0 {
-		if f.Float256().Abs().Gt(a.Abs()) {
-			u--
-		} else {
-			u++
-		}
-	}
-	return Float64(math.Float64frombits(u)).BFloat16()
+	return a.float32RoundToOdd().BFloat16()
 }
