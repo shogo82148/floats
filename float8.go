@@ -74,3 +74,13 @@ func (a Float8E4M3) Signbit() bool {
 func (a Float8E5M2) Signbit() bool {
 	return a&0x80 != 0
 }
+
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float8E4M3) IsZero() bool {
+	return a&0x7f == 0
+}
+
+// IsZero reports whether a is zero (+0 or -0).
+func (a Float8E5M2) IsZero() bool {
+	return a&0x7f == 0
+}
