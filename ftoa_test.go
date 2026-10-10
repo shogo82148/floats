@@ -45,7 +45,7 @@ func BenchmarkString(b *testing.B) {
 func formatCases() []string {
 	var ret []string
 	for _, verb := range []string{"v", "g", "G", "e", "E", "f", "F", "x", "X", "b"} {
-		for _, flags := range []string{"", "+", " ", "-", "0", "+0", "-+", " 0", "- ", "+ "} {
+		for _, flags := range []string{"", "+", " ", "-", "0", "+0", "-+", " 0", "- ", "+ ", "#", "#+", "#0", "#-"} {
 			for _, width := range []string{"", "1", "12"} {
 				for _, prec := range []string{"", ".0", ".3"} {
 					ret = append(ret, "%"+flags+width+prec+verb)

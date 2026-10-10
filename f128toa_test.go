@@ -38,12 +38,12 @@ func TestFloat128_Format(t *testing.T) {
 
 		// verb "%x"
 		{"%x", exact128(0.5), "0x1p-01"},
-		{"%#x", exact128(0.5), "0x1p-01"},
+		{"%#x", exact128(0.5), "0x1.0000p-01"},
 		{"%.1x", exact128(0.5), "0x1.0p-01"},
 
 		// verb "%X"
 		{"%X", exact128(0.5), "0X1P-01"},
-		{"%#X", exact128(0.5), "0X1P-01"},
+		{"%#X", exact128(0.5), "0X1.P-01"},
 		{"%.1X", exact128(0.5), "0X1.0P-01"},
 
 		// verb "%v"

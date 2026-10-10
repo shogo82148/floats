@@ -35,12 +35,12 @@ func TestFloat32_Format(t *testing.T) {
 		{"%.1g", exact32(0.25), "0.2"},
 		// verb "%x"
 		{"%x", exact32(0.5), "0x1p-01"},
-		{"%#x", exact32(0.5), "0x1p-01"},
+		{"%#x", exact32(0.5), "0x1.0000p-01"},
 		{"%.1x", exact32(0.5), "0x1.0p-01"},
 
 		// verb "%X"
 		{"%X", exact32(0.5), "0X1P-01"},
-		{"%#X", exact32(0.5), "0X1P-01"},
+		{"%#X", exact32(0.5), "0X1.P-01"},
 		{"%.1X", exact32(0.5), "0X1.0P-01"},
 
 		// verb "%v"

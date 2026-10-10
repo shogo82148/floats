@@ -36,12 +36,12 @@ func TestFloat64_Format(t *testing.T) {
 
 		// verb "%x"
 		{"%x", exact64(0.5), "0x1p-01"},
-		{"%#x", exact64(0.5), "0x1p-01"},
+		{"%#x", exact64(0.5), "0x1.0000p-01"},
 		{"%.1x", exact64(0.5), "0x1.0p-01"},
 
 		// verb "%X"
 		{"%X", exact64(0.5), "0X1P-01"},
-		{"%#X", exact64(0.5), "0X1P-01"},
+		{"%#X", exact64(0.5), "0X1.P-01"},
 		{"%.1X", exact64(0.5), "0X1.0P-01"},
 
 		// verb "%v"

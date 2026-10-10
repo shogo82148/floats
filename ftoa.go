@@ -33,6 +33,8 @@ func format(x floatN, s fmt.State, verb rune) {
 	// For %+v, the "+" flag of the Formatter means the "plusV" flag of fmt, that is not for the sign.
 	plus := s.Flag('+') && verb != 'v'
 	space := s.Flag(' ')
+	// For %#v, the "#" flag of the Formatter means the "sharpV" flag of fmt, that is for the Go syntax.
+	sharp := s.Flag('#') && verb != 'v'
 	minus := s.Flag('-')
 	zero := s.Flag('0') && !minus
 	width, hasWidth := s.Width()
@@ -58,6 +60,10 @@ func format(x floatN, s fmt.State, verb rune) {
 		return
 	}
 
+	if sharp && f != 'b' {
+		num = formatSharp(num, f, prec)
+	}
+
 	// We want a sign if asked for and if the sign is not positive.
 	if plus || num[0] != '+' {
 		// If we're zero padding to the left we want the sign before the leading zeros.
@@ -72,6 +78,65 @@ func format(x floatN, s fmt.State, verb rune) {
 
 	// No sign to show and the number is positive; just print the unsigned number.
 	writePadding(s, num[1:], width, hasWidth, zero, minus)
+}
+
+// formatSharp changes num, which has the sign at the first byte, for the "#" flag:
+// it always has a decimal point, and %g and %x keep the trailing zeros.
+func formatSharp(num []byte, verb byte, prec int) []byte {
+	digits := 0
+	switch verb {
+	case 'g', 'G', 'x':
+		digits = prec
+		// If no precision is set explicitly use a precision of 6.
+		if digits == -1 {
+			digits = 6
+		}
+	}
+
+	// Buffer pre-allocated with enough room for exponent notations of the form "e+123" or "p-1023".
+	var tailBuf [6]byte
+	tail := tailBuf[:0]
+
+	hasDecimalPoint := false
+	sawNonzeroDigit := false
+	// Starting from i = 1 to skip sign at num[0].
+loop:
+	for i := 1; i < len(num); i++ {
+		switch num[i] {
+		case '.':
+			hasDecimalPoint = true
+		case 'p', 'P':
+			tail = append(tail, num[i:]...)
+			num = num[:i]
+			break loop
+		case 'e', 'E':
+			if verb != 'x' && verb != 'X' {
+				tail = append(tail, num[i:]...)
+				num = num[:i]
+				break loop
+			}
+			fallthrough
+		default:
+			// Count significant digits after the first non-zero digit.
+			if num[i] != '0' {
+				sawNonzeroDigit = true
+			}
+			if sawNonzeroDigit {
+				digits--
+			}
+		}
+	}
+	if !hasDecimalPoint {
+		// Leading digit 0 should contribute once to digits.
+		if len(num) == 2 && num[1] == '0' {
+			digits--
+		}
+		num = append(num, '.')
+	}
+	for ; digits > 0; digits-- {
+		num = append(num, '0')
+	}
+	return append(num, tail...)
 }
 
 // writePadding writes data to s with padding to the width.
