@@ -3,6 +3,7 @@ package floats
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
@@ -312,4 +313,58 @@ func TestFloat8_Marshal(t *testing.T) {
 	if err := a.UnmarshalJSON([]byte("1e999")); err == nil {
 		t.Error("UnmarshalJSON should fail")
 	}
+}
+
+func TestFloat8_Append(t *testing.T) {
+	t.Parallel()
+	forEachFloat8(t, func(t *testing.T, enc uint8, a, b float8Value) {
+		x, y := a.(Float8E4M3), b.(Float8E5M2)
+		for _, f := range []byte{'b', 'e', 'f', 'g', 'x', 'q'} {
+			for _, prec := range []int{-1, 0, 3} {
+				if got, want := string(x.Append([]byte("pre:"), f, prec)), "pre:"+x.Text(f, prec); got != want {
+					t.Errorf("Float8E4M3(%#02x).Append(%q, %d) = %q, want %q", enc, f, prec, got, want)
+				}
+				if got, want := string(y.Append([]byte("pre:"), f, prec)), "pre:"+y.Text(f, prec); got != want {
+					t.Errorf("Float8E5M2(%#02x).Append(%q, %d) = %q, want %q", enc, f, prec, got, want)
+				}
+			}
+		}
+		if got, err := x.AppendText([]byte("pre:")); err != nil || string(got) != "pre:"+x.String() {
+			t.Errorf("Float8E4M3(%#02x).AppendText = %q, %v", enc, got, err)
+		}
+		if got, err := y.AppendText([]byte("pre:")); err != nil || string(got) != "pre:"+y.String() {
+			t.Errorf("Float8E5M2(%#02x).AppendText = %q, %v", enc, got, err)
+		}
+	})
+}
+
+func TestFloat8_Format(t *testing.T) {
+	t.Parallel()
+	// Float64 prints the exact value with the formats that have an explicit precision.
+	exact := []string{"%.3f", "%.0e", "%10.2f", "%-10.2f|", "%+.2e", "%x", "%.2x", "%.3g", "%12.4E"}
+	// Float64 prints the shortest representation of Float64, so the shortest representations
+	// of the Float8 values are compared with the Float64 values parsed from them.
+	shortest := []string{"%v", "%g", "%G", "%8v", "%-8v|", "% v"}
+	forEachFloat8(t, func(t *testing.T, enc uint8, a, b float8Value) {
+		for name, v := range map[string]float8Value{"Float8E4M3": a, "Float8E5M2": b} {
+			if v.IsNaN() || math.IsInf(float64(v.Float64()), 0) {
+				// the layout of the non-finite values is shared with the other types.
+				continue
+			}
+			for _, f := range exact {
+				if got, want := fmt.Sprintf(f, v), fmt.Sprintf(f, float64(v.Float64())); got != want {
+					t.Errorf("Sprintf(%q, %s(%#02x)) = %q, want %q", f, name, enc, got, want)
+				}
+			}
+			p, err := strconv.ParseFloat(v.String(), 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range shortest {
+				if got, want := fmt.Sprintf(f, v), fmt.Sprintf(f, p); got != want {
+					t.Errorf("Sprintf(%q, %s(%#02x)) = %q, want %q", f, name, enc, got, want)
+				}
+			}
+		}
+	})
 }

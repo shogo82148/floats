@@ -228,15 +228,16 @@ func (p float8Params) roundShortest(d *decimal, frac uint8, exp int) {
 
 // Text returns the string representation of a in the given format and precision.
 func (a Float8E4M3) Text(fmt byte, prec int) string {
-	return string(a.append(make([]byte, 0, 8), fmt, prec))
+	return string(a.Append(make([]byte, 0, 8), fmt, prec))
 }
 
 // Text returns the string representation of a in the given format and precision.
 func (a Float8E5M2) Text(fmt byte, prec int) string {
-	return string(a.append(make([]byte, 0, 8), fmt, prec))
+	return string(a.Append(make([]byte, 0, 8), fmt, prec))
 }
 
-func (a Float8E4M3) append(dst []byte, fmt byte, prec int) []byte {
+// Append appends the string representation of a in the given format and precision to dst and returns the extended buffer.
+func (a Float8E4M3) Append(dst []byte, fmt byte, prec int) []byte {
 	if a.IsNaN() {
 		return append(dst, "NaN"...)
 	}
@@ -245,7 +246,8 @@ func (a Float8E4M3) append(dst []byte, fmt byte, prec int) []byte {
 	})
 }
 
-func (a Float8E5M2) append(dst []byte, fmt byte, prec int) []byte {
+// Append appends the string representation of a in the given format and precision to dst and returns the extended buffer.
+func (a Float8E5M2) Append(dst []byte, fmt byte, prec int) []byte {
 	switch {
 	case a.IsNaN():
 		return append(dst, "NaN"...)
@@ -257,6 +259,20 @@ func (a Float8E5M2) append(dst []byte, fmt byte, prec int) []byte {
 	return paramsE5M2.append(dst, uint8(a), fmt, prec, func(dst []byte, fmt byte, prec int) []byte {
 		return a.Float32().Append(dst, fmt, prec)
 	})
+}
+
+var _ fmt.Formatter = Float8E4M3(0)
+
+// Format implements [fmt.Formatter].
+func (a Float8E4M3) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
+}
+
+var _ fmt.Formatter = Float8E5M2(0)
+
+// Format implements [fmt.Formatter].
+func (a Float8E5M2) Format(s fmt.State, verb rune) {
+	format(a, s, verb)
 }
 
 var _ fmt.Stringer = Float8E4M3(0)
@@ -281,7 +297,7 @@ func (a Float8E4M3) MarshalJSON() ([]byte, error) {
 	if a.IsNaN() {
 		return nil, fmt.Errorf("floats: cannot marshal %v to JSON", a)
 	}
-	return a.append(nil, 'g', -1), nil
+	return a.Append(nil, 'g', -1), nil
 }
 
 var _ json.Marshaler = Float8E5M2(0)
@@ -292,21 +308,21 @@ func (a Float8E5M2) MarshalJSON() ([]byte, error) {
 	if a.IsNaN() || a.IsInf(0) {
 		return nil, fmt.Errorf("floats: cannot marshal %v to JSON", a)
 	}
-	return a.append(nil, 'g', -1), nil
+	return a.Append(nil, 'g', -1), nil
 }
 
 var _ encoding.TextMarshaler = Float8E4M3(0)
 
 // MarshalText implements [encoding.TextMarshaler].
 func (a Float8E4M3) MarshalText() ([]byte, error) {
-	return a.append(nil, 'g', -1), nil
+	return a.Append(nil, 'g', -1), nil
 }
 
 var _ encoding.TextMarshaler = Float8E5M2(0)
 
 // MarshalText implements [encoding.TextMarshaler].
 func (a Float8E5M2) MarshalText() ([]byte, error) {
-	return a.append(nil, 'g', -1), nil
+	return a.Append(nil, 'g', -1), nil
 }
 
 // atof8 parses the prefix of s as a floating-point number except the special values.
@@ -558,4 +574,18 @@ func (a *Float8E5M2) UnmarshalText(data []byte) error {
 	}
 	*a = ret
 	return nil
+}
+
+var _ encoding.TextAppender = Float8E4M3(0)
+
+// AppendText implements [encoding.TextAppender].
+func (a Float8E4M3) AppendText(dst []byte) ([]byte, error) {
+	return a.Append(dst, 'g', -1), nil
+}
+
+var _ encoding.TextAppender = Float8E5M2(0)
+
+// AppendText implements [encoding.TextAppender].
+func (a Float8E5M2) AppendText(dst []byte) ([]byte, error) {
+	return a.Append(dst, 'g', -1), nil
 }
