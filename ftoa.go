@@ -1,9 +1,6 @@
 package floats
 
-import (
-	"fmt"
-	"io"
-)
+import "fmt"
 
 type floatN interface {
 	IsNaN() bool
@@ -11,61 +8,91 @@ type floatN interface {
 	Append(dst []byte, fmt byte, prec int) []byte
 }
 
+// format implements [fmt.Formatter] in the same way as the floating-point numbers of the fmt package.
 func format(x floatN, s fmt.State, verb rune) {
-	if x.IsNaN() {
-		_, _ = io.WriteString(s, "NaN")
-		return
-	}
-
-	var prefix []byte
-	var data []byte
-
-	// sign
-	if !x.Signbit() {
-		if s.Flag('+') {
-			prefix = append(prefix, '+')
-		} else if s.Flag(' ') {
-			prefix = append(prefix, ' ')
-		}
-	}
-
+	// the default precision
+	var prec int
+	var f byte
 	switch verb {
-	case 'b':
-		data = x.Append(data, 'b', -1)
-	case 'f', 'e', 'E', 'g', 'G', 'x', 'X':
-		if prec, ok := s.Precision(); ok {
-			data = x.Append(data, byte(verb), prec)
-		} else {
-			data = x.Append(data, byte(verb), -1)
-		}
 	case 'v':
-		data = x.Append(data, 'g', -1)
+		f, prec = 'g', -1
+	case 'g', 'G', 'x', 'X', 'b', 'e', 'E':
+		f, prec = byte(verb), -1
+	case 'f', 'F':
+		f, prec = 'f', -1
+	default:
+		_, _ = fmt.Fprintf(s, "%%!%c(%T=%s)", verb, x, x.Append(nil, 'g', -1))
+		return
+	}
+	if p, ok := s.Precision(); ok {
+		prec = p
 	}
 
-	if w, ok := s.Width(); ok {
-		var buf [1]byte
-		if s.Flag('-') {
-			_, _ = s.Write(prefix)
-			_, _ = s.Write(data)
-			buf[0] = ' '
-			for i := len(data); i < w; i++ {
-				_, _ = s.Write(buf[:1])
-			}
-		} else {
-			buf[0] = ' '
-			for i := len(data); i < w; i++ {
-				_, _ = s.Write(buf[:1])
-			}
-			_, _ = s.Write(prefix)
-			_, _ = s.Write(data)
+	// For %+v, the "+" flag of the Formatter means the "plusV" flag of fmt, that is not for the sign.
+	plus := s.Flag('+') && verb != 'v'
+	space := s.Flag(' ')
+	minus := s.Flag('-')
+	zero := s.Flag('0') && !minus
+	width, hasWidth := s.Width()
+
+	// num has the sign at the first byte.
+	num := x.Append(make([]byte, 1, 16), f, prec)
+	if num[1] == '-' || num[1] == '+' {
+		num = num[1:]
+	} else {
+		num[0] = '+'
+	}
+	// space means to add a leading space instead of a "+" sign unless plus is used.
+	if space && num[0] == '+' && !plus {
+		num[0] = ' '
+	}
+
+	// Infinities and NaN don't look like a number so shouldn't be padded with zeros.
+	if num[1] == 'I' || num[1] == 'N' {
+		if num[1] == 'N' && !space && !plus {
+			num = num[1:]
 		}
+		writePadding(s, num, width, hasWidth, false, minus)
 		return
 	}
 
-	if len(prefix) > 0 {
-		_, _ = s.Write(prefix)
+	// We want a sign if asked for and if the sign is not positive.
+	if plus || num[0] != '+' {
+		// If we're zero padding to the left we want the sign before the leading zeros.
+		if zero && hasWidth && width > len(num) {
+			_, _ = s.Write(num[:1])
+			writePadding(s, num[1:], width-1, true, true, false)
+			return
+		}
+		writePadding(s, num, width, hasWidth, false, minus)
+		return
 	}
-	_, _ = s.Write(data)
+
+	// No sign to show and the number is positive; just print the unsigned number.
+	writePadding(s, num[1:], width, hasWidth, zero, minus)
+}
+
+// writePadding writes data to s with padding to the width.
+// The padding is on the left side with spaces or zeros, or on the right side with spaces if minus is true.
+func writePadding(s fmt.State, data []byte, width int, hasWidth, zero, minus bool) {
+	pad := 0
+	if hasWidth && width > len(data) {
+		pad = width - len(data)
+	}
+	var buf [1]byte
+	if minus {
+		_, _ = s.Write(data)
+	}
+	buf[0] = ' '
+	if zero {
+		buf[0] = '0'
+	}
+	for range pad {
+		_, _ = s.Write(buf[:])
+	}
+	if !minus {
+		_, _ = s.Write(data)
+	}
 }
 
 func formatDigits(dst []byte, neg bool, d *decimal, shortest bool, prec int, fmt byte) []byte {
