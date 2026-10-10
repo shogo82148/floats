@@ -362,6 +362,12 @@ func TestFloat8_Examples(t *testing.T) {
 	}
 	for _, tt := range tests {
 		a := NewFloat64(tt.in)
+		if got := NewFloat8E4M3(tt.in); uint8(got) != tt.e4m3 {
+			t.Errorf("NewFloat8E4M3(%v) = %#02x, want %#02x", tt.in, uint8(got), tt.e4m3)
+		}
+		if got := NewFloat8E5M2(tt.in); uint8(got) != tt.e5m2 {
+			t.Errorf("NewFloat8E5M2(%v) = %#02x, want %#02x", tt.in, uint8(got), tt.e5m2)
+		}
 		if got := a.Float8E4M3(); uint8(got) != tt.e4m3 {
 			t.Errorf("Float8E4M3(%v) = %#02x, want %#02x", tt.in, uint8(got), tt.e4m3)
 		}

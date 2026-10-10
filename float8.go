@@ -20,3 +20,13 @@ type Float8E4M3 uint8
 // The conversions to Float8E5M2 round to nearest even,
 // and a value whose magnitude is too large to be represented is converted to infinity.
 type Float8E5M2 uint8
+
+// NewFloat8E4M3 converts f to Float8E4M3.
+func NewFloat8E4M3(f float64) Float8E4M3 {
+	return Float64(f).Float8E4M3()
+}
+
+// NewFloat8E5M2 converts f to Float8E5M2.
+func NewFloat8E5M2(f float64) Float8E5M2 {
+	return Float64(f).Float8E5M2()
+}
