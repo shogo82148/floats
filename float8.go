@@ -30,3 +30,37 @@ func NewFloat8E4M3(f float64) Float8E4M3 {
 func NewFloat8E5M2(f float64) Float8E5M2 {
 	return Float64(f).Float8E5M2()
 }
+
+// Bits returns the binary representation of a.
+func (a Float8E4M3) Bits() uint8 {
+	return uint8(a)
+}
+
+// Bits returns the binary representation of a.
+func (a Float8E5M2) Bits() uint8 {
+	return uint8(a)
+}
+
+// IsNaN reports whether a is a “not-a-number” value.
+func (a Float8E4M3) IsNaN() bool {
+	return a&0x7f == uvnane4m3
+}
+
+// IsNaN reports whether a is an IEEE 754 “not-a-number” value.
+func (a Float8E5M2) IsNaN() bool {
+	return a&0x7f > uvinfe5m2
+}
+
+// IsInf reports whether a is an infinity, according to sign.
+// Float8E4M3 has no infinity, so IsInf always reports false.
+func (a Float8E4M3) IsInf(sign int) bool {
+	return false
+}
+
+// IsInf reports whether a is an infinity, according to sign.
+// If sign > 0, IsInf reports whether a is positive infinity.
+// If sign < 0, IsInf reports whether a is negative infinity.
+// If sign == 0, IsInf reports whether a is either infinity.
+func (a Float8E5M2) IsInf(sign int) bool {
+	return sign >= 0 && a == uvinfe5m2 || sign <= 0 && a == uvinfe5m2|0x80
+}

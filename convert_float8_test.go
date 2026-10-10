@@ -382,3 +382,34 @@ func TestFloat8_Examples(t *testing.T) {
 		t.Errorf("Float8E5M2(NaN) = %#02x", uint8(got))
 	}
 }
+
+func TestFloat8_Predicates(t *testing.T) {
+	t.Parallel()
+	for i := range 256 {
+		a := Float8E4M3(i)
+		if got := a.Bits(); got != uint8(i) {
+			t.Errorf("Float8E4M3(%#02x).Bits() = %#02x", i, got)
+		}
+		if got, want := a.IsNaN(), a.Float64().IsNaN(); got != want {
+			t.Errorf("Float8E4M3(%#02x).IsNaN() = %v, want %v", i, got, want)
+		}
+		for _, sign := range []int{-1, 0, 1} {
+			if a.IsInf(sign) {
+				t.Errorf("Float8E4M3(%#02x).IsInf(%d) = true", i, sign)
+			}
+		}
+
+		b := Float8E5M2(i)
+		if got := b.Bits(); got != uint8(i) {
+			t.Errorf("Float8E5M2(%#02x).Bits() = %#02x", i, got)
+		}
+		if got, want := b.IsNaN(), b.Float64().IsNaN(); got != want {
+			t.Errorf("Float8E5M2(%#02x).IsNaN() = %v, want %v", i, got, want)
+		}
+		for _, sign := range []int{-1, 0, 1} {
+			if got, want := b.IsInf(sign), b.Float64().IsInf(sign); got != want {
+				t.Errorf("Float8E5M2(%#02x).IsInf(%d) = %v, want %v", i, sign, got, want)
+			}
+		}
+	}
+}
