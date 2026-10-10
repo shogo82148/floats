@@ -390,6 +390,9 @@ func TestFloat8_Predicates(t *testing.T) {
 		if got := a.Bits(); got != uint8(i) {
 			t.Errorf("Float8E4M3(%#02x).Bits() = %#02x", i, got)
 		}
+		if got, want := a.Signbit(), i >= 0x80; got != want {
+			t.Errorf("Float8E4M3(%#02x).Signbit() = %v, want %v", i, got, want)
+		}
 		if got, want := a.IsNaN(), a.Float64().IsNaN(); got != want {
 			t.Errorf("Float8E4M3(%#02x).IsNaN() = %v, want %v", i, got, want)
 		}
@@ -402,6 +405,9 @@ func TestFloat8_Predicates(t *testing.T) {
 		b := Float8E5M2(i)
 		if got := b.Bits(); got != uint8(i) {
 			t.Errorf("Float8E5M2(%#02x).Bits() = %#02x", i, got)
+		}
+		if got, want := b.Signbit(), i >= 0x80; got != want {
+			t.Errorf("Float8E5M2(%#02x).Signbit() = %v, want %v", i, got, want)
 		}
 		if got, want := b.IsNaN(), b.Float64().IsNaN(); got != want {
 			t.Errorf("Float8E5M2(%#02x).IsNaN() = %v, want %v", i, got, want)

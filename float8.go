@@ -64,3 +64,13 @@ func (a Float8E4M3) IsInf(sign int) bool {
 func (a Float8E5M2) IsInf(sign int) bool {
 	return sign >= 0 && a == uvinfe5m2 || sign <= 0 && a == uvinfe5m2|0x80
 }
+
+// Signbit reports whether a is negative or negative zero.
+func (a Float8E4M3) Signbit() bool {
+	return a&0x80 != 0
+}
+
+// Signbit reports whether a is negative or negative zero.
+func (a Float8E5M2) Signbit() bool {
+	return a&0x80 != 0
+}
