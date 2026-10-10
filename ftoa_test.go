@@ -48,10 +48,6 @@ func formatCases() []string {
 		for _, flags := range []string{"", "+", " ", "-", "0", "+0", "-+", " 0", "- ", "+ "} {
 			for _, width := range []string{"", "1", "12"} {
 				for _, prec := range []string{"", ".0", ".3"} {
-					if prec == "" && strings.Contains("eEfF", verb) {
-						// Without the precision, these verbs print the shortest representation.
-						continue
-					}
 					ret = append(ret, "%"+flags+width+prec+verb)
 				}
 			}

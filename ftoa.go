@@ -16,10 +16,12 @@ func format(x floatN, s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		f, prec = 'g', -1
-	case 'g', 'G', 'x', 'X', 'b', 'e', 'E':
+	case 'g', 'G', 'x', 'X', 'b':
 		f, prec = byte(verb), -1
+	case 'e', 'E':
+		f, prec = byte(verb), 6
 	case 'f', 'F':
-		f, prec = 'f', -1
+		f, prec = 'f', 6
 	default:
 		_, _ = fmt.Fprintf(s, "%%!%c(%T=%s)", verb, x, x.Append(nil, 'g', -1))
 		return
