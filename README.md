@@ -11,6 +11,7 @@ Supported types are:
 
 - [Float16](https://pkg.go.dev/github.com/shogo82148/floats#Float16): [Half-precision floating-point format](https://en.wikipedia.org/wiki/Half-precision_floating-point_format)
 - [BFloat16](https://pkg.go.dev/github.com/shogo82148/floats#BFloat16): [Bfloat16 floating-point format](https://en.wikipedia.org/wiki/Bfloat16_floating-point_format)
+- [Float8E4M3](https://pkg.go.dev/github.com/shogo82148/floats#Float8E4M3), [Float8E5M2](https://pkg.go.dev/github.com/shogo82148/floats#Float8E5M2): [8-bit floating point formats](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1) (only the conversions to and from the other types)
 - [Float32](https://pkg.go.dev/github.com/shogo82148/floats#Float32): [Single-precision floating-point format](https://en.wikipedia.org/wiki/Single-precision_floating-point_format)
 - [Float64](https://pkg.go.dev/github.com/shogo82148/floats#Float64): [Double-precision floating-point format](https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
 - [Float128](https://pkg.go.dev/github.com/shogo82148/floats#Float128): [Quadruple-precision floating-point format](https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format)
