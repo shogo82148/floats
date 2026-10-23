@@ -2,7 +2,9 @@ package floats
 
 import (
 	"encoding"
+	"encoding/binary"
 	"encoding/json"
+	"math/big"
 	"strconv"
 
 	"github.com/shogo82148/ints"
@@ -244,6 +246,12 @@ func atof256Hex(s string, mantissa ints.Uint256, exp int, neg, trunc bool) (Floa
 	return Float256(bits), err
 }
 
+// decimalLimit256 is the largest absolute value of the decimal point position
+// for which float256 scales the decimal by shifting it. The cost of the shifts
+// grows with the square of the position, so that a short input such as
+// "1e78000" would take seconds. Larger positions are handled by float256Big.
+const decimalLimit256 = 1000
+
 func (d *decimal) float256() (f Float256, overflow bool) {
 	var exp int
 	var mant ints.Uint256
@@ -263,6 +271,15 @@ func (d *decimal) float256() (f Float256, overflow bool) {
 		// underflow to zero
 		mant = ints.Uint256{0, 0, 0, 0}
 		exp = -bias256
+		goto out
+	}
+
+	// Shifting the decimal is too slow for a large exponent.
+	if d.dp > decimalLimit256 || d.dp < -decimalLimit256 {
+		mant, exp, overflow = d.float256Big()
+		if overflow {
+			goto overflow
+		}
 		goto out
 	}
 
@@ -339,6 +356,87 @@ out:
 		bits = bits.Or(signMask256)
 	}
 	return Float256(bits), overflow
+}
+
+// float256Big computes what float256 does between the range checks and the
+// assembly of the bits: the exponent and the rounded mantissa of d.
+// It uses exact integer arithmetic instead of shifting the decimal,
+// so its cost does not depend on how far d is scaled.
+func (d *decimal) float256Big() (mant ints.Uint256, exp int, overflow bool) {
+	// d = num/den * 2^q, because 10^q = 5^q * 2^q.
+	num, _ := new(big.Int).SetString(string(d.d[:d.nd]), 10)
+	den := big.NewInt(1)
+	q := d.dp - d.nd
+	if q > 0 {
+		num.Mul(num, pow5(q))
+	} else if q < 0 {
+		den = pow5(-q)
+	}
+
+	// Find exp such that d is in range [2^exp, 2^(exp+1)).
+	exp = num.BitLen() - den.BitLen() // num/den is in (2^(exp-1), 2^(exp+1))
+	if n, m := scaleRatio(num, den, -exp); n.Cmp(m) < 0 {
+		exp--
+	}
+	exp += q
+
+	// Minimum representable exponent is -bias256+1.
+	// If the exponent is smaller, use it and let the mantissa be denormalized.
+	if exp < -bias256+1 {
+		exp = -bias256 + 1
+	}
+
+	// Check for overflow.
+	if exp >= mask256-bias256 {
+		overflow = true
+		return
+	}
+
+	// Extract 1+shift256 bits of mantissa, and round to nearest even.
+	// d.trunc means that the exact value is a little higher than d.
+	n, m := scaleRatio(num, den, q+shift256-exp)
+	quo, rem := new(big.Int).QuoRem(n, m, new(big.Int))
+	if c := rem.Lsh(rem, 1).Cmp(m); c > 0 || c == 0 && (d.trunc || quo.Bit(0) != 0) {
+		quo.Add(quo, big.NewInt(1))
+	}
+	var buf [32]byte
+	quo.FillBytes(buf[:])
+	mant = ints.Uint256{
+		binary.BigEndian.Uint64(buf[0:]),
+		binary.BigEndian.Uint64(buf[8:]),
+		binary.BigEndian.Uint64(buf[16:]),
+		binary.BigEndian.Uint64(buf[24:]),
+	}
+
+	// Rounding might have added a bit; shift down.
+	if mant.Cmp(ints.Uint256{2 << (shift256 - 192), 0, 0, 0}) == 0 {
+		mant = mant.Rsh(1)
+		exp++
+		if exp >= mask256-bias256 {
+			overflow = true
+			return
+		}
+	}
+
+	// Denormalized?
+	if mant[0]&(1<<(shift256-192)) == 0 {
+		exp = -bias256
+	}
+	return
+}
+
+// pow5 returns 5^n.
+func pow5(n int) *big.Int {
+	return new(big.Int).Exp(big.NewInt(5), big.NewInt(int64(n)), nil)
+}
+
+// scaleRatio returns num and den with the ratio num/den multiplied by 2^s.
+// The result may share storage with the arguments and must not be modified.
+func scaleRatio(num, den *big.Int, s int) (*big.Int, *big.Int) {
+	if s >= 0 {
+		return new(big.Int).Lsh(num, uint(s)), den
+	}
+	return num, new(big.Int).Lsh(den, uint(-s))
 }
 
 func (d *decimal) RoundedUint256() ints.Uint256 {
