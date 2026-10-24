@@ -30,6 +30,13 @@ var parseFloat16Tests = []struct {
 	{"+0x1.ffep+15", exact16(math.Inf(1)), strconv.ErrRange},
 	{"-0x1.ffep+15", exact16(math.Inf(-1)), strconv.ErrRange},
 
+	// the integer part is longer than the digits that the decimal buffer keeps.
+	{"123456789012345678901234567890123456789e-30", exact16(math.Inf(1)), strconv.ErrRange}, // 123456789.01...
+	{"1000000000000000000000000000000000000000e-39", exact16(1), nil},                       // 1 followed by 39 zeros
+	{"1234567890123456789012345678901234567890.5e-39", exact16(1.234375), nil},              // 1.2345678901...
+	{"-1000000000000000000000000000000000000000.0e-39", exact16(-1), nil},                   // 1 followed by 39 zeros
+	{"600000000000000000000000000000000000000000000000e-55", exact16(0x1p-24), nil},         // 6e-8, the minimum positive denormalized
+
 	// denormalized
 	{"6e-8", exact16(0x1p-24), nil}, // min positive denormalized
 	{"1e-7", exact16(0x2p-24), nil},
