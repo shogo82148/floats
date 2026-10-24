@@ -3,6 +3,7 @@ package floats
 import (
 	"bufio"
 	"math"
+	"math/bits"
 	"os"
 	"runtime"
 	"strconv"
@@ -153,5 +154,93 @@ func TestFloat256_JnHankelBreak(t *testing.T) {
 	got, want := jnHankel256(2, x, exp, m), x.Jn(2)
 	if d := got.Sub(want).Abs(); d.Gt(exact256(0x1p-60)) {
 		t.Errorf("jnHankel256(2, 30) = %v; want %v", got, want)
+	}
+}
+
+// TestFloat256_JnHugeOrder checks Hankel's expansion for the orders where 4 n**2 does not fit in int64
+// (n >= 1518500250), and for |math.MinInt|, which cannot be negated.
+//
+// The expected values are computed by mpmath with 250 digits from the exact binary value of x using
+// Hankel's asymptotic expansion (it agrees with mpmath.besselj, where mpmath.besselj is feasible).
+// The absolute error of the expansion is 4 n**2 2**-320 times as large as the value, so that the tolerance is relaxed
+// for n > 2**40.
+func TestFloat256_JnHugeOrder(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		n    int64
+		x    float64
+		want string
+		tol  string
+	}{
+		// 4 n**2 < 2**63 for n = 1518500249, but 4 n**2 > 2**63 for n = 1518500250.
+		{1518500249, 0x1p62, "-0.000000000089795831901133647721585851617987196750580331465459248406822642674192951747208084", "1e-65"},
+		{1518500250, 4.7e18, "-0.00000000036243856803434925724233156860040868364916373099746601284069491466002321986744216", "1e-65"},
+		{-1518500251, 4.7e18, "0.000000000063947633369378605438226440129763263814658283288921164649366473052913723979145806", "1e-65"},
+		{1600000000, 5.2e18, "0.00000000029818804664343790189283881506805289735691740200129998188452641919761414446268192", "1e-65"},
+		{-1600000000, -5.2e18, "0.00000000029818804664343790189283881506805289735691740200129998188452641919761414446268192", "1e-65"},
+		{2147483647, 1e19, "0.00000000014899295725753857270829083212734932739473325791398781980829712704637558575655753", "1e-65"},
+		{-2147483648, 1e19, "-0.00000000020362484109602408699305148543346178948476940325935282665510188403394458477820835", "1e-65"},
+
+		// 64-bit orders
+		{4294967297, 4e19, "-0.0000000001094061244771342037539202847083925474316892432444371325678058634900398211050732", "1e-65"},
+		{1 << 40, 3e24, "-0.00000000000032772642726449779609773607404071797314705828535226704729737103201423920534254504", "1e-65"},
+		{1<<50 + 3, 3e30, "-0.00000000000000030787799668370976678928579066513090069250202022044999370935855477554840043062411", "1e-55"},
+		{-(1<<62 + 1), 5e37, "-0.000000000000000000034378314439536072405220753430403205565555434859307466973463068841974151039194737", "1e-55"},
+		{math.MaxInt64, 1.8e38, "0.000000000000000000058791843032389814268956277831517576342954337818528848689229211748275670867750109", "1e-55"},
+
+		// |math.MinInt64| = 2**63, 4 n**2 = 2**128
+		{math.MinInt64, 1.8e38, "-0.0000000000000000000089607871310542376014345633617869940460806014536836474870853823764579923171163749", "1e-55"},
+		{math.MinInt64, -2e38, "-0.000000000000000000055455612901086278961944599698005427324612971960874997136711627627647875383179646", "1e-55"},
+		{math.MinInt64 + 1, 2e38, "0.000000000000000000010381418959023850408991868044481146317295153068488417451736064269722366720123279", "1e-55"},
+	}
+
+	for _, tt := range tests {
+		if int64(int(tt.n)) != tt.n {
+			continue // does not fit in int
+		}
+		got := exact256(tt.x).Jn(int(tt.n))
+		want, err := ParseFloat256(tt.want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tol, err := ParseFloat256(tt.tol)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := got.Sub(want).Abs(); d.Gt(tol.Mul(want.Abs())) {
+			t.Errorf("Jn(%d, %v) = %v; want %v", tt.n, tt.x, got, tt.want)
+		}
+	}
+}
+
+// TestFloat256_JnHugeOrderRecurrence checks the recurrence relation J(n-1)(x) + J(n+1)(x) = 2n/x J(n)(x),
+// where the orders are beyond the limit of 4 n**2 in int64, and where the order n+1 is -math.MinInt.
+func TestFloat256_JnHugeOrderRecurrence(t *testing.T) {
+	t.Parallel()
+	// -math.MinInt = 2**(bits.UintSize-1), and the Hankel's expansion is used for x >= 2 n**2.
+	minOrder := math.Ldexp(1, bits.UintSize-1)
+	tests := []struct {
+		n    int // the middle order
+		next int // the order next to n, that is the same as n+1 except for math.MinInt
+		x    Float256
+	}{
+		{1518500250, 1518500251, exact256(4.7e18)},
+		{1518500250, 1518500251, exact256(0x1p70 + 0x1p20)},
+		{math.MaxInt - 1, math.MaxInt, exact256(2.5 * minOrder * minOrder)},
+		{math.MaxInt, math.MinInt, exact256(2.5 * minOrder * minOrder)},
+	}
+	for _, tt := range tests {
+		n := tt.n
+		fn, err := ParseFloat256(strconv.Itoa(n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		prev, mid, next := tt.x.Jn(n-1), tt.x.Jn(n), tt.x.Jn(tt.next)
+		lhs := prev.Add(next)
+		rhs := fn.Mul(exact256(2)).Quo(tt.x).Mul(mid)
+		tol := exact256(0x1p-150).Mul(prev.Abs().Add(next.Abs()))
+		if mid.IsZero() || lhs.Sub(rhs).Abs().Gt(tol) {
+			t.Errorf("J(%d)(%v) + J(%d)(%v) = %v; want 2n/x J(%d)(%v) = %v", n-1, tt.x, tt.next, tt.x, lhs, n, tt.x, rhs)
+		}
 	}
 }
