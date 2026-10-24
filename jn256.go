@@ -25,9 +25,11 @@ func (a Float256) Jn(n int) Float256 {
 		return a.J1().Neg()
 	}
 
+	// The magnitude of n as an unsigned integer. Unlike -n, it is exact even for n = math.MinInt.
+	un := uint64(n)
 	neg := false
 	if n < 0 {
-		n = -n
+		un = -un
 		neg = !neg
 	}
 	x := a
@@ -41,9 +43,9 @@ func (a Float256) Jn(n int) Float256 {
 	case x.IsInf(0), x.IsZero():
 		y = Float256{}
 	default:
-		y = jnPositive256(n, x)
+		y = jnPositive256(un, x)
 	}
-	if neg && n%2 == 1 {
+	if neg && un%2 == 1 {
 		y = y.Neg()
 	}
 	return y
@@ -58,16 +60,28 @@ func (a Float256) Jn(n int) Float256 {
 //
 // The absolute error is about 2**-300 in the scale of the values around the order x, so that Jn(x) may not
 // be correctly rounded when it is extremely close to a zero (|Jn(x)| < 2**-70) if x >= 2.
-func jnPositive256(n int, x Float256) Float256 {
+//
+// n is uint64, because |math.MinInt| is not an int.
+func jnPositive256(n uint64, x Float256) Float256 {
 	_, exp, m := x.normalize()
 	x64 := math.Ldexp(float64(m[0]), exp-44)
+	if n > math.MaxInt {
+		// n = |math.MinInt|, which jnTaylor256 and jnMiller256 cannot take as an int.
+		// Hankel's asymptotic expansion calculates it for x >= 2 n**2. Otherwise, the result is 0,
+		// which is exact if x**2 < 2 (n+1) (the Taylor series underflows), but not for x about n or larger,
+		// where Miller's algorithm would need more than n steps, and it is not supported.
+		if x64 >= 2*float64(n)*float64(n) {
+			return jnHankel256(n, x, exp, m)
+		}
+		return Float256{}
+	}
 	if x64*x64 < 2*float64(n+1) {
-		return jnTaylor256(n, exp, m)
+		return jnTaylor256(int(n), exp, m)
 	}
 	if x64 >= 110 && x64 >= 2*float64(n)*float64(n) {
 		return jnHankel256(n, x, exp, m)
 	}
-	return jnMiller256(n, exp, m)
+	return jnMiller256(int(n), exp, m)
 }
 
 // jnTaylor256 returns Jn(x) for n >= 2 and x = m × 2**(exp-236) < sqrt(2 (n+1)) by the Taylor series
@@ -78,7 +92,7 @@ func jnPositive256(n int, x Float256) Float256 {
 func jnTaylor256(n, exp int, m ints.Uint256) Float256 {
 	// (x/2)**n/n! = exp(n log(x/2) - log(n!)), which is less than 1. It underflows (< 2**-262379 ~ e**-181868) soon,
 	// and n < 2**15 otherwise.
-	if float64(n)*math.Log(math.Ldexp(float64(m[0]), exp-44)/2)-lgamma64(float64(n+1)) < -190000 {
+	if float64(n)*math.Log(math.Ldexp(float64(m[0]), exp-44)/2)-lgamma64(float64(n)+1) < -190000 {
 		return Float256{}
 	}
 	xm := gammaFix256FromUint256(m, 84)
@@ -165,26 +179,45 @@ func jnMiller256(n, exp int, m ints.Uint256) Float256 {
 // where P(x) = sum (-1)**k t(2k), Q(x) = sum (-1)**k t(2k+1), t(k) = prod (4 n**2-(2i-1)**2)/(i 8 x) (see j1Hankel256).
 // The terms decrease until k ~ 2x or the ratios (4 n**2-(2k-1)**2)/(8 k x) < 1/(4k), whichever is later, so that
 // the minimum term, which is the error of the expansion, is less than 2**-300 for x >= max(110, 2 n**2).
-func jnHankel256(n int, x Float256, exp int, m ints.Uint256) Float256 {
+// The rounding error of w is magnified by 4 n**2 in the terms, so that the absolute error is about 4 n**2 2**-320,
+// which exceeds 2**-240 for n > 2**39 (and it is about 2**-190 for n = 2**63).
+func jnHankel256(n uint64, x Float256, exp int, m ints.Uint256) Float256 {
 	// 1/x = r × 2**-exp, where r = 1/xm for the mantissa xm of x in [1, 2).
 	r := gammaRecip256(gammaFix256FromUint256(m, 84))
 	w := r.shr(uint(exp + 3)) // 1/(8x)
 
-	mu := 4 * int64(n) * int64(n)
+	// 4 n**2 = (2n)**2 does not fit in 64 bits for n >= 2**31, and it is 2**128 for n = 2**63.
+	n2 := ints.Uint128{n >> 63, n << 1}
+	mu := n2.Mul256(n2)
 	p := lgammaFix256{false, gammaOne256}
 	var q lgammaFix256
 	t := lgammaFix256{false, gammaOne256}
 	for k := uint64(1); ; k++ {
 		// t(k) = t(k-1) (4 n**2-(2k-1)**2) w/k
-		c := mu - int64((2*k-1)*(2*k-1))
-		mag := gammaMul6(t.v, w).mulUint(uint64(max(c, -c))).divUint(k)
+		// c = |4 n**2-(2k-1)**2|, where 4 n**2 < (2k-1)**2 if and only if n < k.
+		// k is small (the terms vanish soon), so that 4 n**2 fits in the lowest word of mu in that case.
+		sq := (2*k - 1) * (2*k - 1)
+		cneg := n < k
+		var c ints.Uint256
+		if cneg {
+			c[3] = sq - mu[3]
+		} else {
+			c = mu.Sub(ints.Uint256{3: sq})
+		}
+		// c <= 2**128, so that c × tw is the sum of the products of tw and the words of c.
+		tw := gammaMul6(t.v, w)
+		mag := tw.mulUint(c[3])
+		if c[2]|c[1] != 0 {
+			mag = mag.add(tw.mulUint(c[2]).shl(64)).add(tw.mulUint(c[1]).shl(128))
+		}
+		mag = mag.divUint(k)
 		if mag == (gammaFix256{}) {
 			break
 		}
 		if k > 1 && mag.cmp(t.v) >= 0 {
 			break // The terms begin to increase.
 		}
-		t = lgammaFix256{t.neg != (c < 0), mag}
+		t = lgammaFix256{t.neg != cneg, mag}
 		// the sign is (-1)**(k/2)
 		term := lgammaFix256{t.neg != ((k/2)%2 == 1), mag}
 		if k%2 == 0 {
@@ -198,7 +231,7 @@ func jnHankel256(n int, x Float256, exp int, m ints.Uint256) Float256 {
 	j, hi, lo := reduce256(x)
 	z := float256ToFix(hi).add(float256ToFix(lo))
 	s, c := sincosFix256(z)
-	c, s = rotateOctant((int(j)+8-(2*n+1)%8)%8, c, s)
+	c, s = rotateOctant((int(j)+8-int(2*(n%4)+1))%8, c, s) // (2n+1) mod 8 = 2 (n mod 4) + 1
 
 	// P cos(chi) - Q sin(chi)
 	q = q.negate()
